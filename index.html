@@ -1,0 +1,67 @@
+<!Doctype html>
+<html>
+
+<head>
+    <title>Tab Viewer</title>
+    <style type="text/css">
+        @font-face {
+            font-family: Cascadia Tablature;
+            src: url("CascadiaTablature.ttf") format('truetype');
+        }
+
+        body {
+            height: 100%;
+            margin: 1pt;
+        }
+
+        .box {
+            display: flex;
+            flex-flow: column;
+            height: 100%;
+        }
+
+        .box .row.header {
+            flex: 0 1 auto;
+            /* background-color: antiquewhite; */
+        }
+
+        .box .row.content {
+            justify-content: center;
+            flex: 1 1 auto;
+            /* background-color: aliceblue; */
+        }
+
+        .box .row.footer {
+            flex: 0 1 20px;
+            /* background-color: antiquewhite; */
+        }
+
+        .textinput {
+            /* width: 99%; */
+            height: 85vh;
+            outline: none;
+            resize: none;
+            /*border: 1px solid grey;*/
+            font-family: Cascadia Tablature;
+        }
+
+        h1 {
+            font-family: Cascadia Tablature;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <div class="row header">
+            <h1>Tablature Viewer</h1>
+        </div>
+        <!-- <div class="row content"> -->
+            <textarea class="row content textinput" placeholder="Paste your plaintext tablature here"></textarea>
+        <!-- </div> -->
+        <div class="row footer">
+        </div>
+    </div>
+</body>
+
+</html>
