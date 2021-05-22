@@ -12,5 +12,6 @@ import Effect.Uncurried (EffectFn1, runEffectFn1)
 import Foreign.Object as Object
 import URI.Extra.QueryPairs
 
-foreign import getQueryString :: Effect String
+foreign import getRawQueryString :: Effect String
+foreign import setRawQueryString :: String -> Effect Unit
 foreign import setQueryParameters :: EffectFn1 (Object.Object String) Unit

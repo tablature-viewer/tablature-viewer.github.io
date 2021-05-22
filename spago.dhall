@@ -12,14 +12,22 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "assert"
+  [ "arrays"
+  , "assert"
   , "console"
   , "effect"
   , "foldable-traversable"
+  , "foreign-object"
   , "lists"
+  , "maybe"
+  , "newtype"
   , "prelude"
   , "psci-support"
+  , "strings"
+  , "tuples"
   , "uri"
+  , "web-dom"
+  , "web-html"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
