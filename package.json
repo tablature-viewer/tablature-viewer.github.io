@@ -1,0 +1,32 @@
+{
+  "name": "tabviewer",
+  "version": "0.0.1",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "parcel index.html",
+    "build": "spago build && parcel build index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dznl/tabviewer.git"
+  },
+  "keywords": [
+    "guitar",
+    "tablature",
+    "dozenal"
+  ],
+  "author": "Chiel ten Brinke",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dznl/tabviewer/issues"
+  },
+  "homepage": "https://github.com/dznl/tabviewer#readme",
+  "description": "",
+  "devDependencies": {
+    "parcel": "^2.0.0-beta.2"
+  }
+}
