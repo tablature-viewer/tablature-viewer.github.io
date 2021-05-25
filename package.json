@@ -1,14 +1,17 @@
 {
   "name": "tabviewer",
   "version": "0.0.1",
-  "main": "index.js",
+  "main": "docs/index.html",
   "directories": {
     "test": "test"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "parcel index.html",
-    "build": "spago build && parcel build index.html"
+    "install": "spago install",
+    "build": "spago build",
+    "start": "npm run build && parcel index.html",
+    "publish": "npm run build && parcel build ./index.html",
+    "clean": "rm -rf .cache .spago .psci_modules node_modules output"
   },
   "repository": {
     "type": "git",
@@ -24,9 +27,11 @@
   "bugs": {
     "url": "https://github.com/dznl/tabviewer/issues"
   },
-  "homepage": "https://github.com/dznl/tabviewer#readme",
+  "homepage": "https://github.com/dznl/tabviewer",
   "description": "",
   "devDependencies": {
-    "parcel": "^2.0.0-beta.2"
+    "parcel": "next",
+    "purescript": "^0.14.1",
+    "spago": "^0.20.3"
   }
 }
