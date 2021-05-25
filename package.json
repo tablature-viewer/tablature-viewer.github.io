@@ -27,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/dznl/tabviewer/issues"
   },
-  "homepage": "https://github.com/dznl/tabviewer",
+  "homepage": "https://dznl.github.io/tabviewer/",
   "description": "",
   "devDependencies": {
     "parcel": "next",
