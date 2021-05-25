@@ -1,27 +1,26 @@
 module Main where
 
 import Prelude
-import QueryString
-import Web.DOM.NonElementParentNode
-import Web.HTML
-import Web.HTML.HTMLTextAreaElement
-import Web.HTML.Window
 
 import Data.Maybe (Maybe(..))
-import Data.String (drop, take)
 import Effect (Effect)
-import Effect.Class (class MonadEffect, liftEffect)
-import Effect.Console (log)
-import Effect.Random (random)
-import Halogen (Component)
+import Effect.Class (class MonadEffect)
+import Effect.Console as Console
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
+import QueryString (setRawQueryString)
+import Web.DOM (NonElementParentNode)
 import Web.DOM.Document (toNonElementParentNode)
-import Web.DOM.Element (Element, setAttribute)
+import Web.DOM.Element (Element)
+import Web.DOM.NonElementParentNode (getElementById)
+import Web.HTML (window)
 import Web.HTML.HTMLDocument (toDocument)
+import Web.HTML.HTMLTextAreaElement (HTMLTextAreaElement)
+import Web.HTML.HTMLTextAreaElement as HTMLTextAreaElement
+import Web.HTML.Window (document)
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -53,20 +52,30 @@ render state =
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction = case _ of
   Save -> do
-    string <- H.liftEffect getTablature
+    string <- H.liftEffect getTablatureText
     H.liftEffect $ setRawQueryString string
 
+getDocument :: Effect NonElementParentNode
+getDocument = window >>= document <#> toDocument <#> toNonElementParentNode
 
-getText :: Maybe Element -> Effect String
-getText maybeElement = 
-  let maybeText = (map value (maybeElement >>= fromElement)) 
-  in case maybeText of
-    Nothing -> pure ""
-    Just s -> s
+documentGetElementById :: String -> Effect (Maybe Element)
+documentGetElementById id = getDocument >>= getElementById id
 
-getTablature :: Effect String
-getTablature = do
-  w <- window
-  d <- document w
-  maybeElement <- getElementById "tablature_textarea" $ toNonElementParentNode $ toDocument d
-  getText maybeElement
+getTablatureTextArea :: Effect (Maybe HTMLTextAreaElement)
+getTablatureTextArea =
+  documentGetElementById "textareaTablature" <#>
+  (\maybeElement -> maybeElement >>= HTMLTextAreaElement.fromElement)
+
+getTablatureText :: Effect String
+getTablatureText = do
+  maybeTextArea <- getTablatureTextArea
+  case maybeTextArea of
+    Nothing -> Console.error "Could not find textareaTablature" *> pure ""
+    Just textArea -> HTMLTextAreaElement.value textArea 
+
+setTablatureText :: String -> Effect Unit
+setTablatureText text = do
+  maybeTextArea <- getTablatureTextArea
+  case maybeTextArea of
+    Nothing -> Console.error "Could not find textareaTablature" *> pure unit
+    Just textArea -> HTMLTextAreaElement.setValue text textArea 
