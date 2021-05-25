@@ -1,5 +1,9 @@
 "use strict";
 
+exports.getQueryString = function () {
+  return decodeURIComponent(exports.getRawQueryString());
+};
+
 exports.getRawQueryString = function () {
   var result = window.location.search;
   if (result.startsWith("?"))
@@ -7,12 +11,22 @@ exports.getRawQueryString = function () {
   return "";
 };
 
-// Set the query string without triggering a page reload.
+exports.setQueryString = function (value) {
+  return function () {
+    setRawQueryString(encodeURIComponent(value));
+  }
+};
+
 exports.setRawQueryString = function (value) {
   return function () {
-    var newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?' + value;
-    window.history.replaceState({ path: newurl }, '', newurl);
+    setRawQueryString(value);
   }
+};
+
+// Set the query string without triggering a page reload.
+var setRawQueryString = function (value) {
+  var newurl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?' + value;
+  window.history.replaceState({ path: newurl }, '', newurl);
 };
 
 exports.setQueryParameters = function (params) {

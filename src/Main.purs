@@ -11,7 +11,7 @@ import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
-import QueryString (setRawQueryString)
+import QueryString (getQueryString, setQueryString)
 import Web.DOM (NonElementParentNode)
 import Web.DOM.Document (toNonElementParentNode)
 import Web.DOM.Element (Element)
@@ -25,6 +25,7 @@ import Web.HTML.Window (document)
 main :: Effect Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
+  H.liftEffect saveQueryToTablature
   runUI component unit body
 
 type State = String
@@ -51,9 +52,17 @@ render state =
 
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction = case _ of
-  Save -> do
-    string <- H.liftEffect getTablatureText
-    H.liftEffect $ setRawQueryString string
+  Save -> H.liftEffect saveTablatureToQuery
+
+saveTablatureToQuery :: Effect Unit
+saveTablatureToQuery = do
+  string <- getTablatureText
+  setQueryString string
+
+saveQueryToTablature :: Effect Unit
+saveQueryToTablature = do
+  string <- getQueryString
+  setTablatureText string
 
 getDocument :: Effect NonElementParentNode
 getDocument = window >>= document <#> toDocument <#> toNonElementParentNode
