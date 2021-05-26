@@ -12,25 +12,18 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "arrays"
+  [
   , "assert"
   , "console"
   , "effect"
   , "either"
-  , "foldable-traversable"
   , "foreign"
   , "foreign-object"
   , "halogen"
-  , "lists"
   , "maybe"
-  , "newtype"
   , "prelude"
   , "psci-support"
-  , "random"
-  , "strings"
   , "transformers"
-  , "tuples"
-  , "uri"
   , "web-dom"
   , "web-html"
   ]

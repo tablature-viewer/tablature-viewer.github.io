@@ -5,18 +5,19 @@ import Prelude
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
-import Effect (Effect)
 import Foreign (Foreign, readString)
 
 foreign import unsafeDecompressFromEncodedURIComponent :: String -> Foreign
 foreign import unsafeCompressToEncodedURIComponent :: String -> Foreign
 
-decompressFromEncodedURIComponent :: String -> Maybe String
-decompressFromEncodedURIComponent compressed = case runExcept ((unsafeDecompressFromEncodedURIComponent >>> readString) compressed) of
-  Right decompressed -> Just decompressed
+compressToEncodedURIComponent :: String -> Maybe String
+compressToEncodedURIComponent value =
+  case unsafeCompressToEncodedURIComponent value # readString # runExcept of
+  Right compressed -> Just compressed
   _ -> Nothing
 
-compressToEncodedURIComponent :: String -> Maybe String
-compressToEncodedURIComponent value = case runExcept ((unsafeCompressToEncodedURIComponent >>> readString) value) of
-  Right compressed -> Just compressed
+decompressFromEncodedURIComponent :: String -> Maybe String
+decompressFromEncodedURIComponent compressed =
+  case unsafeDecompressFromEncodedURIComponent compressed # readString # runExcept of
+  Right decompressed -> Just decompressed
   _ -> Nothing
