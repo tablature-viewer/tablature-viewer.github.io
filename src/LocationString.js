@@ -24,7 +24,7 @@ exports.setRawFragmentString = function (value) {
 };
 
 var setRawFragmentString = function (value) {
-  window.location = window.location.protocol + "//" + window.location.host +
+  var newurl = window.location.protocol + "//" + window.location.host +
     window.location.pathname + window.location.search + '#' + value;
   // Only changing the fragment string shouldn't trigger a page reload in
   // itself, but we do it like this to be safe and avoid potential sitatuations

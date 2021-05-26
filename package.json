@@ -34,5 +34,8 @@
     "parcel": "^2.0.0-beta.3.1",
     "purescript": "^0.14.1",
     "spago": "^0.20.3"
+  },
+  "dependencies": {
+    "lz-string": "^1.4.4"
   }
 }

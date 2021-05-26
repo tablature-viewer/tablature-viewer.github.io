@@ -11,6 +11,7 @@ import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
+import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
 import LocationString (getFragmentString, setFragmentString)
 import Web.DOM (NonElementParentNode)
 import Web.DOM.Document (toNonElementParentNode)
@@ -25,7 +26,7 @@ import Web.HTML.Window (document)
 main :: Effect Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
-  H.liftEffect saveFragmentToTablature
+  H.liftEffect loadTablatureFromFragment
   runUI component unit body
 
 type State = String
@@ -57,12 +58,16 @@ handleAction = case _ of
 saveTablatureToFragment :: Effect Unit
 saveTablatureToFragment = do
   string <- getTablatureText
-  setFragmentString string
+  case compressToEncodedURIComponent string of
+    Just compressed -> setFragmentString compressed
+    Nothing -> Console.error("Could not save tablature to URL")
 
-saveFragmentToTablature :: Effect Unit
-saveFragmentToTablature = do
+loadTablatureFromFragment :: Effect Unit
+loadTablatureFromFragment = do
   string <- getFragmentString
-  setTablatureText string
+  case decompressFromEncodedURIComponent string of
+    Just decompressed -> setTablatureText decompressed
+    Nothing -> Console.error("Could not load tablature from URL")
 
 getDocument :: Effect NonElementParentNode
 getDocument = window >>= document <#> toDocument <#> toNonElementParentNode
