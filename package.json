@@ -10,7 +10,7 @@
     "install": "spago install",
     "build": "spago build",
     "start": "npm run build && parcel index.html",
-    "publish": "npm run build && parcel build ./index.html",
+    "publish": "npm run build && parcel build  ./index.html --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html",
     "clean": "rm -rf .cache .spago .psci_modules node_modules output"
   },
   "repository": {
