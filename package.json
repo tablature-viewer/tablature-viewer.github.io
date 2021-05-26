@@ -9,6 +9,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "spago install",
     "build": "spago build",
+    "jschange": "npm run build && echo Now ctrl-f5 your browser tab!",
     "start": "npm run build && parcel index.html",
     "publish": "npm run build && parcel build  ./index.html --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html",
     "clean": "rm -rf .cache .spago .psci_modules node_modules output"

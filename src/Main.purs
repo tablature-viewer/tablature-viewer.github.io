@@ -11,7 +11,7 @@ import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.VDom.Driver (runUI)
-import QueryString (getQueryString, setQueryString)
+import LocationString (getFragmentString, setFragmentString)
 import Web.DOM (NonElementParentNode)
 import Web.DOM.Document (toNonElementParentNode)
 import Web.DOM.Element (Element)
@@ -25,7 +25,7 @@ import Web.HTML.Window (document)
 main :: Effect Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
-  H.liftEffect saveQueryToTablature
+  H.liftEffect saveFragmentToTablature
   runUI component unit body
 
 type State = String
@@ -46,22 +46,22 @@ initialState _ = ""
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_
-    [ HH.button [ HE.onClick \_ -> Save ] [ HH.text "Freeze" ]
+    [ HH.button [ HE.onClick \_ -> Save ] [ HH.text "Save" ]
     , HH.text (state)
     ]
 
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction = case _ of
-  Save -> H.liftEffect saveTablatureToQuery
+  Save -> H.liftEffect saveTablatureToFragment
 
-saveTablatureToQuery :: Effect Unit
-saveTablatureToQuery = do
+saveTablatureToFragment :: Effect Unit
+saveTablatureToFragment = do
   string <- getTablatureText
-  setQueryString string
+  setFragmentString string
 
-saveQueryToTablature :: Effect Unit
-saveQueryToTablature = do
-  string <- getQueryString
+saveFragmentToTablature :: Effect Unit
+saveFragmentToTablature = do
+  string <- getFragmentString
   setTablatureText string
 
 getDocument :: Effect NonElementParentNode
