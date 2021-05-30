@@ -10,6 +10,7 @@ import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
+import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
 import LocationString (getFragmentString, setFragmentString)
@@ -29,7 +30,7 @@ main = HA.runHalogenAff do
   H.liftEffect loadTablatureFromFragment
   runUI component unit body
 
-type State = String
+data State = ViewMode | EditMode
 
 data Action = Save
 
@@ -42,14 +43,19 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = ""
+initialState _ = ViewMode
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
   HH.div_
-    [ HH.button [ HE.onClick \_ -> Save ] [ HH.text "Save" ]
-    , HH.text (state)
+    [ renderHeader
+    , renderButton
+    , renderTextarea
     ]
+
+renderHeader = HH.h1_ [HH.text "Dozenal Tablature Viewer"]
+renderButton = HH.button [ HE.onClick \_ -> Save ] [ HH.text "Save" ]
+renderTextarea = HH.textarea [ HP.classes [HH.ClassName "textinput"], HP.placeholder "Paste your plaintext tablature here" ]
 
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction = case _ of
