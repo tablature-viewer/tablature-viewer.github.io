@@ -1,0 +1,22 @@
+@font-face {
+  font-family: Cascadia Tablature;
+  src: url("CascadiaTablature.ttf") format('truetype');
+}
+
+body {
+  height: 100%;
+  margin: 1pt;
+}
+
+.tablatureText {
+  font-family: Cascadia Tablature;
+}
+
+.tablatureEditor {
+  outline: none;
+  resize: none;
+}
+
+h1 {
+  font-family: Cascadia Tablature;
+}
