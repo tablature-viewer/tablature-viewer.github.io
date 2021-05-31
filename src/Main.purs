@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 
+import Data.Array (mapMaybe)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
@@ -24,9 +25,11 @@ main = HA.runHalogenAff do
 
 data Mode = ViewMode | EditMode
 type State = { mode :: Mode, tablature :: String}
-
-
 data Action = Initialize | ToggleMode
+
+instance showMode :: Show Mode where
+  show ViewMode = "View Mode"
+  show EditMode = "Edit Mode"
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -47,24 +50,30 @@ initialState _ = { mode: EditMode, tablature: "" }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state =
-  HH.div_
+  HH.div_ $ mapMaybe identity
     [ renderHeader
     , renderControls
     , renderEditor
     , renderViewer
     ]
   where
-  renderHeader = HH.h1_ [ HH.text "Dozenal Tablature Viewer" ]
-  renderControls = HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text "ToggleMode" ]
-  renderEditor = HH.textarea 
-    [ HP.classes
-      [ HH.ClassName "tablatureText"
-      , HH.ClassName "tablatureEditor"
-      ]
-    , HP.ref refTablatureEditor
-    , HP.placeholder "Paste your plaintext tablature here"
-    ]
-  renderViewer = HH.p [ HP.classes [HH.ClassName "tablatureText"] ] [ HH.text state.tablature ]
+  renderHeader = Just $ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ]
+  renderControls = Just $ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show state.mode ]
+  renderEditor =
+    case state.mode of
+      ViewMode -> Nothing
+      EditMode -> Just $ HH.textarea 
+        [ HP.classes
+          [ HH.ClassName "tablatureText"
+          , HH.ClassName "tablatureEditor"
+          ]
+        , HP.ref refTablatureEditor
+        , HP.placeholder "Paste your plaintext tablature here"
+        ]
+  renderViewer =
+    case state.mode of
+      EditMode -> Nothing
+      ViewMode -> Just $ HH.p [ HP.classes [ HH.ClassName "tablatureText" ] ] [ HH.text state.tablature ]
 
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
@@ -78,10 +87,11 @@ handleAction action =
       state <- H.get
       case state.mode of
         EditMode -> do
-          H.put { mode: ViewMode, tablature: state.tablature }
           saveTablature
+          H.modify_ _ { mode = ViewMode }
         ViewMode -> do
-          H.put { mode: EditMode, tablature: state.tablature }
+          H.modify_ _ { mode = EditMode }
+          setTablatureEditorText state.tablature
 
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
 getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>

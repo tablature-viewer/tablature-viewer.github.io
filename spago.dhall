@@ -12,7 +12,7 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [
+  [ "arrays"
   , "assert"
   , "console"
   , "effect"
@@ -24,7 +24,6 @@ to generate this file without the comments in this block.
   , "prelude"
   , "psci-support"
   , "transformers"
-  , "web-dom"
   , "web-html"
   ]
 , packages = ./packages.dhall
