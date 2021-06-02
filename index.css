@@ -8,15 +8,30 @@ body {
   margin: 1pt;
 }
 
+.main {
+  font-family: Cascadia Tablature;
+  height: 100%;
+  background-color:beige;
+}
+
+.header {
+  background-color:antiquewhite;
+}
+
+.controls {
+  background-color:bisque;
+}
+
 .tablatureText {
+  font-family: Cascadia Tablature;
+  background-color: blanchedalmond;
+}
+
+.tablatureViewer {
   font-family: Cascadia Tablature;
 }
 
 .tablatureEditor {
   outline: none;
   resize: none;
-}
-
-h1 {
-  font-family: Cascadia Tablature;
 }

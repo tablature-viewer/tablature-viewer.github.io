@@ -49,31 +49,29 @@ initialState :: forall input. input -> State
 initialState _ = { mode: EditMode, tablature: "" }
 
 render :: forall m. State -> H.ComponentHTML Action () m
-render state =
-  HH.div_ $ mapMaybe identity
-    [ renderHeader
-    , renderControls
-    , renderEditor
-    , renderViewer
-    ]
+render state = HH.div 
+  [ HP.classes [ HH.ClassName "main" ] ]
+  [ renderHeader
+  , renderControls
+  , renderTablature
+  ]
   where
-  renderHeader = Just $ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ]
-  renderControls = Just $ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show state.mode ]
-  renderEditor =
+  renderHeader = HH.h1
+    [ HP.classes [ HH.ClassName "header" ] ]
+    [ HH.text "Dozenal Tablature Viewer" ]
+  renderControls = HH.div 
+    [ HP.classes [ HH.ClassName "controls" ] ]
+    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show state.mode ] ]
+  renderTablature = HH.div 
+    [ HP.classes [ HH.ClassName "tablatureText" ] ]
     case state.mode of
-      ViewMode -> Nothing
-      EditMode -> Just $ HH.textarea 
-        [ HP.classes
-          [ HH.ClassName "tablatureText"
-          , HH.ClassName "tablatureEditor"
-          ]
+      ViewMode -> [ HH.p [ HP.classes [ HH.ClassName "tablatureViewer" ] ] [ HH.text state.tablature ] ]
+      EditMode -> [ HH.textarea 
+        [ HP.classes [ HH.ClassName "tablatureEditor" ]
         , HP.ref refTablatureEditor
         , HP.placeholder "Paste your plaintext tablature here"
         ]
-  renderViewer =
-    case state.mode of
-      EditMode -> Nothing
-      ViewMode -> Just $ HH.p [ HP.classes [ HH.ClassName "tablatureText" ] ] [ HH.text state.tablature ]
+      ]
 
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
