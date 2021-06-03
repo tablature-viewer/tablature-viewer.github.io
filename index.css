@@ -4,34 +4,68 @@
 }
 
 body {
-  height: 100%;
-  margin: 1pt;
+  border: 0pt;
+  margin: 0pt;
+  padding: 0pt;
 }
 
 .main {
   font-family: Cascadia Tablature;
-  height: 100%;
+  height: 100vh;
+  border: 0pt;
+  margin: 0pt;
+  padding: 0pt;
   background-color:beige;
+  display: grid;
+  grid-template-rows: 100px auto;
+  grid-template-columns: 500px auto;
 }
 
 .header {
+  margin: 0pt;
+  padding: 0pt;
+  border: 0pt;
   background-color:antiquewhite;
+  grid-column-start: 1;
+  grid-row-start: 1;
 }
 
 .controls {
+  border: 0pt;
+  margin: 0pt;
+  padding: 0pt;
   background-color:bisque;
+  grid-column-start: 2;
+  grid-row-start: 1;
+}
+
+.controls button {
+  margin: 0pt;
+  font-family: Cascadia Tablature;
 }
 
 .tablatureText {
-  font-family: Cascadia Tablature;
   background-color: blanchedalmond;
+  grid-column-start: 1;
+  grid-column-end: 3;
+  grid-row-start: 2;
 }
 
 .tablatureViewer {
+  border: 0pt;
+  padding: 0pt;
+  margin: 0pt;
   font-family: Cascadia Tablature;
+  font-style: italic;
 }
 
 .tablatureEditor {
+  height: 100%;
+  padding: 0pt;
+  border: 0pt;
+  margin: 0pt;
   outline: none;
   resize: none;
+  font-family: Cascadia Tablature;
+  width: 100%;
 }
