@@ -82,10 +82,13 @@ handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Act
 handleAction action =
   case action of
     Initialize -> do
-      string <- H.liftEffect getTablatureTextFromFragment
-      state <- H.get
-      H.put { mode: state.mode, tablature: string }
-      setTablatureEditorText string
+      maybeString <- H.liftEffect getTablatureTextFromFragment
+      case maybeString of
+        Just string -> do
+          H.put { mode: ViewMode, tablature: string }
+          setTablatureEditorText string
+        Nothing ->
+          H.put { mode: EditMode, tablature: "" }
     ToggleMode -> do
       state <- H.get
       case state.mode of
@@ -121,12 +124,14 @@ saveTablature = do
       Just compressed -> H.liftEffect $ setFragmentString compressed
       Nothing -> H.liftEffect $ Console.error("Could not save tablature to URL")
 
-getTablatureTextFromFragment :: Effect String
+getTablatureTextFromFragment :: Effect (Maybe String)
 getTablatureTextFromFragment = do
   fragment <- H.liftEffect getFragmentString
-  case decompressFromEncodedURIComponent fragment of
-    Just decompressed -> pure $ decompressed
-    Nothing ->  Console.error("Could not load tablature from URL") *> pure ""
+  if fragment == "" || fragment == "#"
+  then pure Nothing
+  else case decompressFromEncodedURIComponent fragment of
+    Just decompressed -> pure $ Just decompressed
+    Nothing -> Console.error("Could not load tablature from URL") *> (pure Nothing)
 
 setTablatureEditorText :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
 setTablatureEditorText text = do
