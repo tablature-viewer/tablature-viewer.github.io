@@ -75,6 +75,7 @@ render state = HH.div
       [ HH.textarea
         [ HP.ref refTablatureEditor
         , HP.placeholder "Paste your plaintext tablature here"
+        , HP.spellcheck false
         ]
       ]
 

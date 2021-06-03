@@ -16,9 +16,8 @@ body {
   border: 0pt;
   margin: 0pt;
   padding: 0pt;
-  background-color:beige;
   display: grid;
-  grid-template-rows: 100px auto;
+  grid-template-rows: 50px auto;
   grid-template-columns: 500px auto;
 }
 
@@ -26,38 +25,41 @@ body {
   display: flex;
   margin: 0pt;
   border: 0pt;
-  background-color:antiquewhite;
+  background-color:rgb(250, 235, 215);
   grid-column-start: 1;
   grid-row-start: 1;
 }
 .header h1 {
   margin: auto auto;
   display:block;
+  color:rgb(94, 171, 171);
 }
 
 .controls {
   display: flex;
   margin: 0pt;
   border: 0pt;
-  background-color:bisque;
+  background-color:rgba(255, 228, 196);
   grid-column-start: 2;
   grid-row-start: 1;
 }
 .controls button {
   padding: 15px 32px;
-  margin: auto auto;
+  height: 100%;
+  margin: auto 0pt;
   border: 0pt;
-  background-color: skyblue;
+  background-color: rgb(250, 193, 170);
   font-family: Cascadia Tablature;
+  color:rgb(94, 171, 171);
 }
 
 .tablatureViewer {
+  background-color:rgba(255, 228, 196, 0.5);
   display: flex;
   overflow: auto;
   grid-column-start: 1;
   grid-column-end: 3;
   grid-row-start: 2;
-  background-color: blanchedalmond;
 }
 .tablatureViewer pre {
   margin: 0pt;
@@ -65,6 +67,7 @@ body {
   padding: 10pt;
   font-family: Cascadia Tablature;
   font-size: 10pt;
+  color:rgb(94, 171, 171);
 }
 
 .tablatureEditor {
@@ -75,6 +78,7 @@ body {
   grid-row-start: 2;
 }
 .tablatureEditor textarea {
+  background-color:rgba(250, 235, 215, 0.5);
   height: 100%;
   width: 100%;
   margin: 0pt;
