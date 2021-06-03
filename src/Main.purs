@@ -66,13 +66,14 @@ render state = HH.div
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
     [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show $ otherMode state.mode ] ]
-  renderTablature = HH.div 
-    [ HP.classes [ HH.ClassName "tablatureText" ] ]
-    case state.mode of
-      ViewMode -> [ HH.pre [ HP.classes [ HH.ClassName "tablatureViewer" ] ] [ HH.text state.tablature ] ]
-      EditMode -> [ HH.textarea 
-        [ HP.classes [ HH.ClassName "tablatureEditor" ]
-        , HP.ref refTablatureEditor
+  renderTablature = case state.mode of
+    ViewMode -> HH.div 
+      [ HP.classes [ HH.ClassName "tablatureViewer" ] ]
+      [ HH.pre_ [ HH.text state.tablature ] ]
+    EditMode -> HH.div 
+      [ HP.classes [ HH.ClassName "tablatureEditor" ] ]
+      [ HH.textarea
+        [ HP.ref refTablatureEditor
         , HP.placeholder "Paste your plaintext tablature here"
         ]
       ]
