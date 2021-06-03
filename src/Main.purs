@@ -31,6 +31,10 @@ instance showMode :: Show Mode where
   show ViewMode = "View Mode"
   show EditMode = "Edit Mode"
 
+otherMode :: Mode -> Mode
+otherMode EditMode = ViewMode
+otherMode ViewMode = EditMode
+
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
 
@@ -56,16 +60,16 @@ render state = HH.div
   , renderTablature
   ]
   where
-  renderHeader = HH.h1
+  renderHeader = HH.div
     [ HP.classes [ HH.ClassName "header" ] ]
-    [ HH.text "Dozenal Tablature Viewer" ]
+    [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
-    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show state.mode ] ]
+    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show $ otherMode state.mode ] ]
   renderTablature = HH.div 
     [ HP.classes [ HH.ClassName "tablatureText" ] ]
     case state.mode of
-      ViewMode -> [ HH.p [ HP.classes [ HH.ClassName "tablatureViewer" ] ] [ HH.text state.tablature ] ]
+      ViewMode -> [ HH.pre [ HP.classes [ HH.ClassName "tablatureViewer" ] ] [ HH.text state.tablature ] ]
       EditMode -> [ HH.textarea 
         [ HP.classes [ HH.ClassName "tablatureEditor" ]
         , HP.ref refTablatureEditor

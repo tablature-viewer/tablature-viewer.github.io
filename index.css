@@ -7,6 +7,7 @@ body {
   border: 0pt;
   margin: 0pt;
   padding: 0pt;
+  overflow: hidden;
 }
 
 .main {
@@ -23,24 +24,32 @@ body {
 
 .header {
   margin: 0pt;
-  padding: 0pt;
   border: 0pt;
   background-color:antiquewhite;
   grid-column-start: 1;
   grid-row-start: 1;
+  display: flex;
+}
+
+.header h1 {
+  margin: auto auto;
+  display:block;
 }
 
 .controls {
-  border: 0pt;
+  display: flex;
   margin: 0pt;
-  padding: 0pt;
+  border: 0pt;
   background-color:bisque;
   grid-column-start: 2;
   grid-row-start: 1;
 }
 
 .controls button {
-  margin: 0pt;
+  padding: 15px 32px;
+  margin: auto auto;
+  border: 0pt;
+  background-color: skyblue;
   font-family: Cascadia Tablature;
 }
 
@@ -52,20 +61,21 @@ body {
 }
 
 .tablatureViewer {
-  border: 0pt;
-  padding: 0pt;
   margin: 0pt;
+  border: 0pt;
+  padding: 10pt;
   font-family: Cascadia Tablature;
-  font-style: italic;
+  font-size: 10pt;
 }
 
 .tablatureEditor {
   height: 100%;
-  padding: 0pt;
-  border: 0pt;
   margin: 0pt;
+  border: 0pt;
+  padding: 3pt;
+  width: 100%;
   outline: none;
   resize: none;
   font-family: Cascadia Tablature;
-  width: 100%;
+  font-size: 10pt;
 }
