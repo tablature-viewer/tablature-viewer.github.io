@@ -2,12 +2,14 @@ module Main where
 
 import Prelude
 
+import Clipboard (copyToClipboard)
 import Data.Array.NonEmpty (toArray)
 import Data.Maybe (Maybe(..))
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RegexFlags
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect (Effect)
+import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Console as Console
 import Halogen as H
@@ -17,7 +19,8 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
-import LocationString (getFragmentString, setFragmentString)
+import LocationString (getFragmentString, getLocationString, setFragmentString)
+import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 
@@ -28,7 +31,7 @@ main = HA.runHalogenAff do
 
 data Mode = ViewMode | EditMode
 type State = { mode :: Mode, tablature :: String}
-data Action = Initialize | ToggleMode
+data Action = Initialize | ToggleMode | CopyShortUrl
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"
@@ -41,7 +44,7 @@ otherMode ViewMode = EditMode
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
 
-component :: forall query input output m. MonadEffect m => H.Component query input output m
+component :: forall query input output m. MonadAff m => H.Component query input output m
 component =
   H.mkComponent
     { initialState
@@ -77,7 +80,8 @@ render state = HH.div
     ]
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
-    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text buttonText ] ]
+    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text buttonText ]
+    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ HH.text "Copy short URL" ] ]
     where
     buttonText = case state.mode of
       EditMode -> "Save"
@@ -106,7 +110,7 @@ renderTablatureText rawText =
   x Nothing = HH.text ""
   x (Just s) = HH.text s
 
-handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
+handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
   case action of
     Initialize -> do
@@ -125,6 +129,12 @@ handleAction action =
         ViewMode -> do
           H.modify_ _ { mode = EditMode }
           setTablatureEditorText state.tablature
+    CopyShortUrl -> do
+      longUrl <- H.liftEffect getLocationString
+      maybeShortUrl <- H.liftAff $ createShortUrl longUrl
+      H.liftEffect $ case maybeShortUrl of
+        Just shortUrl -> copyToClipboard shortUrl
+        Nothing -> pure unit
 
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
 getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>

@@ -6,6 +6,7 @@ import Effect (Effect)
 import Effect.Uncurried (EffectFn1)
 import Foreign.Object as Object
 
+foreign import getLocationString :: Effect String
 foreign import getFragmentString :: Effect String
 foreign import setFragmentString :: String -> Effect Unit
 foreign import getRawFragmentString :: Effect String

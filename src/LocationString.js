@@ -1,5 +1,9 @@
 "use strict";
 
+exports.getLocationString = function () {
+  return window.location.href;
+};
+
 exports.getFragmentString = function () {
   return decodeURIComponent(exports.getRawFragmentString());
 };

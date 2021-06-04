@@ -12,7 +12,9 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "arrays"
+  [ "aff"
+  , "affjax"
+  , "arrays"
   , "assert"
   , "console"
   , "effect"
@@ -20,9 +22,11 @@ to generate this file without the comments in this block.
   , "foreign"
   , "foreign-object"
   , "halogen"
+  , "http-methods"
   , "maybe"
   , "prelude"
   , "psci-support"
+  , "simple-json"
   , "strings"
   , "transformers"
   , "web-html"
