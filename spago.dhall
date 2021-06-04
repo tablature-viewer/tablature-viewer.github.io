@@ -23,6 +23,7 @@ to generate this file without the comments in this block.
   , "maybe"
   , "prelude"
   , "psci-support"
+  , "strings"
   , "transformers"
   , "web-html"
   ]
