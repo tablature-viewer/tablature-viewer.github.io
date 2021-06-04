@@ -3,11 +3,29 @@
   src: url("CascadiaTablature.ttf") format('truetype');
 }
 
+:root {
+  --shadow:rgba(0, 0, 0, 0.2);
+
+  --bg0: #FEF8EC;
+  --bg1:#F9F1E1;
+  --bg2:#F0E9D6;
+  --bg3:#F2E7CA;
+  --hover0:#D1DFD0;
+  --hover1:#D2F3F9;
+  --fg0:#21a0a0;
+  --fg1:#046865;
+  --fg2:#46b1c9;
+  --accent0:#d7263d;
+  --accent1:#f87060;
+  --accent2:#f97d6e;
+}
+
 body {
   border: 0pt;
   margin: 0pt;
   padding: 0pt;
   overflow: hidden;
+  scrollbar-color: var(--hover0) var(--bg0);
 }
 
 .main {
@@ -18,79 +36,76 @@ body {
   padding: 0pt;
   display: grid;
   grid-template-rows: 50px auto;
-  grid-template-columns: 500px auto;
+  background-color: var(--bg1);
 }
 
 .header {
-  display: flex;
+  display: grid;
+  z-index: 100;
+  grid-template-columns: 500px auto;
   margin: 0pt;
   border: 0pt;
-  background-color:rgb(250, 235, 215);
-  grid-column-start: 1;
-  grid-row-start: 1;
+  box-shadow: 0 0 5pt 0 var(--shadow);
 }
-.header a {
+.title {
   margin: auto auto;
-  color:rgb(94, 171, 171);
+}
+.title a {
   text-decoration: none;
 }
-.header h1 {
+.title h1 {
   margin: auto auto;
+  color:var(--fg1);
 }
 
 .controls {
   display: flex;
   margin: 0pt;
   border: 0pt;
-  background-color:rgba(255, 228, 196);
   grid-column-start: 2;
-  grid-row-start: 1;
 }
 .controls button {
   padding: 15px 32px;
   height: 100%;
   margin: auto 0pt;
   border: 0pt;
-  background-color: rgb(250, 193, 170);
+  background-color: var(--bg2);
   font-family: Cascadia Tablature;
-  color:rgb(94, 171, 171);
+  color:var(--fg0);
   cursor: pointer;
+  z-index: 2;
 }
 .controls button:hover {
-  background-color: rgb(200, 193, 170);
+  background-color: var(--hover0);
 }
 
 .tablatureViewer {
-  background-color:rgba(255, 228, 196, 0.5);
-  display: flex;
-  overflow: auto;
-  grid-column-start: 1;
-  grid-column-end: 3;
+  background-color:var(--bg1);
   grid-row-start: 2;
+  overflow: auto;
 }
 .tablatureViewer pre {
   margin: 0pt;
   border: 0pt;
-  padding: 10pt;
+  padding: 0pt 0pt 0pt 10pt;
   font-family: Cascadia Tablature;
   font-size: 10pt;
-  color:rgb(94, 171, 171);
+  color:var(--fg0);
+  overflow: auto;
 }
 
 .tablatureEditor {
   display: flex;
   height: 100%;
-  grid-column-start: 1;
-  grid-column-end: 3;
   grid-row-start: 2;
 }
 .tablatureEditor textarea {
-  background-color:rgba(250, 235, 215, 0.5);
+  background-color:var(--bg0);
   height: 100%;
   width: 100%;
   margin: 0pt;
   border: 0pt;
-  padding: 10pt;
+  padding: 0pt 0pt 0pt 10pt;
   outline: none;
   resize: none;
   font-family: Cascadia Tablature;

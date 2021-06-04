@@ -2,8 +2,11 @@ module Main where
 
 import Prelude
 
-import Data.Array (mapMaybe)
+import Data.Array.NonEmpty (toArray)
 import Data.Maybe (Maybe(..))
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags as RegexFlags
+import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Console as Console
@@ -56,12 +59,16 @@ render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
   [ HP.classes [ HH.ClassName "main" ] ]
   [ renderHeader
-  , renderControls
   , renderTablature
   ]
   where
   renderHeader = HH.div
     [ HP.classes [ HH.ClassName "header" ] ]
+    [ renderTitle
+    , renderControls
+    ]
+  renderTitle = HH.div
+    [ HP.classes [ HH.ClassName "title" ] ]
     [HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
@@ -78,7 +85,7 @@ render state = HH.div
   renderTablature = case state.mode of
     ViewMode -> HH.div 
       [ HP.classes [ HH.ClassName "tablatureViewer" ] ]
-      [ HH.pre_ [ HH.text state.tablature ] ]
+      [ HH.pre_ $ renderTablatureText state.tablature ]
     EditMode -> HH.div 
       [ HP.classes [ HH.ClassName "tablatureEditor" ] ]
       [ HH.textarea
@@ -88,6 +95,17 @@ render state = HH.div
         ]
       ]
 
+renderTablatureText :: forall w i. String -> Array (HH.HTML w i)
+renderTablatureText rawText =
+  case Regex.match tablatureRegex rawText of
+    Nothing -> []
+    Just matches -> matches <#> x # toArray
+  where
+  -- tablatureRegex = unsafeRegex "(\\w+)|(\\W+)" noFlags
+  tablatureRegex = unsafeRegex "[\\s\\S]+" RegexFlags.global
+  x Nothing = HH.text ""
+  x (Just s) = HH.text s
+
 handleAction :: forall output m. MonadEffect m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
   case action of
@@ -96,7 +114,6 @@ handleAction action =
       case maybeString of
         Just string -> do
           H.put { mode: ViewMode, tablature: string }
-          setTablatureEditorText string
         Nothing ->
           H.put { mode: EditMode, tablature: "" }
     ToggleMode -> do
