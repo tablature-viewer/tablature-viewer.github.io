@@ -19,7 +19,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
-import LocationString (getFragmentString, getLocationString, setFragmentString)
+import LocationString (getFragmentString, getLocationBaseString, getLocationString, setFragmentString)
 import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
@@ -30,7 +30,7 @@ main = HA.runHalogenAff do
   runUI component unit body
 
 data Mode = ViewMode | EditMode
-type State = { mode :: Mode, tablature :: String}
+type State = { mode :: Mode, tablature :: String, locationBase :: String}
 data Action = Initialize | ToggleMode | CopyShortUrl
 
 instance showMode :: Show Mode where
@@ -56,7 +56,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, tablature: "" }
+initialState _ = { mode: EditMode, tablature: "", locationBase: "" }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -81,7 +81,18 @@ render state = HH.div
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
     [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text buttonText ]
-    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ HH.text "Copy short URL" ] ]
+    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ HH.text "Share" ]
+    , HH.a
+      [ HP.href state.locationBase
+      , HP.target "_blank"
+      ]
+      [ HH.button_ [ HH.text "New" ] ]
+    , HH.a
+      [ HP.href "https://github.com/dznl/tabviewer"
+      , HP.target "_blank"
+      ]
+      [ HH.button_ [ HH.text "About" ] ]
+    ]
     where
     buttonText = case state.mode of
       EditMode -> "Save"
@@ -114,12 +125,13 @@ handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action
 handleAction action =
   case action of
     Initialize -> do
-      maybeString <- H.liftEffect getTablatureTextFromFragment
-      case maybeString of
-        Just string -> do
-          H.put { mode: ViewMode, tablature: string }
+      maybeTablatureText <- H.liftEffect getTablatureTextFromFragment
+      locationBase <- H.liftEffect getLocationBaseString
+      case maybeTablatureText of
+        Just tablatureText -> do
+          H.put { mode: ViewMode, tablature: tablatureText, locationBase: locationBase }
         Nothing ->
-          H.put { mode: EditMode, tablature: "" }
+          H.put { mode: EditMode, tablature: "", locationBase: locationBase }
     ToggleMode -> do
       state <- H.get
       case state.mode of
@@ -155,7 +167,7 @@ saveTablature = do
   where
   saveTablatureToState tablatureText = do
     state <- H.get
-    H.put { mode: state.mode, tablature: tablatureText }
+    H.modify_ _ { mode = state.mode, tablature = tablatureText }
   saveTablatureToFragment tablatureText = do
     case compressToEncodedURIComponent tablatureText of
       Just compressed -> H.liftEffect $ setFragmentString compressed

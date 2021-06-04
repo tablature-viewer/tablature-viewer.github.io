@@ -4,6 +4,10 @@ exports.getLocationString = function () {
   return window.location.href;
 };
 
+exports.getLocationBaseString = function () {
+  return window.location.origin + window.location.pathname;
+};
+
 exports.getFragmentString = function () {
   return decodeURIComponent(exports.getRawFragmentString());
 };
