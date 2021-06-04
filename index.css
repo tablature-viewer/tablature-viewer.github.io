@@ -29,10 +29,13 @@ body {
   grid-column-start: 1;
   grid-row-start: 1;
 }
+.header a {
+  margin: auto auto;
+  color:rgb(94, 171, 171);
+  text-decoration: none;
+}
 .header h1 {
   margin: auto auto;
-  display:block;
-  color:rgb(94, 171, 171);
 }
 
 .controls {
@@ -51,6 +54,10 @@ body {
   background-color: rgb(250, 193, 170);
   font-family: Cascadia Tablature;
   color:rgb(94, 171, 171);
+  cursor: pointer;
+}
+.controls button:hover {
+  background-color: rgb(200, 193, 170);
 }
 
 .tablatureViewer {

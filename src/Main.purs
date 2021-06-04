@@ -62,10 +62,19 @@ render state = HH.div
   where
   renderHeader = HH.div
     [ HP.classes [ HH.ClassName "header" ] ]
-    [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
+    [HH.a
+      [ HP.href "https://github.com/dznl/tabviewer"
+      , HP.target "_blank"
+      ]
+      [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
+    ]
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
-    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text $ show $ otherMode state.mode ] ]
+    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text buttonText ] ]
+    where
+    buttonText = case state.mode of
+      EditMode -> "Save"
+      ViewMode -> "Edit"
   renderTablature = case state.mode of
     ViewMode -> HH.div 
       [ HP.classes [ HH.ClassName "tablatureViewer" ] ]
