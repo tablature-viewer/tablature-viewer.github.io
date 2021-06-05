@@ -67,13 +67,13 @@ body {
 .controls button {
   padding: 15px 32px;
   height: 100%;
-  margin: auto 0pt;
+  margin: 0pt 1pt;
   border: 0pt;
   background-color: var(--bg2);
   font-family: Cascadia Tablature;
   color:var(--fg0);
   cursor: pointer;
-  z-index: 2;
+  box-shadow: 0 0 2pt 0 var(--shadow);
 }
 .controls button:hover {
   background-color: var(--hover0);
@@ -87,7 +87,7 @@ body {
 .tablatureViewer pre {
   margin: 0pt;
   border: 0pt;
-  padding: 0pt 0pt 0pt 10pt;
+  padding: 10pt 0pt 0pt 10pt;
   font-family: Cascadia Tablature;
   font-size: 10pt;
   color:var(--fg0);
@@ -96,16 +96,15 @@ body {
 
 .tablatureEditor {
   display: flex;
-  height: 100%;
+  flex-direction: column;
   grid-row-start: 2;
 }
 .tablatureEditor textarea {
   background-color:var(--bg0);
   height: 100%;
-  width: 100%;
   margin: 0pt;
   border: 0pt;
-  padding: 0pt 0pt 0pt 10pt;
+  padding: 10pt 0pt 0pt 10pt;
   outline: none;
   resize: none;
   font-family: Cascadia Tablature;

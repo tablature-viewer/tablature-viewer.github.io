@@ -19,7 +19,7 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
-import LocationString (getFragmentString, getLocationBaseString, getLocationString, setFragmentString)
+import LocationString (getFragmentString, getLocationString, setFragmentString)
 import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
@@ -30,7 +30,7 @@ main = HA.runHalogenAff do
   runUI component unit body
 
 data Mode = ViewMode | EditMode
-type State = { mode :: Mode, tablature :: String, locationBase :: String}
+type State = { mode :: Mode, tablature :: String }
 data Action = Initialize | ToggleMode | CopyShortUrl
 
 instance showMode :: Show Mode where
@@ -56,7 +56,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, tablature: "", locationBase: "" }
+initialState _ = { mode: EditMode, tablature: "" }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -83,7 +83,7 @@ render state = HH.div
     [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text buttonText ]
     , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ HH.text "Share" ]
     , HH.a
-      [ HP.href state.locationBase
+      [ HP.href "./"
       , HP.target "_blank"
       ]
       [ HH.button_ [ HH.text "New" ] ]
@@ -126,12 +126,11 @@ handleAction action =
   case action of
     Initialize -> do
       maybeTablatureText <- H.liftEffect getTablatureTextFromFragment
-      locationBase <- H.liftEffect getLocationBaseString
       case maybeTablatureText of
         Just tablatureText -> do
-          H.put { mode: ViewMode, tablature: tablatureText, locationBase: locationBase }
+          H.put { mode: ViewMode, tablature: tablatureText }
         Nothing ->
-          H.put { mode: EditMode, tablature: "", locationBase: locationBase }
+          H.put { mode: EditMode, tablature: "" }
     ToggleMode -> do
       state <- H.get
       case state.mode of
