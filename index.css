@@ -25,12 +25,16 @@
   
   --title-width: 360px;
   --controls-max-width: 475px;
+  --font-size: 13px;
 }
 
 /* max-width must be larger that sum of --title-width and --controls-max-width */
 @media only screen and (max-width: 860px) {
   .optional {
     display: none;
+  }
+  :root {
+    --font-size: 10px;
   }
 }
 
@@ -90,7 +94,7 @@ body {
   border: 0;
   background-color: var(--bg2);
   font-family: Cascadia Mono;
-  font-size: 13px;
+  font-size: var(--font-size);
   color:var(--fg0);
   cursor: pointer;
   box-shadow: 0 0 4px 0 var(--shadow);
@@ -109,7 +113,7 @@ body {
   border: 0;
   padding: 10px 0 0 10px;
   font-family: Cascadia Tablature;
-  font-size: 13px;
+  font-size: var(--font-size);
   color:var(--fg0);
   overflow: auto;
 }
@@ -128,5 +132,5 @@ body {
   outline: none;
   resize: none;
   font-family: Cascadia Tablature;
-  font-size: 13px;
+  font-size: var(--font-size);
 }
