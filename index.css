@@ -24,6 +24,12 @@
   --accent2:#f97d6e;
 }
 
+@media only screen and (max-width: 980px) {
+  .optional {
+    display: none;
+  }
+}
+
 body {
   border: 0pt;
   margin: 0pt;

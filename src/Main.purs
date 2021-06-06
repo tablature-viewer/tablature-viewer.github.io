@@ -31,6 +31,9 @@ fromClassString classString = HP.classes $ split (Pattern " ") classString <#> \
 fontAwesome :: forall t343 t344. String -> HH.HTML t343 t344
 fontAwesome glyphName = HH.i [ fromClassString $ "fas " <> glyphName] []
 
+optionalText :: forall t233 t234. String -> HH.HTML t233 t234
+optionalText text = HH.span [ fromClassString "optional" ] [ HH.text text ]
+
 main :: Effect Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
@@ -88,22 +91,22 @@ render state = HH.div
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
     [ HH.button [ HE.onClick \_ -> ToggleMode ] toggleButtonContent
-    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ fontAwesome "fa-share", HH.text " Share" ]
+    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ fontAwesome "fa-share", optionalText " Share" ]
     , HH.a
       [ HP.href "./"
       , HP.target "_blank"
       ]
-      [ HH.button_ [ fontAwesome "fa-plus", HH.text " New" ] ]
+      [ HH.button_ [ fontAwesome "fa-plus", optionalText " New" ] ]
     , HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
       ]
-      [ HH.button_ [ fontAwesome "fa-info", HH.text " About" ] ]
+      [ HH.button_ [ fontAwesome "fa-info", optionalText " About" ] ]
     ]
     where
     toggleButtonContent = case state.mode of
-      EditMode -> [ fontAwesome "fa-save", HH.text " Save" ]
-      ViewMode  -> [ fontAwesome "fa-edit", HH.text " Edit" ]
+      EditMode -> [ fontAwesome "fa-save", optionalText " Save" ]
+      ViewMode  -> [ fontAwesome "fa-edit", optionalText " Edit" ]
   renderTablature = case state.mode of
     ViewMode -> HH.div 
       [ HP.classes [ HH.ClassName "tablatureViewer" ] ]
