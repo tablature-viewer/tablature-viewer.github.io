@@ -24,6 +24,7 @@
   --accent2:#f97d6e;
 }
 
+/* max-width is sum of title width and controls max-width */
 @media only screen and (max-width: 975px) {
   .optional {
     display: none;
@@ -75,6 +76,7 @@ body {
   margin: 0;
   border: 0;
   grid-column-start: 2;
+  max-width: 475px;
 }
 .controls button {
   padding: 15px 32px;
