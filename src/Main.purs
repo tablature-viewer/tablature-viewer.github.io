@@ -1,6 +1,7 @@
 module Main where
 
 import Prelude
+import HalogenUtils
 
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -26,15 +27,6 @@ import TablatureHighlighter (highlightTablature)
 import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
-
-classString :: forall t228 t229.  String -> HH.IProp ( class :: String | t228) t229
-classString string = HP.classes $ split (Pattern " ") string <#> \s -> HH.ClassName s
-
-fontAwesome :: forall w i. String -> HH.HTML w i
-fontAwesome glyphName = HH.i [ classString $ "fas " <> glyphName] []
-
-optionalText :: forall w i. String -> HH.HTML w i
-optionalText text = HH.span [ classString "optional" ] [ HH.text text ]
 
 main :: Effect Unit
 main = HA.runHalogenAff do
