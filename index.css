@@ -64,6 +64,7 @@ body {
   margin: 0;
   border: 0;
   box-shadow: 0 0 6px 0 var(--shadow);
+  justify-content: center;
 }
 .title {
   margin: auto 0;
@@ -75,7 +76,7 @@ body {
 }
 .title h1 {
   margin: auto auto;
-  color:var(--fg1);
+  color:var(--fg0);
   font-family: Cascadia Mono;
   font-size: 24px;
 }
@@ -84,7 +85,6 @@ body {
   display: flex;
   margin: 0;
   border: 0;
-  grid-column-start: 2;
   max-width: var(--controls-max-width);
 }
 .controls button {
@@ -124,6 +124,7 @@ body {
   grid-row-start: 2;
 }
 .tablatureEditor textarea {
+  white-space: pre;
   background-color:var(--bg0);
   height: 100%;
   margin: 0;
