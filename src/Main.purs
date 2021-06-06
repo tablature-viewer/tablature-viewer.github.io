@@ -5,6 +5,7 @@ import Prelude
 import Clipboard (copyToClipboard)
 import Data.Array.NonEmpty (toArray)
 import Data.Maybe (Maybe(..))
+import Data.String (Pattern(..), split)
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags as RegexFlags
 import Data.String.Regex.Unsafe (unsafeRegex)
@@ -23,6 +24,12 @@ import LocationString (getFragmentString, getLocationString, setFragmentString)
 import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
+
+fromClassString :: forall t228 t229.  String -> HH.IProp ( class :: String | t228) t229
+fromClassString classString = HP.classes $ split (Pattern " ") classString <#> \s -> HH.ClassName s
+
+fontAwesome :: forall t343 t344. String -> HH.HTML t343 t344
+fontAwesome glyphName = HH.i [ fromClassString $ "fas " <> glyphName] []
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -80,23 +87,23 @@ render state = HH.div
     ]
   renderControls = HH.div 
     [ HP.classes [ HH.ClassName "controls" ] ]
-    [ HH.button [ HE.onClick \_ -> ToggleMode ] [ HH.text buttonText ]
-    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ HH.text "Share" ]
+    [ HH.button [ HE.onClick \_ -> ToggleMode ] toggleButtonContent
+    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ fontAwesome "fa-share", HH.text " Share" ]
     , HH.a
       [ HP.href "./"
       , HP.target "_blank"
       ]
-      [ HH.button_ [ HH.text "New" ] ]
+      [ HH.button_ [ fontAwesome "fa-plus", HH.text " New" ] ]
     , HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
       ]
-      [ HH.button_ [ HH.text "About" ] ]
+      [ HH.button_ [ fontAwesome "fa-info", HH.text " About" ] ]
     ]
     where
-    buttonText = case state.mode of
-      EditMode -> "Save"
-      ViewMode -> "Edit"
+    toggleButtonContent = case state.mode of
+      EditMode -> [ fontAwesome "fa-save", HH.text " Save" ]
+      ViewMode  -> [ fontAwesome "fa-edit", HH.text " Edit" ]
   renderTablature = case state.mode of
     ViewMode -> HH.div 
       [ HP.classes [ HH.ClassName "tablatureViewer" ] ]
@@ -109,6 +116,7 @@ render state = HH.div
         , HP.spellcheck false
         ]
       ]
+
 
 renderTablatureText :: forall w i. String -> Array (HH.HTML w i)
 renderTablatureText rawText =

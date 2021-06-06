@@ -2,6 +2,10 @@
   font-family: Cascadia Tablature;
   src: url("CascadiaTablature.ttf") format('truetype');
 }
+@font-face {
+  font-family: Cascadia Mono;
+  src: url("CascadiaMono.ttf") format('truetype');
+}
 
 :root {
   --shadow:rgba(0, 0, 0, 0.2);
@@ -29,7 +33,7 @@ body {
 }
 
 .main {
-  font-family: Cascadia Tablature;
+  font-family: Cascadia Mono;
   height: 100vh;
   border: 0pt;
   margin: 0pt;
@@ -70,7 +74,7 @@ body {
   margin: 0pt 1pt;
   border: 0pt;
   background-color: var(--bg2);
-  font-family: Cascadia Tablature;
+  font-family: Cascadia Mono;
   color:var(--fg0);
   cursor: pointer;
   box-shadow: 0 0 2pt 0 var(--shadow);
