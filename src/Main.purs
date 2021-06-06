@@ -25,14 +25,14 @@ import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 
-fromClassString :: forall t228 t229.  String -> HH.IProp ( class :: String | t228) t229
-fromClassString classString = HP.classes $ split (Pattern " ") classString <#> \s -> HH.ClassName s
+classString :: forall t228 t229.  String -> HH.IProp ( class :: String | t228) t229
+classString string = HP.classes $ split (Pattern " ") string <#> \s -> HH.ClassName s
 
 fontAwesome :: forall t343 t344. String -> HH.HTML t343 t344
-fontAwesome glyphName = HH.i [ fromClassString $ "fas " <> glyphName] []
+fontAwesome glyphName = HH.i [ classString $ "fas " <> glyphName] []
 
 optionalText :: forall t233 t234. String -> HH.HTML t233 t234
-optionalText text = HH.span [ fromClassString "optional" ] [ HH.text text ]
+optionalText text = HH.span [ classString "optional" ] [ HH.text text ]
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -70,49 +70,52 @@ initialState _ = { mode: EditMode, tablature: "" }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
-  [ HP.classes [ HH.ClassName "main" ] ]
+  [ classString "main" ]
   [ renderHeader
   , renderTablature
   ]
   where
   renderHeader = HH.div
-    [ HP.classes [ HH.ClassName "header" ] ]
+    [ classString "header" ]
     [ renderTitle
     , renderControls
     ]
   renderTitle = HH.div
-    [ HP.classes [ HH.ClassName "title", HH.ClassName "optional"] ]
-    [HH.a
+    [ classString "title optional"]
+    [ HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
       ]
       [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
     ]
   renderControls = HH.div 
-    [ HP.classes [ HH.ClassName "controls" ] ]
-    [ HH.button [ HE.onClick \_ -> ToggleMode ] toggleButtonContent
-    , HH.button [ HE.onClick \_ -> CopyShortUrl ] [ fontAwesome "fa-share", optionalText " Share" ]
+    [ classString "controls" ]
+    [ HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleMode ] toggleButtonContent
+    , HH.button [ HP.title "Create a short link to the tablature for sharing with other people", HE.onClick \_ -> CopyShortUrl ] [ fontAwesome "fa-share", optionalText " Share" ]
     , HH.a
       [ HP.href "./"
       , HP.target "_blank"
       ]
-      [ HH.button_ [ fontAwesome "fa-plus", optionalText " New" ] ]
+      [ HH.button [ HP.title "Open a tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
     , HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
       ]
-      [ HH.button_ [ fontAwesome "fa-info", optionalText " About" ] ]
+      [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-info", optionalText " About" ] ]
     ]
     where
     toggleButtonContent = case state.mode of
       EditMode -> [ fontAwesome "fa-save", optionalText " Save" ]
       ViewMode  -> [ fontAwesome "fa-edit", optionalText " Edit" ]
+    toggleButtonTitle = case state.mode of
+      EditMode -> "Save tablature"
+      ViewMode  -> "Edit tablature"
   renderTablature = case state.mode of
     ViewMode -> HH.div 
-      [ HP.classes [ HH.ClassName "tablatureViewer" ] ]
+      [ classString "tablatureViewer" ]
       [ HH.pre_ $ renderTablatureText state.tablature ]
     EditMode -> HH.div 
-      [ HP.classes [ HH.ClassName "tablatureEditor" ] ]
+      [ classString "tablatureEditor" ]
       [ HH.textarea
         [ HP.ref refTablatureEditor
         , HP.placeholder "Paste your plaintext tablature here"

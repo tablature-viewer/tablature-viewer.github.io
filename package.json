@@ -11,7 +11,7 @@
     "build": "spago build",
     "jschange": "npm run build && echo Now ctrl-f5 your browser tab!",
     "start": "npm run build && parcel index.html",
-    "publish": "rm -rf docs && npm run build && parcel build  ./index.html --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html",
+    "publish": "rm -rf docs && npm run build && parcel build  ./index.html --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html && git add . && git commit -m publish",
     "clean": "rm -rf .cache .spago .psci_modules node_modules output .parcel-cache"
   },
   "repository": {
