@@ -77,7 +77,7 @@ body {
   margin: auto auto;
   color:var(--fg1);
   font-family: Cascadia Mono;
-  font-size: 25px;
+  font-size: 24px;
 }
 
 .controls {
@@ -88,7 +88,7 @@ body {
   max-width: var(--controls-max-width);
 }
 .controls button {
-  padding: 15px 32px;
+  padding: 10px 32px;
   height: 100%;
   margin: 0 1.5px;
   border: 0;
