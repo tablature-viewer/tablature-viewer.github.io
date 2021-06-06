@@ -3,6 +3,7 @@ module Main where
 import Prelude
 
 import Clipboard (copyToClipboard)
+import Data.Array (fromFoldable)
 import Data.Array.NonEmpty (toArray)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), split)
@@ -21,6 +22,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
 import LocationString (getFragmentString, getLocationString, setFragmentString)
+import TablatureHighlighter (highlightTablature)
 import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
@@ -28,10 +30,10 @@ import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 classString :: forall t228 t229.  String -> HH.IProp ( class :: String | t228) t229
 classString string = HP.classes $ split (Pattern " ") string <#> \s -> HH.ClassName s
 
-fontAwesome :: forall t343 t344. String -> HH.HTML t343 t344
+fontAwesome :: forall w i. String -> HH.HTML w i
 fontAwesome glyphName = HH.i [ classString $ "fas " <> glyphName] []
 
-optionalText :: forall t233 t234. String -> HH.HTML t233 t234
+optionalText :: forall w i. String -> HH.HTML w i
 optionalText text = HH.span [ classString "optional" ] [ HH.text text ]
 
 main :: Effect Unit
@@ -125,15 +127,7 @@ render state = HH.div
 
 
 renderTablatureText :: forall w i. String -> Array (HH.HTML w i)
-renderTablatureText rawText =
-  case Regex.match tablatureRegex rawText of
-    Nothing -> []
-    Just matches -> matches <#> x # toArray
-  where
-  -- tablatureRegex = unsafeRegex "(\\w+)|(\\W+)" noFlags
-  tablatureRegex = unsafeRegex "[\\s\\S]+" RegexFlags.global
-  x Nothing = HH.text ""
-  x (Just s) = HH.text s
+renderTablatureText rawText = fromFoldable $ highlightTablature rawText
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
