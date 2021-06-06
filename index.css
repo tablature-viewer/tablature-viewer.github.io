@@ -22,10 +22,13 @@
   --accent0:#d7263d;
   --accent1:#f87060;
   --accent2:#f97d6e;
+  
+  --title-width: 360px;
+  --controls-max-width: 475px;
 }
 
-/* max-width is sum of title width and controls max-width */
-@media only screen and (max-width: 975px) {
+/* max-width must be larger that sum of --title-width and --controls-max-width */
+@media only screen and (max-width: 860px) {
   .optional {
     display: none;
   }
@@ -46,20 +49,22 @@ body {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-rows: 50px auto;
+  grid-template-rows: auto auto;
   background-color: var(--bg1);
 }
 
 .header {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   z-index: 100;
-  grid-template-columns: 500px auto;
   margin: 0;
   border: 0;
   box-shadow: 0 0 6px 0 var(--shadow);
 }
 .title {
-  margin: auto auto;
+  margin: auto 0;
+  padding: 0 10px;
+  width: var(--title-width);
 }
 .title a {
   text-decoration: none;
@@ -68,7 +73,7 @@ body {
   margin: auto auto;
   color:var(--fg1);
   font-family: Cascadia Mono;
-  font-size: 30px;
+  font-size: 25px;
 }
 
 .controls {
@@ -76,7 +81,7 @@ body {
   margin: 0;
   border: 0;
   grid-column-start: 2;
-  max-width: 475px;
+  max-width: var(--controls-max-width);
 }
 .controls button {
   padding: 15px 32px;

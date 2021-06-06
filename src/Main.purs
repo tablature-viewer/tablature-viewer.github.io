@@ -81,7 +81,7 @@ render state = HH.div
     , renderControls
     ]
   renderTitle = HH.div
-    [ HP.classes [ HH.ClassName "title" ] ]
+    [ HP.classes [ HH.ClassName "title", HH.ClassName "optional"] ]
     [HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
