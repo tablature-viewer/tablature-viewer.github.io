@@ -5,7 +5,7 @@ Dozenal Tablature Viewer
 - All the tablature information is stored in the URL, so you easily can bookmark your tabs. No more dealing with all them ad-heavy tablature sites :)
 
 ## What is the base twelve numerical system?
-The [base twelve system](https://en.wikipedia.org/wiki/Duodecimal) (also called *dozenal* or *duodecimal* system) is a number system in which we count till twelve instead of ten, and have dedicated symbols for ten and eleven.
+The [base twelve system](https://en.wikipedia.org/wiki/Duodecimal) (also called *dozenal* or *duodecimal* system) is a number system in which we count till twelve instead of ten, and have dedicated symbols for ten (↊, a turned two) and eleven (↋, a turned three).
 
 Subsequent numbers in the dozenal system: 
 - 1, 2, 3, 4, 5, 6, 6, 7, 8, 9, ↊, ↋, 10, 11, ...

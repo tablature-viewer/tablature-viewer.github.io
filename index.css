@@ -43,28 +43,31 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+
   scrollbar-color: var(--hover0) var(--bg0);
 }
 
 .main {
-  font-family: Cascadia Mono;
+  display: grid;
+  grid-template-rows: 40px auto;
   height: 100vh;
   border: 0;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-rows: 40px auto;
+
+  font-family: Cascadia Mono;
   background-color: var(--bg1);
 }
 
 .header {
   display: flex;
   flex-wrap: wrap;
-  z-index: 100;
   margin: 0;
   border: 0;
-  box-shadow: 0 0 6px 0 var(--shadow);
+  z-index: 100;
+
   justify-content: center;
+  box-shadow: 0 0 6px 0 var(--shadow);
 }
 .title {
   margin: auto 0;
@@ -76,6 +79,7 @@ body {
 }
 .title h1 {
   margin: auto auto;
+
   color:var(--fg0);
   font-family: Cascadia Mono;
   font-size: 24px;
@@ -88,10 +92,11 @@ body {
   max-width: var(--controls-max-width);
 }
 .controls button {
-  padding: 10px 32px;
   height: 100%;
   margin: 0 1.5px;
   border: 0;
+  padding: 10px 32px;
+
   background-color: var(--bg2);
   font-family: Cascadia Mono;
   font-size: 13px;
@@ -104,18 +109,23 @@ body {
 }
 
 .tablatureViewer {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+
   background-color:var(--bg1);
   grid-row-start: 2;
-  overflow: auto;
 }
 .tablatureViewer pre {
+  height: 100%;
   margin: 0;
   border: 0;
   padding: 10px 0 0 10px;
+  overflow: auto;
+
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
   color:var(--fg0);
-  overflow: auto;
 }
 
 .tablatureEditor {
@@ -124,14 +134,16 @@ body {
   grid-row-start: 2;
 }
 .tablatureEditor textarea {
-  white-space: pre;
-  background-color:var(--bg0);
   height: 100%;
   margin: 0;
   border: 0;
   padding: 10px 0 0 10px;
+
   outline: none;
   resize: none;
+  white-space: pre;
+
+  background-color:var(--bg0);
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
 }
