@@ -32,6 +32,7 @@ to generate this file without the comments in this block.
   , "simple-json"
   , "string-parsers"
   , "strings"
+  , "stringutils"
   , "transformers"
   , "web-html"
   ]
