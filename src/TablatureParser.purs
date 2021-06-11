@@ -1,18 +1,26 @@
 module TablatureParser where
 
 import Prelude hiding (between)
+import Text.Parsing.StringParser
+import Text.Parsing.StringParser.CodePoints
+import Text.Parsing.StringParser.Combinators
+import Utils
 
-import Data.List (List(..),(:))
-import Text.Parsing.StringParser (Parser)
-import Text.Parsing.StringParser.CodePoints (regex)
-import Text.Parsing.StringParser.Combinators (choice, many)
+import Control.Alt ((<|>))
+import Data.Either (Either(..))
+import Data.List (List(..), (:))
+import Data.List.NonEmpty (NonEmptyList(..))
+import Data.List.NonEmpty as NEL
+import Effect (Effect)
+import Effect.Class.Console (log)
+import Effect.Console (error)
 
 type TabAst = List Line
 
 data Line
   = TitleLine {prefix::String, title::String, suffix::String}
   | TabLine (List TabLineElem)
-  | MiscLine String
+  | CommentLine String
 
 data TabLineElem
   = Prefix String
@@ -21,18 +29,38 @@ data TabLineElem
   | Fret String
   | Special String
 
-parseTabAst :: Parser TabAst
-parseTabAst = many parseLine
+instance showLine :: Show Line where
+  show (CommentLine string) = "Comment: " <> string
+  show (TabLine elems) = "Tab: " <> show elems
+  show (TitleLine line) = "Title: " <> line.prefix <> "|" <> line.title <> "|" <> line.suffix
 
-parseLine :: Parser Line
-parseLine = choice
-  [ parseTitleLine
-  -- , parseTabLine
-  -- , parseMiscLine
-  ]
+instance showTabLineElem :: Show TabLineElem where
+  show (Prefix string) = string
+  show (Suffix string) = string
+  show (TimeLine string) = string
+  show (Fret string) = string
+  show (Special string) = string
+
+parseTabAst :: Parser TabAst
+parseTabAst = do
+  pre <- option Nil parsePreAmble
+  -- firstLine <- option Nil (parseTitleLine <#> \result -> result:Nil)
+  tab <- parseTab
+  -- pure $ pre <> firstLine <> tab
+  pure $ pre <> tab
+  where
+  -- parsePreAmble = many parseCommentLine
+  -- parsePreAmble = manyTill parseCommentLine (lookAhead $ (try parseTitleLine <|> try parseTabLine))
+  parsePreAmble = manyTill parseCommentLine (lookAhead parseTitleLine)
+  parseTab = many parseCommentLine
+  -- parseTab = many $ (try parseTabLine) <|> parseCommentLine
 
 parseTitleLine :: Parser Line
-parseTitleLine = regex ".*" <#> \result -> TitleLine {prefix:"", title:result, suffix:""}
+parseTitleLine = do
+  p <- regex """[^\w\n]*"""
+  t <- regex """[^\n]*\w"""
+  s <- regex """.*(\n|$)"""
+  pure $ TitleLine {prefix:p, title:t, suffix:s}
 
 parseTabLine :: Parser Line
 parseTabLine = do
@@ -41,10 +69,18 @@ parseTabLine = do
   s <- parseSuffix
   pure $ TabLine (p:t:s:Nil)
   where
-  parsePrefix = regex "^.*?(?=|)" <#> \result -> Prefix result
-  parseTimeLine = regex "|.*|" <#> \result -> TimeLine result
-  parseSuffix = regex "(?<=|).*$)" <#> \result -> Suffix result
+  parsePrefix = regex """[^|]""" <#> \result -> Prefix result
+  parseTimeLine = regex """\|[^|]*\|""" <#> \result -> TimeLine result
+  parseSuffix = regex """.*(\n|$)""" <#> \result -> Suffix result
 
-parseMiscLine :: Parser Line
-parseMiscLine = regex ".*" <#> \result -> MiscLine result
+parseCommentLine :: Parser Line
+parseCommentLine = (regex "[^\n\r]+" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> CommentLine result
 
+-- | We are as flexible as possible when it comes to line endings.
+-- | Any of the following forms are considered valid: \n \r \n\r eof.
+parseEndOfLine :: Parser Unit
+parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
+
+parseEndOfLineString :: Parser String
+parseEndOfLineString = regex "\n\r?|\r"
+  
