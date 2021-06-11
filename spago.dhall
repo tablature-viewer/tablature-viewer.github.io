@@ -27,6 +27,7 @@ to generate this file without the comments in this block.
   , "http-methods"
   , "lists"
   , "maybe"
+  , "partial"
   , "prelude"
   , "psci-support"
   , "quickcheck"

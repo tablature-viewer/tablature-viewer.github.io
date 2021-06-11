@@ -57,24 +57,20 @@ parseTabAst = do
 
 parseTitleLine :: Parser Line
 parseTitleLine = do
-  p <- regex """[^\w\n]*"""
-  t <- regex """[^\n]*\w"""
-  s <- regex """.*(\n|$)"""
+  p <- regex """[^\w\n\r]*"""
+  t <- regex """[^\n\r]*\w"""
+  s <- regex """[^\n\r]*""" <* parseEndOfLine
   pure $ TitleLine {prefix:p, title:t, suffix:s}
 
 parseTabLine :: Parser Line
 parseTabLine = do
-  p <- parsePrefix
-  t <- parseTimeLine
-  s <- parseSuffix
+  p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
+  t <- regex """\|[^|\n\r]+\|""" <#> \result -> TimeLine result
+  s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TabLine (p:t:s:Nil)
-  where
-  parsePrefix = regex """[^|]""" <#> \result -> Prefix result
-  parseTimeLine = regex """\|[^|]*\|""" <#> \result -> TimeLine result
-  parseSuffix = regex """.*(\n|$)""" <#> \result -> Suffix result
 
 parseCommentLine :: Parser Line
-parseCommentLine = (regex "[^\n\r]+" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> CommentLine result
+parseCommentLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> CommentLine result
 
 -- | We are as flexible as possible when it comes to line endings.
 -- | Any of the following forms are considered valid: \n \r \n\r eof.
@@ -82,5 +78,4 @@ parseEndOfLine :: Parser Unit
 parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 
 parseEndOfLineString :: Parser String
-parseEndOfLineString = regex "\n\r?|\r"
-  
+parseEndOfLineString = regex """\n\r?|\r""" 

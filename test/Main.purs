@@ -2,14 +2,17 @@ module Test.Main where
 
 import Prelude
 
+import Data.Array.Partial (head)
 import Data.Either (Either(..))
 import Data.String (length)
 import Data.String.Gen (genAsciiString, genAsciiString')
+import Data.String.Utils (lines)
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
-import TablatureParser (parseCommentLine, parseEndOfLine)
+import Partial.Unsafe (unsafePartial)
+import TablatureParser (parseCommentLine, parseEndOfLine, parseTabLine, parseTitleLine)
 import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -55,8 +58,14 @@ assertFailed (Failed _) = assert' "" true
 assertParserSuccess :: forall a. Show a => Parser a -> String -> Effect Unit
 assertParserSuccess parser testString = doParseAll parser false testString # assertSucess
 
+assertParserSuccess' :: forall a. Show a => Parser a -> String -> Effect Unit
+assertParserSuccess' parser testString = doParseAll parser true testString # assertSucess
+
 assertParserFailed :: forall a. Show a => Parser a -> String -> Effect Unit
 assertParserFailed parser testString = doParseAll parser false testString # assertFailed
+
+assertParserFailed' :: forall a. Show a => Parser a -> String -> Effect Unit
+assertParserFailed' parser testString = doParseAll parser true testString # assertFailed
 
 runParser :: forall a.  Parser a -> String -> Either { error :: String , pos :: Int } a
 runParser p s = map (\parserResult -> parserResult.result) (unParser p { str: s, pos: 0 })
@@ -66,6 +75,10 @@ main = do
   log "🍝"
   assertParserSuccess parseEndOfLine ""
   assertParserSuccess parseEndOfLine "\n"
+  assertParserSuccess parseEndOfLine "\r"
+  assertParserSuccess parseEndOfLine "\n\r"
+  assertParserFailed parseEndOfLine "\r\r"
+  assertParserFailed parseEndOfLine "\n\r\r"
   assertParserFailed parseEndOfLine "a"
 
   assertParserFailed parseCommentLine ""
@@ -78,7 +91,37 @@ main = do
   quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseCommentLine) false s)
   quickCheck $ (\(AsciiString s) -> doParseAll (many parseCommentLine) false s)
   assertParserSuccess (many parseCommentLine) testTablature
+
+  assertParserFailed parseTitleLine ""
+  assertParserSuccess parseTitleLine "a"
+  assertParserFailed parseTitleLine "123\n456"
+  assertParserSuccess parseTitleLine "---title---"
+  assertParserSuccess (many parseTitleLine) "a"
+  assertParserSuccess (many parseTitleLine) "123\n456"
+
+  assertParserFailed parseTabLine ""
+  assertParserFailed parseTabLine "a"
+  assertParserFailed parseTabLine "|"
+  assertParserFailed parseTabLine "||"
+  assertParserSuccess parseTabLine "|-|"
+  assertParserSuccess parseTabLine "a|-2-|a"
+  assertParserSuccess parseTabLine "|-|\n"
+  assertParserFailed parseTabLine "|-|\na"
+  assertParserFailed parseTabLine "|-|\n|-|"
+  assertParserSuccess (many parseTabLine) "|-|\n|-|"
+  assertParserFailed (many parseTabLine) "|-|\na"
+  assertParserFailed (many parseTabLine) "a\n|-|"
+  assertParserSuccess parseTabLine (lines testTabLines # unsafePartial head)
+  assertParserSuccess (many parseTabLine) testTabLines
+  assertParserFailed (many parseTabLine) testTablature
   
+testTabLines :: String
+testTabLines = """e|---------------------------------------------------------------------------|
+B|---------------------------------------------------------------------------|
+G|------7-----7h9p7----------------7--7--------9-----------------------------| Some comment
+D|------7-----7-----9p7-9p7--------7--7--------9-----------------------------|
+A|------9-------------------9---/5-------5/7-7-------------------------------|
+E|--/7------7----------------------------------------------------------------|"""
   
 testTablature :: String
 testTablature = """
