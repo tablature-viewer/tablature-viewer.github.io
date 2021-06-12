@@ -24,7 +24,7 @@ data TablatureDocumentLine
 data TablatureElem
   = Prefix String
   | Suffix String
-  | TimeLine String
+  | Timeline String
   | Fret String
   | Special String
 
@@ -36,30 +36,32 @@ instance showLine :: Show TablatureDocumentLine where
 instance showTablatureElem :: Show TablatureElem where
   show (Prefix string) = string
   show (Suffix string) = string
-  show (TimeLine string) = string
+  show (Timeline string) = string
   show (Fret string) = string
   show (Special string) = string
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
-  pre <- option Nil $ try $ manyTill parseCommentLine (lookAhead parseTitleLine)
-  title <- option Nil (try parseTitleLine <#> \result -> result:Nil)
-  tab <- many $ (try parseTablatureLine) <|> parseCommentLine
-  pure $ pre <> title <> tab
+  header <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
+  body <- many $ (try parseTablatureLine) <|> parseCommentLine
+  pure $ header <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
   p <- regex """[^\w\n\r]*"""
-  t <- regex """[^\n\r]*\w"""
+  t <- regex """[^\n\r]*."""
   s <- regex """[^\n\r]*""" <* parseEndOfLine
   pure $ TitleLine {prefix:p, title:t, suffix:s}
 
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
   p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
-  t <- regex """\|[^\n\r]+\|""" <#> \result -> TimeLine result
+  t <- lookAhead (regex """\|[^\n\r]+\|""") *> many
+    ((regex """(\||-)+""" <#> \result -> Timeline result) <|>
+    (regex """\d+""" <#> \result -> Fret result) <|>
+    (regex """[^\r\n\d|-]+""" <#> \result -> Special result))
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
-  pure $ TablatureLine (p:t:s:Nil)
+  pure $ TablatureLine (p:Nil <> t <> s:Nil)
 
 parseCommentLine :: Parser TablatureDocumentLine
 parseCommentLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> CommentLine result

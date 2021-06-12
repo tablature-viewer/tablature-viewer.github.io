@@ -23,7 +23,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
 import LocationString (getFragmentString, getLocationString, setFragmentString)
-import TablatureHighlighter (highlightTablature)
+import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
 import Web.HTML as WH
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
@@ -119,7 +119,7 @@ render state = HH.div
 
 
 renderTablatureText :: forall w i. String -> Array (HH.HTML w i)
-renderTablatureText rawText = fromFoldable $ highlightTablature rawText
+renderTablatureText rawText = fromFoldable $ renderTablature rawText
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =

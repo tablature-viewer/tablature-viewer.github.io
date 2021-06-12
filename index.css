@@ -148,6 +148,30 @@ body {
   font-size: var(--tablature-font-size);
 }
 
-.number {
-  color: var(--fg0);
+.tablatureViewer .tabTitle {
+  color: deeppink;
+}
+
+.tablatureViewer .tabTimeline {
+  color: skyblue;
+}
+
+.tablatureViewer .tabFret {
+  color: darkblue;
+}
+
+.tablatureViewer .tabSpecial {
+  color: orangered;
+}
+
+.tablatureViewer .tabComment {
+  color: green;
+}
+
+.tablatureViewer .tabPrefix {
+  color: orange;
+}
+
+.tablatureViewer .tabSuffix {
+  color: black;
 }
