@@ -7,13 +7,7 @@ import Text.Parsing.StringParser.Combinators
 import Utils
 
 import Control.Alt ((<|>))
-import Data.Either (Either(..))
 import Data.List (List(..), (:))
-import Data.List.NonEmpty (NonEmptyList(..))
-import Data.List.NonEmpty as NEL
-import Effect (Effect)
-import Effect.Class.Console (log)
-import Effect.Console (error)
 
 type TabAst = List Line
 
@@ -43,17 +37,10 @@ instance showTabLineElem :: Show TabLineElem where
 
 parseTabAst :: Parser TabAst
 parseTabAst = do
-  pre <- option Nil parsePreAmble
-  -- firstLine <- option Nil (parseTitleLine <#> \result -> result:Nil)
-  tab <- parseTab
-  -- pure $ pre <> firstLine <> tab
-  pure $ pre <> tab
-  where
-  -- parsePreAmble = many parseCommentLine
-  -- parsePreAmble = manyTill parseCommentLine (lookAhead $ (try parseTitleLine <|> try parseTabLine))
-  parsePreAmble = manyTill parseCommentLine (lookAhead parseTitleLine)
-  parseTab = many parseCommentLine
-  -- parseTab = many $ (try parseTabLine) <|> parseCommentLine
+  pre <- option Nil $ try $ manyTill parseCommentLine (lookAhead parseTitleLine)
+  title <- option Nil (try parseTitleLine <#> \result -> result:Nil)
+  tab <- many $ (try parseTabLine) <|> parseCommentLine
+  pure $ pre <> title <> tab
 
 parseTitleLine :: Parser Line
 parseTitleLine = do

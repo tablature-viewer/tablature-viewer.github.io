@@ -4,7 +4,8 @@ import Prelude
 
 import Data.Array.Partial (head)
 import Data.Either (Either(..))
-import Data.String (length)
+import Data.String (drop, length)
+import Data.String.CodeUnits (slice)
 import Data.String.Gen (genAsciiString, genAsciiString')
 import Data.String.Utils (lines)
 import Effect (Effect)
@@ -12,12 +13,12 @@ import Effect.Class.Console (log)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import TablatureParser (parseCommentLine, parseEndOfLine, parseTabLine, parseTitleLine)
+import TablatureParser (parseCommentLine, parseEndOfLine, parseTabAst, parseTabLine, parseTitleLine)
 import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
-import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Text.Parsing.StringParser (Parser, PosString, unParser)
-import Text.Parsing.StringParser.CodePoints (eof, regex, string)
+import Text.Parsing.StringParser.CodePoints (eof)
 import Text.Parsing.StringParser.Combinators (many)
 
 newtype AsciiString = AsciiString String
@@ -40,7 +41,10 @@ doParseAll parser verbose inputString = unsafePerformEffect do
       if verbose then error $ msg else pure unit
       pure $ Failed msg
       where
-      msg = "Position: " <> show rec.pos <> ";Error: " <> show rec.error <> ";In input string: " <> show inputString
+      msg = "Position: " <> show rec.pos
+        <> "\nError: " <> show rec.error
+        <> "\nIn input string: " <> inputString
+        <> "\nWith unparsed suffix: " <> (show $ drop rec.pos inputString)
     Right rec -> do
       if verbose then log $ "Result was: " <> show rec.result <> "; Suffix was: " <> show rec.suffix else pure unit
       pure Success
@@ -114,6 +118,19 @@ main = do
   assertParserSuccess parseTabLine (lines testTabLines # unsafePartial head)
   assertParserSuccess (many parseTabLine) testTabLines
   assertParserFailed (many parseTabLine) testTablature
+
+  assertParserSuccess parseTabAst ""
+  assertParserSuccess parseTabAst "asdf"
+  assertParserSuccess parseTabAst "   asdf   "
+  assertParserSuccess parseTabAst "||"
+  assertParserSuccess parseTabAst "|-|"
+  assertParserSuccess parseTabAst "|-|\na"
+  assertParserSuccess parseTabAst "|-|\n|-|"
+  assertParserSuccess parseTabAst testTabLines
+  assertParserSuccess parseTabAst testTablature
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll parseTabAst false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll parseTabAst false s)
+  quickCheck $ doParseAll parseTabAst false
   
 testTabLines :: String
 testTabLines = """e|---------------------------------------------------------------------------|
