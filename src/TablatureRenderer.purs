@@ -7,8 +7,10 @@ import Utils
 
 import Data.Array (fromFoldable)
 import Data.Either (Either(..))
+import Data.Int (Radix, decimal, radix, toStringAs)
 import Data.List (List(..), (:))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 
@@ -20,7 +22,7 @@ renderTablature tablatureText = case parseResult of
   parseResult = tryRunParser parseTablatureDocument tablatureText
 
 renderTablatureDocument :: forall w i. TablatureDocument -> List (HH.HTML w i)
-renderTablatureDocument ast = map renderLine ast
+renderTablatureDocument doc = map renderLine doc
   where
   renderLine :: TablatureDocumentLine -> HH.HTML w i
   renderLine (CommentLine line) = HH.span [ classString "tabComment" ] [HH.text $ line <> "\n"]
@@ -33,5 +35,16 @@ renderTablatureDocument ast = map renderLine ast
   renderTablatureElem (Prefix string) = HH.span [ classString "tabPrefix" ] [ HH.text string ]
   renderTablatureElem (Suffix string) = HH.span [ classString "tabSuffix" ] [ HH.text string ]
   renderTablatureElem (Timeline string) = HH.span [ classString "tabTimeline" ] [ HH.text string ]
-  renderTablatureElem (Fret string) = HH.span [ classString "tabFret" ] [ HH.text string ]
+  renderTablatureElem (Fret n) =
+    if dozenalString == "↊" || dozenalString == "↋"
+    then HH.span_ [ fretHtml, HH.span [ classString "tabTimeline" ] [ HH.text "-" ] ]
+    else fretHtml
+    where
+    fretHtml = HH.span [ classString "tabFret" ] [ HH.text $ dozenalString ]
+    dozenalString = toDozenalString n
   renderTablatureElem (Special string) = HH.span [ classString "tabSpecial" ] [ HH.text string ]
+
+toDozenalString :: Int -> String
+toDozenalString n = toStringAs dozenal n # replaceAll (Pattern "a") (Replacement "↊") # replaceAll (Pattern "b") (Replacement "↋")
+  where
+  dozenal = fromMaybe decimal $ radix 12

@@ -8,8 +8,9 @@ import Utils
 
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
+import Data.Int (fromString)
 import Data.List (List(..), (:))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (drop)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
@@ -25,7 +26,7 @@ data TablatureElem
   = Prefix String
   | Suffix String
   | Timeline String
-  | Fret String
+  | Fret Int
   | Special String
 
 instance showLine :: Show TablatureDocumentLine where
@@ -37,7 +38,7 @@ instance showTablatureElem :: Show TablatureElem where
   show (Prefix string) = string
   show (Suffix string) = string
   show (Timeline string) = string
-  show (Fret string) = string
+  show (Fret string) = show string
   show (Special string) = string
 
 parseTablatureDocument :: Parser TablatureDocument
@@ -58,7 +59,7 @@ parseTablatureLine = do
   p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
   t <- lookAhead (regex """\|[^\n\r]+\|""") *> many
     ((regex """(\||-)+""" <#> \result -> Timeline result) <|>
-    (regex """\d+""" <#> \result -> Fret result) <|>
+    (regex """\d+""" <#> \result -> Fret $ fromMaybe 0 $ fromString result) <|>
     (regex """[^\r\n\d|-]+""" <#> \result -> Special result))
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TablatureLine (p:Nil <> t <> s:Nil)
