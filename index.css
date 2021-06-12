@@ -13,11 +13,10 @@
   --bg0: #FEF8EC;
   --bg1:#F9F1E1;
   --bg2:#F0E9D6;
-  --bg3:#F2E7CA;
   --hover0:#D1DFD0;
-  /* --fg0:#21a0a0; */
   --fg0:#046865;
   --fg1: #0095a8;
+  /* --fg1:#21a0a0; */
   --fg2: #8ca6a6;
   --accent0: #ff5792;
   --accent1: #fa8900;
@@ -29,6 +28,24 @@
   --title-width: 360px;
   --controls-max-width: 475px;
   --tablature-font-size: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg0: #262335;
+    --bg1:#241B2F;
+    --bg2:#171520;
+    --hover0:#2F2441;
+    --fg0:#046865;
+    --fg1: #0095a8;
+    --fg2: #8ca6a6;
+    --accent0: #ff5792;
+    --accent1: #fa8900;
+    --accent2: #0094f0;
+    --accent3: #00bdd6;
+    --red: #e64100;
+    --green: #00b368;
+  }
 }
 
 .tablatureViewer .tabTitle {
@@ -44,7 +61,7 @@
 }
 
 .tablatureViewer .tabSpecial {
-  color: var(--accent1);
+  color: var(--fg1);
 }
 
 .tablatureViewer .tabComment {

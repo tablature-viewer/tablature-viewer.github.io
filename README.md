@@ -1,8 +1,8 @@
 Dozenal Tablature Viewer
 ========================
 
-- Paste a regular plain text tablature and view it in the base twelve number system instead of the base ten number system.
-- All the tablature information is stored in the URL, so you easily can bookmark your tabs. No more dealing with all them ad-heavy tablature sites :)
+- Paste a regular plain text tablature and then view it in the base twelve number system instead of the base ten number system.
+- All the tablature information is stored in the URL, so you easily can bookmark and save your tabs. No more dealing with all them ad-heavy tablature sites :)
 
 ## What is the base twelve numerical system?
 The [base twelve system](https://en.wikipedia.org/wiki/Duodecimal) (also called *dozenal* or *duodecimal* system) is a number system in which we count till twelve instead of ten, and have dedicated symbols for ten (↊, a turned two) and eleven (↋, a turned three).
@@ -30,3 +30,5 @@ For more information about pronounciation read [more about the do-gro-mo system]
 - Autoscroll
 - Dedicated version for chord sheets
 - Dark theme support
+- Dynamic bookmarks support
+- Progress indication for longer actions such as save and share
