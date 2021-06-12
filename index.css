@@ -125,7 +125,7 @@ body {
 
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
-  color:var(--fg0);
+  color:var(--fg2);
 }
 
 .tablatureEditor {
@@ -149,5 +149,5 @@ body {
 }
 
 .number {
-  color: var(--accent2);
+  color: var(--fg0);
 }

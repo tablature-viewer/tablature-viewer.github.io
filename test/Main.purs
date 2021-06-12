@@ -13,7 +13,7 @@ import Effect.Class.Console (log)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import TablatureParser (parseCommentLine, parseEndOfLine, parseTabAst, parseTabLine, parseTitleLine)
+import TablatureParser (parseCommentLine, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTitleLine)
 import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
@@ -103,34 +103,34 @@ main = do
   assertParserSuccess (many parseTitleLine) "a"
   assertParserSuccess (many parseTitleLine) "123\n456"
 
-  assertParserFailed parseTabLine ""
-  assertParserFailed parseTabLine "a"
-  assertParserFailed parseTabLine "|"
-  assertParserFailed parseTabLine "||"
-  assertParserSuccess parseTabLine "|-|"
-  assertParserSuccess parseTabLine "a|-2-|a"
-  assertParserSuccess parseTabLine "|-|\n"
-  assertParserFailed parseTabLine "|-|\na"
-  assertParserFailed parseTabLine "|-|\n|-|"
-  assertParserSuccess (many parseTabLine) "|-|\n|-|"
-  assertParserFailed (many parseTabLine) "|-|\na"
-  assertParserFailed (many parseTabLine) "a\n|-|"
-  assertParserSuccess parseTabLine (lines testTabLines # unsafePartial head)
-  assertParserSuccess (many parseTabLine) testTabLines
-  assertParserFailed (many parseTabLine) testTablature
+  assertParserFailed parseTablatureLine ""
+  assertParserFailed parseTablatureLine "a"
+  assertParserFailed parseTablatureLine "|"
+  assertParserFailed parseTablatureLine "||"
+  assertParserSuccess parseTablatureLine "|-|"
+  assertParserSuccess parseTablatureLine "a|-2-|a"
+  assertParserSuccess parseTablatureLine "|-|\n"
+  assertParserFailed parseTablatureLine "|-|\na"
+  assertParserFailed parseTablatureLine "|-|\n|-|"
+  assertParserSuccess (many parseTablatureLine) "|-|\n|-|"
+  assertParserFailed (many parseTablatureLine) "|-|\na"
+  assertParserFailed (many parseTablatureLine) "a\n|-|"
+  assertParserSuccess parseTablatureLine (lines testTabLines # unsafePartial head)
+  assertParserSuccess (many parseTablatureLine) testTabLines
+  assertParserFailed (many parseTablatureLine) testTablature
 
-  assertParserSuccess parseTabAst ""
-  assertParserSuccess parseTabAst "asdf"
-  assertParserSuccess parseTabAst "   asdf   "
-  assertParserSuccess parseTabAst "||"
-  assertParserSuccess parseTabAst "|-|"
-  assertParserSuccess parseTabAst "|-|\na"
-  assertParserSuccess parseTabAst "|-|\n|-|"
-  assertParserSuccess parseTabAst testTabLines
-  assertParserSuccess parseTabAst testTablature
-  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll parseTabAst false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll parseTabAst false s)
-  quickCheck $ doParseAll parseTabAst false
+  assertParserSuccess parseTablatureDocument ""
+  assertParserSuccess parseTablatureDocument "asdf"
+  assertParserSuccess parseTablatureDocument "   asdf   "
+  assertParserSuccess parseTablatureDocument "||"
+  assertParserSuccess parseTablatureDocument "|-|"
+  assertParserSuccess parseTablatureDocument "|-|\na"
+  assertParserSuccess parseTablatureDocument "|-|\n|-|"
+  assertParserSuccess parseTablatureDocument testTabLines
+  assertParserSuccess parseTablatureDocument testTablature
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll parseTablatureDocument false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll parseTablatureDocument false s)
+  quickCheck $ doParseAll parseTablatureDocument false
   
 testTabLines :: String
 testTabLines = """e|---------------------------------------------------------------------------|
