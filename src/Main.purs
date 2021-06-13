@@ -5,12 +5,7 @@ import HalogenUtils
 
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
-import Data.Array.NonEmpty (toArray)
 import Data.Maybe (Maybe(..))
-import Data.String (Pattern(..), split)
-import Data.String.Regex as Regex
-import Data.String.Regex.Flags as RegexFlags
-import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
@@ -69,6 +64,19 @@ render state = HH.div
   , renderTablature
   ]
   where
+  renderTablature = HH.div 
+      [ classString "tablatureContainer" ]
+      [ case state.mode of
+        ViewMode -> HH.div 
+          [ classString "tablatureViewer" ]
+          [ HH.pre_ $ renderTablatureText state.tablature ]
+        EditMode -> HH.textarea
+          [ HP.ref refTablatureEditor
+          , classString "tablatureEditor" 
+          , HP.placeholder "Paste your plaintext tablature here"
+          , HP.spellcheck false
+          ]
+      ]
   renderHeader = HH.div
     [ classString "header" ]
     [ renderTitle
@@ -104,18 +112,6 @@ render state = HH.div
     toggleButtonTitle = case state.mode of
       EditMode -> "Save tablature"
       ViewMode  -> "Edit tablature"
-  renderTablature = case state.mode of
-    ViewMode -> HH.div 
-      [ classString "tablatureViewer" ]
-      [ HH.pre_ $ renderTablatureText state.tablature ]
-    EditMode -> HH.div 
-      [ classString "tablatureEditor" ]
-      [ HH.textarea
-        [ HP.ref refTablatureEditor
-        , HP.placeholder "Paste your plaintext tablature here"
-        , HP.spellcheck false
-        ]
-      ]
 
 
 renderTablatureText :: forall w i. String -> Array (HH.HTML w i)

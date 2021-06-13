@@ -1,5 +1,7 @@
 @font-face {
   font-family: Cascadia Tablature;
+  font-weight: normal;
+  font-style: normal;
   src: url("CascadiaTablature.ttf") format('truetype');
 }
 @font-face {
@@ -16,59 +18,59 @@
 
   --tab-bg: #FEF8EC;
   --header-bg:#F9F1E1;
-  --button-bg:#F0E9D6;
+  --button-bg:#F0E9D8;
   --button-hover-bg:#D1DFD0;
-  --button-fg: #0095a8;
-  --tab-fg: #8ca6a6;
-  --tabEdit-fg:#046865;
-  --tabTitle-fg: #0094f0;
-  --comment-fg: #fa8900;
-  --fret-fg: #ff5792;
-  --special-fg: #00bdd6;
+  --fg: #00a5a8;
+  --fg-alt: #35c9ff;
+  --fg-alt2: #0094f0;
+
+  --accent: #ff5792;
+  --accent-alt: #fa9600;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --tab-bg: #262335;
     --header-bg:#241B2F;
-    --button-bg:#171520;
+    --button-bg:var(--header-bg);
     --button-hover-bg:#2F2441;
-    --button-fg: #acb3b3;
-    --tab-fg:#939393;
-    --tabEdit-fg: #c4c4c4;
-    --tabTitle-fg: #ecd13a;
-    --comment-fg: #fa8900;
-    --fret-fg: #ff57db;
-    --special-fg: #01e1ff;
+
+    --fg: #acb3b3;
+    --fg-alt2: #ecd13a;
+    --fg-alt: #01e1ff;
+
+    --accent: #ff57db;
+    --accent-alt: #fa8900;
   }
 }
 
 .tablatureViewer .tabTitle {
-  color: var(--tabTitle-fg);
+  color: var(--accent-alt);
 }
 
 .tablatureViewer .tabTimeline {
-  color: var(--tab-fg);
+  color: var(--fg);
+  font-weight: lighter;
 }
 
 .tablatureViewer .tabFret {
-  color: var(--fret-fg);
+  color: var(--accent);
 }
 
 .tablatureViewer .tabSpecial {
-  color: var(--special-fg);
+  color: var(--fg-alt);
 }
 
 .tablatureViewer .tabComment {
-  color: var(--comment-fg);
+  color: var(--fg-alt2);
 }
 
 .tablatureViewer .tabPrefix {
-  color: var(--tabTitle-fg);
+  color: var(--fg-alt2);
 }
 
 .tablatureViewer .tabSuffix {
-  color: var(--comment-fg);
+  color: var(--accent-alt);
 }
 
 /* max-width must be larger that sum of --title-width and --controls-max-width */
@@ -123,7 +125,7 @@ body {
 .title h1 {
   margin: auto auto;
 
-  color:var(--button-fg);
+  color:var(--fg);
   font-family: Cascadia Mono;
   font-size: 24px;
 }
@@ -143,7 +145,7 @@ body {
   background-color: var(--button-bg);
   font-family: Cascadia Mono;
   font-size: 13px;
-  color:var(--button-fg);
+  color:var(--fg);
   cursor: pointer;
   box-shadow: 0 0 4px 0 var(--shadow);
 }
@@ -151,13 +153,18 @@ body {
   background-color: var(--button-hover-bg);
 }
 
-.tablatureViewer {
+.tablatureContainer {
   display: flex;
   flex-direction: column;
   overflow: auto;
 
   background-color:var(--tab-bg);
   grid-row-start: 2;
+}
+
+.tablatureViewer {
+  display: flex;
+  justify-content: center;
 }
 .tablatureViewer pre {
   height: 100%;
@@ -168,15 +175,10 @@ body {
 
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
-  color:var(--tab-fg);
+  color:var(--fg);
 }
 
 .tablatureEditor {
-  display: flex;
-  flex-direction: column;
-  grid-row-start: 2;
-}
-.tablatureEditor textarea {
   height: 100%;
   margin: 0;
   border: 0;
@@ -187,7 +189,7 @@ body {
   white-space: pre;
 
   background-color:var(--tab-bg);
-  color:var(--tabEdit-fg);
+  color:var(--fg);
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
 }

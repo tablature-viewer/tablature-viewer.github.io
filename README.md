@@ -32,3 +32,5 @@ For more information about pronounciation read [more about the do-gro-mo system]
 - Dark theme support
 - Dynamic bookmarks support
 - Progress indication for longer actions such as save and share
+- Auto focus tablature after executing action
+- Make sure the font-weight property works in Chrome
