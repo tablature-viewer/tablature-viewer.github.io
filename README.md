@@ -26,11 +26,17 @@ So five notes above the octave is called *do five*.
 It's funny coincidence here that the octave note has been called *do* in [musical solfège](https://en.wikipedia.org/wiki/Solf%C3%A8ge) for centuries.
 For more information about pronounciation read [more about the do-gro-mo system](https://en.wikipedia.org/wiki/Duodecimal#Do-gro-mo_system).
 
+## Can I customize the color theme?
+Yes you can. Install the *Stylish* browser extension and override the color CSS variables in [index.css](https://github.com/dznl/tabviewer/blob/main/index.css).
+
+## How do I keep my bookmark up-to-date when modifying a tab?
+There are browser-extensions which can help you with this.
+For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/addon/replace-bookmark/) which reduces the amount of clicks you have to do to update an existing bookmark.
+
 ## Feature roadmap
+- [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
+- Make sure the font-weight property works in Chrome
+- Auto focus tablature after executing action
+- Progress indication for longer actions such as save and share
 - Autoscroll
 - Dedicated version for chord sheets
-- Dark theme support
-- Dynamic bookmarks support
-- Progress indication for longer actions such as save and share
-- Auto focus tablature after executing action
-- Make sure the font-weight property works in Chrome
