@@ -10,6 +10,7 @@ import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.Int (fromString)
 import Data.List (List(..), (:))
+import Data.List.Types (toList)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (drop)
 import Effect.Console (error)
@@ -43,9 +44,10 @@ instance showTablatureElem :: Show TablatureElem where
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
-  header <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseCommentLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
+  title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
   body <- many $ (try parseTablatureLine) <|> parseCommentLine
-  pure $ header <> body
+  pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do

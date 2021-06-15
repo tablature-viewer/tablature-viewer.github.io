@@ -5,7 +5,6 @@ import Prelude
 import Data.Array.Partial (head)
 import Data.Either (Either(..))
 import Data.String (drop, length)
-import Data.String.CodeUnits (slice)
 import Data.String.Gen (genAsciiString, genAsciiString')
 import Data.String.Utils (lines)
 import Effect (Effect)
@@ -18,8 +17,8 @@ import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Text.Parsing.StringParser (Parser, PosString, unParser)
-import Text.Parsing.StringParser.CodePoints (eof)
-import Text.Parsing.StringParser.Combinators (many)
+import Text.Parsing.StringParser.CodePoints (eof, regex, string)
+import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill)
 
 newtype AsciiString = AsciiString String
 newtype AsciiStringNoCtrl = AsciiStringNoCtrl String
@@ -77,6 +76,15 @@ runParser p s = map (\parserResult -> parserResult.result) (unParser p { str: s,
 main :: Effect Unit
 main = do
   log "🍝"
+
+  -- Check if manyTill works the way we expect it to
+  assertParserFailed (manyTill (string "1") (string "2") ) "111111"
+  assertParserSuccess (manyTill (string "1") (string "2") ) "1111112"
+  assertParserFailed (manyTill (string "1") (lookAhead $ string "2") ) "1111112"
+  assertParserSuccess ( (manyTill (string "1") (lookAhead $ string "2")) *> (string "2") ) "1111112"
+  assertParserSuccess ( (manyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "1111112"
+  assertParserSuccess ( (manyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "2"
+
   assertParserSuccess parseEndOfLine ""
   assertParserSuccess parseEndOfLine "\n"
   assertParserSuccess parseEndOfLine "\r"
@@ -107,14 +115,14 @@ main = do
   assertParserFailed parseTablatureLine "a"
   assertParserFailed parseTablatureLine "|"
   assertParserFailed parseTablatureLine "||"
-  assertParserSuccess parseTablatureLine "|-|"
+  assertParserSuccess parseTablatureLine "|---|"
   assertParserSuccess parseTablatureLine "a|-2-|a"
-  assertParserSuccess parseTablatureLine "|-|\n"
-  assertParserFailed parseTablatureLine "|-|\na"
-  assertParserFailed parseTablatureLine "|-|\n|-|"
-  assertParserSuccess (many parseTablatureLine) "|-|\n|-|"
-  assertParserFailed (many parseTablatureLine) "|-|\na"
-  assertParserFailed (many parseTablatureLine) "a\n|-|"
+  assertParserSuccess parseTablatureLine "|---|\n"
+  assertParserFailed parseTablatureLine "|---|\na"
+  assertParserFailed parseTablatureLine "|---|\n|---|"
+  assertParserSuccess (many parseTablatureLine) "|---|\n|---|"
+  assertParserFailed (many parseTablatureLine) "|---|\na"
+  assertParserFailed (many parseTablatureLine) "a\n|---|"
   assertParserSuccess parseTablatureLine (lines testTabLines # unsafePartial head)
   assertParserSuccess (many parseTablatureLine) testTabLines
   assertParserFailed (many parseTablatureLine) testTablature
@@ -123,15 +131,15 @@ main = do
   assertParserSuccess parseTablatureDocument "asdf"
   assertParserSuccess parseTablatureDocument "   asdf   "
   assertParserSuccess parseTablatureDocument "||"
-  assertParserSuccess parseTablatureDocument "|-|"
-  assertParserSuccess parseTablatureDocument "|-|\na"
-  assertParserSuccess parseTablatureDocument "|-|\n|-|"
+  assertParserSuccess parseTablatureDocument "|---|"
+  assertParserSuccess parseTablatureDocument "|---|\na"
+  assertParserSuccess parseTablatureDocument "|---|\n|---|"
   assertParserSuccess parseTablatureDocument testTabLines
   assertParserSuccess parseTablatureDocument testTablature
   quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll parseTablatureDocument false s)
   quickCheck $ (\(AsciiString s) -> doParseAll parseTablatureDocument false s)
   quickCheck $ doParseAll parseTablatureDocument false
-  
+
 testTabLines :: String
 testTabLines = """e|---------------------------------------------------------------------------|
 B|---------------------------------------------------------------------------|
