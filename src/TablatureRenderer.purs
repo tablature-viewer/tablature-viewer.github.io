@@ -15,12 +15,10 @@ import Data.String.Utils (repeat)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 
-renderTablature :: forall w i. String -> List (HH.HTML w i)
-renderTablature tablatureText = case parseResult of
+renderTablature :: forall w i. Maybe TablatureDocument -> String -> List (HH.HTML w i)
+renderTablature maybeTablatureDoc tablatureText = case maybeTablatureDoc of
   Nothing -> HH.text tablatureText : Nil
   Just tablatureDoc -> renderTablatureDocument tablatureDoc
-  where
-  parseResult = tryRunParser parseTablatureDocument tablatureText
 
 renderTablatureDocument :: forall w i. TablatureDocument -> List (HH.HTML w i)
 renderTablatureDocument doc = map renderLine doc

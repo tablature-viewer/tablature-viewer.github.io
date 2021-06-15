@@ -10,7 +10,6 @@ import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.Int (fromString)
 import Data.List (List(..), (:))
-import Data.List.Types (toList)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (drop)
 import Effect.Console (error)
@@ -29,6 +28,7 @@ data TablatureElem
   | Timeline String
   | Fret Int
   | Special String
+
 
 instance showLine :: Show TablatureDocumentLine where
   show (TitleLine line) = "Title: " <> line.prefix <> "|" <> line.title <> "|" <> line.suffix
@@ -77,6 +77,9 @@ parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 
 parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n\r?|\r""" 
+
+tryParseTablature :: String -> Maybe (List TablatureDocumentLine)
+tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 

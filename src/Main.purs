@@ -1,10 +1,11 @@
 module Main where
 
-import Prelude
 import HalogenUtils
+import Prelude
 
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
+import Data.List (findIndex, (!!))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Aff.Class (class MonadAff)
@@ -18,10 +19,14 @@ import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
 import LocationString (getFragmentString, getLocationString, setFragmentString)
+import TablatureParser (TablatureDocument, TablatureDocumentLine(..), tryParseTablature)
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
+import Web.HTML (window)
 import Web.HTML as WH
+import Web.HTML.HTMLDocument (setTitle)
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
+import Web.HTML.Window (document)
 
 main :: Effect Unit
 main = HA.runHalogenAff do
@@ -29,8 +34,24 @@ main = HA.runHalogenAff do
   runUI component unit body
 
 data Mode = ViewMode | EditMode
-type State = { mode :: Mode, tablature :: String }
+type State = { mode :: Mode, tablatureText :: String, tablatureTitle :: String, tablatureDocument :: Maybe TablatureDocument }
 data Action = Initialize | ToggleMode | CopyShortUrl
+
+defaultTitle :: String
+defaultTitle = "Tab Viewer"
+
+getTitle :: TablatureDocument -> String
+getTitle tablatureDocument = 
+  case findIndex isTitle tablatureDocument of
+    Nothing -> defaultTitle
+    Just index ->
+      case tablatureDocument !! index of
+        Just (TitleLine line) -> line.title
+        Nothing -> defaultTitle
+        Just _ -> defaultTitle
+  where
+  isTitle (TitleLine _) = true
+  isTitle _ = false
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"
@@ -55,7 +76,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, tablature: "" }
+initialState _ = { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -69,7 +90,7 @@ render state = HH.div
       [ case state.mode of
         ViewMode -> HH.div 
           [ classString "tablatureViewer" ]
-          [ HH.pre_ $ renderTablatureText state.tablature ]
+          [ HH.pre_ $ renderTablatureText state ]
         EditMode -> HH.textarea
           [ HP.ref refTablatureEditor
           , classString "tablatureEditor" 
@@ -114,8 +135,8 @@ render state = HH.div
       ViewMode  -> "Edit tablature"
 
 
-renderTablatureText :: forall w i. String -> Array (HH.HTML w i)
-renderTablatureText rawText = fromFoldable $ renderTablature rawText
+renderTablatureText :: forall w i. State -> Array (HH.HTML w i)
+renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument state.tablatureText
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
@@ -124,9 +145,15 @@ handleAction action =
       maybeTablatureText <- H.liftEffect getTablatureTextFromFragment
       case maybeTablatureText of
         Just tablatureText -> do
-          H.put { mode: ViewMode, tablature: tablatureText }
+          case tryParseTablature tablatureText of
+            Just tablatureDocument -> do
+              H.put { mode: ViewMode, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument }
+              H.liftEffect $ setDocumentTitle tablatureTitle
+              where tablatureTitle = getTitle tablatureDocument
+            Nothing ->
+              H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing }
         Nothing ->
-          H.put { mode: EditMode, tablature: "" }
+          H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing }
     ToggleMode -> do
       state <- H.get
       case state.mode of
@@ -134,8 +161,8 @@ handleAction action =
           saveTablature
           H.modify_ _ { mode = ViewMode }
         ViewMode -> do
-          H.modify_ _ { mode = EditMode }
-          setTablatureEditorText state.tablature
+          H.modify_ _ { mode = EditMode, tablatureDocument = Nothing }
+          setTablatureEditorText state.tablatureText
     CopyShortUrl -> do
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
@@ -158,13 +185,20 @@ saveTablature :: forall output m . MonadEffect m => H.HalogenM State Action () o
 saveTablature = do
   tablatureText <- getTablatureEditorText
   saveTablatureToState tablatureText
-  saveTablatureToFragment tablatureText
+  saveTablatureToFragment
   where
+  saveTablatureToState :: String -> H.HalogenM State Action () output m Unit
   saveTablatureToState tablatureText = do
+    case tryParseTablature tablatureText of
+      Just tablatureDocument ->
+        H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument }
+      Nothing ->
+        H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
+  saveTablatureToFragment :: H.HalogenM State Action () output m Unit
+  saveTablatureToFragment = do
     state <- H.get
-    H.modify_ _ { mode = state.mode, tablature = tablatureText }
-  saveTablatureToFragment tablatureText = do
-    case compressToEncodedURIComponent tablatureText of
+    H.liftEffect $ setDocumentTitle state.tablatureTitle
+    case compressToEncodedURIComponent state.tablatureText of
       Just compressed -> H.liftEffect $ setFragmentString compressed
       Nothing -> H.liftEffect $ Console.error("Could not save tablature to URL")
 
@@ -183,3 +217,9 @@ setTablatureEditorText text = do
   case maybeTextArea of
     Nothing -> H.liftEffect $ Console.error "Could not find textareaTablature" *> pure unit
     Just textArea -> H.liftEffect $ WH.HTMLTextAreaElement.setValue text textArea 
+
+setDocumentTitle :: String -> Effect Unit
+setDocumentTitle title = do
+    window <- window
+    document <- document window
+    setTitle title document
