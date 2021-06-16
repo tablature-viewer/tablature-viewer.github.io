@@ -32,7 +32,7 @@ renderTablatureDocument doc = map renderLine doc
     ]
   -- Rendering elements needs care because the numbers ↊ and ↋ take less space than 10 and 11.
   -- We need to make up for this with extra dashes at the first next Timeline element.
-  renderLine (TablatureLine line) = HH.span_ $ fromFoldable $ reverse $ result.acc <> HH.text "\n" : Nil
+  renderLine (TablatureLine line) = HH.span_ $ fromFoldable $ (reverse $ result.acc) <> HH.text "\n" : Nil
     where result = foldl accTablatureElems {pendingDashes:0, acc: Nil} line
   accTablatureElems :: { acc:: List (HH.HTML w i), pendingDashes:: Int } -> TablatureElem -> { acc:: List (HH.HTML w i), pendingDashes:: Int } 
   accTablatureElems { pendingDashes, acc } elem = { pendingDashes: elemResult.pendingDashes, acc: (elemResult.result:acc) }

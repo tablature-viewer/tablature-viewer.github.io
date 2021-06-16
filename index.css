@@ -83,11 +83,14 @@
   }
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   border: 0;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 
   scrollbar-color: var(--button-hover-bg) var(--tab-bg);
 }
@@ -152,24 +155,15 @@ body {
   background-color: var(--button-hover-bg);
 }
 
-.tablatureContainer {
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-
-  background-color:var(--tab-bg);
-  grid-row-start: 2;
-}
-
 .tablatureViewer {
   display: flex;
-  justify-content: center;
+  overflow: auto;
+  background-color:var(--tab-bg);
 }
 .tablatureViewer pre {
-  height: 100%;
-  margin: 0;
+  margin: auto;
   border: 0;
-  padding: 10px 0 0 10px;
+  padding: 10px;
 
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
@@ -177,10 +171,9 @@ body {
 }
 
 .tablatureEditor {
-  height: 100%;
   margin: 0;
   border: 0;
-  padding: 10px 0 0 10px;
+  padding: 10px;
 
   outline: none;
   resize: none;

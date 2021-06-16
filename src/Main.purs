@@ -28,7 +28,7 @@ import Web.DOM.Node (textContent)
 import Web.HTML (window)
 import Web.HTML as WH
 import Web.HTML.HTMLDocument (setTitle)
-import Web.HTML.HTMLElement (toElement)
+import Web.HTML.HTMLElement (focus, toElement)
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 import Web.HTML.Window (document)
 
@@ -99,9 +99,7 @@ render state = HH.div
   , renderTablature
   ]
   where
-  renderTablature = HH.div 
-      [ classString "tablatureContainer", HP.ref refTablatureContainer ]
-      [ case state.mode of
+  renderTablature = case state.mode of
         ViewMode -> HH.div 
           [ classString "tablatureViewer" ]
           [ HH.pre_ $ renderTablatureText state ]
@@ -111,7 +109,6 @@ render state = HH.div
           , HP.placeholder "Paste your plaintext tablature here"
           , HP.spellcheck false
           ]
-      ]
   renderHeader = HH.div
     [ classString "header" ]
     [ renderTitle
