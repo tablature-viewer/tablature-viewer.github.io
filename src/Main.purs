@@ -22,9 +22,12 @@ import LocationString (getFragmentString, getLocationString, setFragmentString)
 import TablatureParser (TablatureDocument, TablatureDocumentLine(..), tryParseTablature)
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
+import Web.DOM (Element)
+import Web.DOM.Element (scrollTop)
 import Web.HTML (window)
 import Web.HTML as WH
 import Web.HTML.HTMLDocument (setTitle)
+import Web.HTML.HTMLElement (toElement)
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 import Web.HTML.Window (document)
 
@@ -34,7 +37,14 @@ main = HA.runHalogenAff do
   runUI component unit body
 
 data Mode = ViewMode | EditMode
-type State = { mode :: Mode, tablatureText :: String, tablatureTitle :: String, tablatureDocument :: Maybe TablatureDocument }
+type State =
+  { mode :: Mode
+  , tablatureText :: String
+  , tablatureTitle :: String
+  , tablatureDocument :: Maybe TablatureDocument
+  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
+  , scrollTop :: Number
+  }
 data Action = Initialize | ToggleMode | CopyShortUrl
 
 defaultTitle :: String
@@ -61,6 +71,9 @@ otherMode :: Mode -> Mode
 otherMode EditMode = ViewMode
 otherMode ViewMode = EditMode
 
+refTablatureContainer :: H.RefLabel
+refTablatureContainer = H.RefLabel "tablatureContainer"
+
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
 
@@ -76,7 +89,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing }
+initialState _ = { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -86,7 +99,7 @@ render state = HH.div
   ]
   where
   renderTablature = HH.div 
-      [ classString "tablatureContainer" ]
+      [ classString "tablatureContainer", HP.ref refTablatureContainer ]
       [ case state.mode of
         ViewMode -> HH.div 
           [ classString "tablatureViewer" ]
@@ -114,7 +127,10 @@ render state = HH.div
   renderControls = HH.div 
     [ classString "controls" ]
     [ HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleMode ] toggleButtonContent
-    , HH.button [ HP.title "Create a short link to the tablature for sharing with other people", HE.onClick \_ -> CopyShortUrl ] [ fontAwesome "fa-share", optionalText " Share" ]
+    , HH.button
+      [ HP.title "Create a short link to the tablature for sharing with other people"
+      , HE.onClick \_ -> CopyShortUrl
+      ] [ fontAwesome "fa-share", optionalText " Share" ]
     , HH.a
       [ HP.href "./"
       , HP.target "_blank"
@@ -147,14 +163,15 @@ handleAction action =
         Just tablatureText -> do
           case tryParseTablature tablatureText of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument }
+              H.put { mode: ViewMode, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: 0.0 }
               H.liftEffect $ setDocumentTitle tablatureTitle
               where tablatureTitle = getTitle tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing }
+              H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
         Nothing ->
-          H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing }
+          H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
     ToggleMode -> do
+      saveScrollTop
       state <- H.get
       case state.mode of
         EditMode -> do
@@ -170,9 +187,29 @@ handleAction action =
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit
 
+getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
+getTablatureContainerElement = H.getHTMLElementRef refTablatureContainer 
+
+saveScrollTop :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+saveScrollTop = do
+  maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
+  case maybeTablatureContainerElem of
+    Nothing -> pure unit
+    Just tablatureContainerElem -> do
+      newScrollTop <- H.liftEffect $ scrollTop tablatureContainerElem
+      H.modify_ _ { scrollTop = newScrollTop }
+
+focusTablatureContainer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+focusTablatureContainer = do
+  maybeTablatureContainerElem <- getTablatureContainerElement
+  case maybeTablatureContainerElem of
+    Nothing -> pure unit
+    Just tablatureContainerElem -> focus tablatureContainerElem
+
+
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
 getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
-  \maybeElement -> maybeElement >>= WH.HTMLTextAreaElement.fromHTMLElement
+  \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
 
 getTablatureEditorText :: forall output m . MonadEffect m => H.HalogenM State Action () output m String
 getTablatureEditorText = do
