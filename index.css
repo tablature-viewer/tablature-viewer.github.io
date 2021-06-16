@@ -85,6 +85,7 @@
 
 * {
   box-sizing: border-box;
+  outline:none;
 }
 
 body {
@@ -152,6 +153,9 @@ body {
   box-shadow: 0 0 2px 0 var(--shadow);
 }
 .controls button:hover {
+  background-color: var(--button-hover-bg);
+}
+.controls button:focus {
   background-color: var(--button-hover-bg);
 }
 

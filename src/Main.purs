@@ -68,15 +68,11 @@ instance showMode :: Show Mode where
   show ViewMode = "View Mode"
   show EditMode = "Edit Mode"
 
-otherMode :: Mode -> Mode
-otherMode EditMode = ViewMode
-otherMode ViewMode = EditMode
-
-refTablatureContainer :: H.RefLabel
-refTablatureContainer = H.RefLabel "tablatureContainer"
-
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
+
+refTablatureViewer :: H.RefLabel
+refTablatureViewer = H.RefLabel "tablatureViewer"
 
 component :: forall query input output m. MonadAff m => H.Component query input output m
 component =
@@ -101,7 +97,10 @@ render state = HH.div
   where
   renderTablature = case state.mode of
         ViewMode -> HH.div 
-          [ classString "tablatureViewer" ]
+          [ classString "tablatureViewer"
+          , HP.ref refTablatureViewer
+          , HP.tabIndex 0
+          ]
           [ HH.pre_ $ renderTablatureText state ]
         EditMode -> HH.textarea
           [ HP.ref refTablatureEditor
@@ -132,11 +131,14 @@ render state = HH.div
     , HH.a
       [ HP.href "./"
       , HP.target "_blank"
+      , HP.tabIndex (-1)
       ]
-      [ HH.button [ HP.title "Open a tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
+      [ HH.button
+        [ HP.title "Open a tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
     , HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
+      , HP.tabIndex (-1)
       ]
       [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-info", optionalText " About" ] ]
     ]
@@ -178,6 +180,9 @@ handleAction action =
         ViewMode -> do
           H.modify_ _ { mode = EditMode, tablatureDocument = Nothing }
           setTablatureEditorText state.tablatureText
+      -- The order of the next two steps matters
+      focusTablatureContainer
+      loadScrollTop
     CopyShortUrl -> do
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
@@ -186,13 +191,17 @@ handleAction action =
         Nothing -> pure unit
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
-getTablatureContainerElement = H.getHTMLElementRef refTablatureContainer 
+getTablatureContainerElement = do
+  state <- H.get
+  case state.mode of
+    EditMode -> H.getHTMLElementRef refTablatureEditor
+    ViewMode -> H.getHTMLElementRef refTablatureViewer
 
 saveScrollTop :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 saveScrollTop = do
   maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
   case maybeTablatureContainerElem of
-    Nothing -> pure unit
+    Nothing -> H.liftEffect $ Console.error "Could not find tablatureContainer"
     Just tablatureContainerElem -> do
       newScrollTop <- H.liftEffect $ scrollTop tablatureContainerElem
       H.modify_ _ { scrollTop = newScrollTop }
@@ -202,7 +211,7 @@ loadScrollTop = do
   state <- H.get
   maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
   case maybeTablatureContainerElem of
-    Nothing -> pure unit
+    Nothing -> H.liftEffect $ Console.error "Could not find tablatureContainer"
     Just tablatureContainerElem -> do
       H.liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
 
@@ -210,7 +219,7 @@ focusTablatureContainer :: forall output m . MonadEffect m => H.HalogenM State A
 focusTablatureContainer = do
   maybeTablatureContainerElem <- getTablatureContainerElement
   case maybeTablatureContainerElem of
-    Nothing -> pure unit
+    Nothing -> H.liftEffect $ Console.error "Could not find tablatureContainer"
     Just tablatureContainerElem -> H.liftEffect $ focus tablatureContainerElem
 
 

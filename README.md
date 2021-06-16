@@ -37,7 +37,6 @@ For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/
 - Add edits to browser history after saving
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Make sure the font-weight property works in Chrome
-- Auto focus tablature after executing action
 - Progress indication for longer actions such as save and share
 - Autoscroll
 - Dedicated version for chord sheets
