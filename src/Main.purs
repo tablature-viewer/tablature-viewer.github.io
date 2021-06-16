@@ -23,7 +23,8 @@ import TablatureParser (TablatureDocument, TablatureDocumentLine(..), tryParseTa
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
 import Web.DOM (Element)
-import Web.DOM.Element (scrollTop)
+import Web.DOM.Element (scrollTop, setScrollTop, toNode)
+import Web.DOM.Node (textContent)
 import Web.HTML (window)
 import Web.HTML as WH
 import Web.HTML.HTMLDocument (setTitle)
@@ -199,12 +200,21 @@ saveScrollTop = do
       newScrollTop <- H.liftEffect $ scrollTop tablatureContainerElem
       H.modify_ _ { scrollTop = newScrollTop }
 
+loadScrollTop :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+loadScrollTop = do
+  state <- H.get
+  maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
+  case maybeTablatureContainerElem of
+    Nothing -> pure unit
+    Just tablatureContainerElem -> do
+      H.liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
+
 focusTablatureContainer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 focusTablatureContainer = do
   maybeTablatureContainerElem <- getTablatureContainerElement
   case maybeTablatureContainerElem of
     Nothing -> pure unit
-    Just tablatureContainerElem -> focus tablatureContainerElem
+    Just tablatureContainerElem -> H.liftEffect $ focus tablatureContainerElem
 
 
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)

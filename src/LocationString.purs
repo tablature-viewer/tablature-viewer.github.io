@@ -6,6 +6,7 @@ import Effect (Effect)
 import Effect.Uncurried (EffectFn1)
 import Foreign.Object as Object
 
+-- TODO: we could probably just use Web.HTML.Location
 foreign import getLocationString :: Effect String
 foreign import getLocationBaseString :: Effect String
 foreign import getFragmentString :: Effect String

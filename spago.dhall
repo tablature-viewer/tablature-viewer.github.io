@@ -37,6 +37,7 @@ to generate this file without the comments in this block.
   , "strings"
   , "stringutils"
   , "transformers"
+  , "web-dom"
   , "web-html"
   ]
 , packages = ./packages.dhall

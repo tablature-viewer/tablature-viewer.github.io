@@ -52,7 +52,7 @@ parseTablatureDocument = do
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
   p <- regex """[^\w\n\r]*"""
-  t <- regex """[^\n\r]*."""
+  t <- regex """[^\n\r]*\w"""
   s <- regex """[^\n\r]*""" <* parseEndOfLine
   pure $ TitleLine {prefix:p, title:t, suffix:s}
 

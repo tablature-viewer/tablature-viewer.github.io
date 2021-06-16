@@ -7,6 +7,7 @@ import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Foreign (Foreign, readString)
 
+-- TODO turn this into a pursuit module
 foreign import unsafeDecompressFromEncodedURIComponent :: String -> Foreign
 foreign import unsafeCompressToEncodedURIComponent :: String -> Foreign
 
