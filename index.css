@@ -50,7 +50,6 @@
 
 .tablatureViewer .tabTimeline {
   color: var(--fg);
-  font-weight: lighter;
 }
 
 .tablatureViewer .tabFret {

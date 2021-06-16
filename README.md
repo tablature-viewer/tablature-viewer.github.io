@@ -34,9 +34,7 @@ There are browser-extensions which can help you with this.
 For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/addon/replace-bookmark/) which reduces the amount of clicks you have to do to update an existing bookmark.
 
 ## Feature roadmap
-- Add edits to browser history after saving
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
-- Make sure the font-weight property works in Chrome
 - Progress indication for longer actions such as save and share
 - Autoscroll
 - Dedicated version for chord sheets

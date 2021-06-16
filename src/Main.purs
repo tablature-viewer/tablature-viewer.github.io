@@ -159,17 +159,18 @@ handleAction action =
   case action of
     Initialize -> do
       maybeTablatureText <- H.liftEffect getTablatureTextFromFragment
+      state <- H.get
       case maybeTablatureText of
         Just tablatureText -> do
           case tryParseTablature tablatureText of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: 0.0 }
+              H.put { mode: ViewMode, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop }
               H.liftEffect $ setDocumentTitle tablatureTitle
               where tablatureTitle = getTitle tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
+              H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
         Nothing ->
-          H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
+          H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
     ToggleMode -> do
       saveScrollTop
       state <- H.get

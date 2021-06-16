@@ -38,14 +38,14 @@ var setRawFragmentString = function (value) {
   // itself, but we do it like this to be safe and avoid potential sitatuations
   // of changing a query string and then the fragment string still triggering a
   // reload or something.
-  window.history.replaceState({ path: newurl }, '', newurl);
+  window.history.pushState({}, '', newurl);
 };
 
 var setRawQueryString = function (value) {
   var newurl = window.location.protocol + "//" + window.location.host +
     window.location.pathname + '?' + value;
   // Set the location without triggering a page reload.
-  window.history.replaceState({ path: newurl }, '', newurl);
+  window.history.pushState({}, '', newurl);
 };
 
 exports.setFragmentParameters = function (params) {
@@ -55,3 +55,9 @@ exports.setFragmentParameters = function (params) {
 
   exports.setRawFragmentString(encodedParams);
 };
+
+// Hack for making sure hashchanges trigger a reload when nagivating history
+// TODO: handle this event properly without a reload by executing the Initialize action on this event
+window.addEventListener('popstate', () => {
+  window.location.reload();
+});
