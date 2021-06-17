@@ -20,6 +20,7 @@
   --header-bg:#F9F1E1;
   --button-bg:#f5eddd;
   --button-hover-bg:#D1DFD0;
+  --button-active-bg:#A9B5A9;
   --fg: #00a5a8;
   --fg-alt: #35c9ff;
   --fg-alt2: #0094f0;
@@ -33,7 +34,7 @@
     --tab-bg: #262335;
     --header-bg:#241B2F;
     --button-bg:var(--header-bg);
-    --button-hover-bg:#2F2441;
+    --button-hover-bg:#342847;
 
     --fg: #acb3b3;
     --fg-alt2: #ecd13a;
@@ -85,14 +86,31 @@
 * {
   box-sizing: border-box;
   outline:none;
+
+  scrollbar-color: var(--button-hover-bg) var(--tab-bg);
+}
+
+/* Minimalistic Webkit scrollbars for browsers not supporting scollbar-color (Chrome, Safari) */
+::-webkit-scrollbar {
+  background-color: var(--button-hover-bg);
+}
+::-webkit-scrollbar-button       {
+  height: 0;
+}
+::-webkit-scrollbar-track-piece  {
+  background-color: var(--tab-bg);
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--button-hover-bg);
+}
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--button-active-bg);
 }
 
 body {
   border: 0;
   margin: 0;
   padding: 0;
-
-  scrollbar-color: var(--button-hover-bg) var(--tab-bg);
 }
 
 .main {
@@ -156,6 +174,9 @@ body {
 }
 .controls button:focus {
   background-color: var(--button-hover-bg);
+}
+.controls button:active {
+  background-color: var(--button-active-bg);
 }
 
 .tablatureViewer {

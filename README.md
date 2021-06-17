@@ -29,11 +29,16 @@ For more information about pronounciation read [more about the do-gro-mo system]
 ## Can I customize the color theme?
 Yes you can. Install the *Stylish* browser extension and override the color CSS variables in [index.css](https://github.com/dznl/tabviewer/blob/main/index.css).
 
+## I want to undo my changes after I've already saved it
+Every saved version is added to your browser history.
+You can navigate them by going back and forth just like you would on other websites.
+
 ## How do I keep my bookmark up-to-date when modifying a tab?
 There are browser-extensions which can help you with this.
 For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/addon/replace-bookmark/) which reduces the amount of clicks you have to do to update an existing bookmark.
 
 ## Feature roadmap
+- Make sure the Initialize action is called when the fragment changes (either due to popstate or by navigating to a different tab manually)
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Progress indication for longer actions such as save and share
 - Autoscroll
