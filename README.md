@@ -44,6 +44,7 @@ For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/
 - Consider https://tny.im/ for shortening to more readable URLs that include the title of the tablature
 - Show error messages when an action fails
 - Basic analytics?
+- Look into using woff2 instead of ttf
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
 - Dedicated version for chord sheets
