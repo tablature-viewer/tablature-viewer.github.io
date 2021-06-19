@@ -66,7 +66,7 @@ window.addEventListener('popstate', () => {
 // TODO: move to purescript
 var root = document.querySelector(':root');
 window.addEventListener('resize', () => {
-  root.style.setProperty('--app-height',vh());
+  root.style.setProperty('--app-height', vh() + 'px');
 });
 
 function vh() {
