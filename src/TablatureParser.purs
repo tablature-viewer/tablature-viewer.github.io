@@ -1,10 +1,9 @@
 module TablatureParser where
 
 import Prelude hiding (between)
-import Text.Parsing.StringParser
-import Text.Parsing.StringParser.CodePoints
-import Text.Parsing.StringParser.Combinators
-import Utils
+import Text.Parsing.StringParser (Parser, try, unParser)
+import Text.Parsing.StringParser.CodePoints (eof, regex, string)
+import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
 
 import Control.Alt ((<|>))
 import Data.Either (Either(..))

@@ -2,6 +2,6 @@
 
 exports.copyToClipboard = function (text) {
   return function() {
-    window.prompt("Copy to clipboard: Ctrl+C, Enter", text);
+    window.prompt("Copy the following link:", text);
   }
 }

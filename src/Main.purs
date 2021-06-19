@@ -1,8 +1,8 @@
 module Main where
 
-import HalogenUtils
 import Prelude
 
+import HalogenUtils (classString, fontAwesome, optionalText)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.List (findIndex, (!!))
@@ -23,9 +23,7 @@ import LocationString (getFragmentString, getLocationString, setFragmentString)
 import TablatureParser (TablatureDocument, TablatureDocumentLine(..), tryParseTablature)
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
-import Web.DOM (Element)
-import Web.DOM.Element (scrollTop, setScrollTop, toNode)
-import Web.DOM.Node (textContent)
+import Web.DOM.Element (scrollTop, setScrollTop)
 import Web.HTML (window)
 import Web.HTML as WH
 import Web.HTML.HTMLDocument (setTitle)

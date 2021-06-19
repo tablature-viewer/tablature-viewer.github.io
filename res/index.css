@@ -6,6 +6,10 @@
   font-family: Cascadia Mono;
   src: url("CascadiaMono.woff2");
 }
+@font-face {
+  font-family: Cascadia Mono Italic;
+  src: url("CascadiaMonoItalic.woff2");
+}
 
 :root {
   --shadow:rgba(0, 0, 0, 0.2);
@@ -47,6 +51,7 @@
 }
 
 .tablatureViewer .tabTitle {
+  font-family: Cascadia Mono Italic;
   color: var(--accent-alt);
 }
 
@@ -71,6 +76,7 @@
 }
 
 .tablatureViewer .tabSuffix {
+  font-family: Cascadia Mono Italic;
   color: var(--accent-alt);
 }
 

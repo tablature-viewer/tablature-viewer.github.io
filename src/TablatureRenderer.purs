@@ -1,10 +1,9 @@
 module TablatureRenderer where
 
-import HalogenUtils
 import Prelude
-import TablatureParser
-import Utils
 
+import HalogenUtils (classString)
+import TablatureParser (TablatureDocument, TablatureDocumentLine(..), TablatureElem(..))
 import Data.Array (fromFoldable)
 import Data.Foldable (foldl)
 import Data.Int (decimal, radix, toStringAs)
@@ -13,7 +12,6 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
 import Data.String.Utils (repeat)
 import Halogen.HTML as HH
-import Halogen.HTML.Properties as HP
 
 renderTablature :: forall w i. Maybe TablatureDocument -> String -> List (HH.HTML w i)
 renderTablature maybeTablatureDoc tablatureText = case maybeTablatureDoc of
