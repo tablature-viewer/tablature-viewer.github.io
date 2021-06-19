@@ -1,13 +1,9 @@
 @font-face {
   font-family: Cascadia Tablature;
-  font-weight: normal;
-  font-style: normal;
   src: url("CascadiaTablature.ttf") format('truetype');
 }
 @font-face {
   font-family: Cascadia Mono;
-  font-weight: normal;
-  font-style: normal;
   src: url("CascadiaMono.ttf") format('truetype');
 }
 
