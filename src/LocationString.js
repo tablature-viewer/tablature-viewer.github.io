@@ -70,5 +70,6 @@ window.addEventListener('resize', () => {
 });
 
 function vh() {
-  return Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+  // - 1 because sometimes the innerHeight doesn't seem to be rounded correctly or something
+  return Math.max(document.documentElement.clientHeight, window.innerHeight || 0) - 1;
 }
