@@ -7,7 +7,7 @@
   },
   "scripts": {
     "install": "spago install && npm install",
-    "build": "spago build && npm run build && echo Ctrl-f5 your browser if non-purescript changes were made!",
+    "build": "spago build && echo Ctrl-f5 your browser if non-purescript changes were made!",
     "test": "spago test",
     "start": "npm run build && parcel index.html",
     "publish": "rm -rf docs && npm run build && parcel build  ./index.html --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html && git add . && git commit -m publish",

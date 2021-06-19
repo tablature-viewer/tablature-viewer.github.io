@@ -179,6 +179,10 @@ body {
   background-color: var(--button-active-bg);
 }
 
+.loadingIcon {
+  padding: 18px 0px;
+}
+
 .tablatureViewer {
   display: flex;
   overflow: auto;

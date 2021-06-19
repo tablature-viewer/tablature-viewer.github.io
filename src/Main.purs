@@ -8,6 +8,7 @@ import Data.Array (fromFoldable)
 import Data.List (findIndex, (!!))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
+import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Console as Console
@@ -40,6 +41,7 @@ main = HA.runHalogenAff do
 data Mode = ViewMode | EditMode
 type State =
   { mode :: Mode
+  , loading :: Boolean
   , tablatureText :: String
   , tablatureTitle :: String
   , tablatureDocument :: Maybe TablatureDocument
@@ -86,7 +88,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
+initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -112,6 +114,7 @@ render state = HH.div
     [ classString "header" ]
     [ renderTitle
     , renderControls
+    , renderLoadingIcon
     ]
   renderTitle = HH.div
     [ classString "title optional"]
@@ -121,6 +124,9 @@ render state = HH.div
       ]
       [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
     ]
+  renderLoadingIcon = HH.div 
+    [ classString "loadingIcon lds-ellipsis" ]
+    if state.loading then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
   renderControls = HH.div 
     [ classString "controls" ]
     [ HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleMode ] toggleButtonContent
@@ -134,7 +140,7 @@ render state = HH.div
       , HP.tabIndex (-1)
       ]
       [ HH.button
-        [ HP.title "Open a tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
+        [ HP.title "Open an empty tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
     , HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
@@ -164,15 +170,17 @@ handleAction action =
         Just tablatureText -> do
           case tryParseTablature tablatureText of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop }
+              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop }
               H.liftEffect $ setDocumentTitle tablatureTitle
               where tablatureTitle = getTitle tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
+              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
         Nothing ->
-          H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
+          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
       focusTablatureContainer
     ToggleMode -> do
+      H.modify_ _ { loading = true }
+      H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
       saveScrollTop
       state <- H.get
       case state.mode of
@@ -185,13 +193,16 @@ handleAction action =
       -- The order of the next two steps matters
       focusTablatureContainer
       loadScrollTop
+      H.modify_ _ { loading = false }
     CopyShortUrl -> do
+      H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
       H.liftEffect $ case maybeShortUrl of
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit
       focusTablatureContainer
+      H.modify_ _ { loading = false }
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
