@@ -105,7 +105,7 @@ render state = HH.div
         EditMode -> HH.textarea
           [ HP.ref refTablatureEditor
           , classString "tablatureEditor" 
-          , HP.placeholder "Paste your plaintext tablature here"
+          , HP.placeholder "Paste your plaintext tablature here and click 'Save'"
           , HP.spellcheck false
           ]
   renderHeader = HH.div
