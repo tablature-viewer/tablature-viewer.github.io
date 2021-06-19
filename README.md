@@ -39,7 +39,6 @@ For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/
 
 ## Feature roadmap
 - Consider https://tny.im/ for shortening to more readable URLs that include the title of the tablature
-- Basic analytics?
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
 - Dedicated version for chord sheets
