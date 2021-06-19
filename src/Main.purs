@@ -187,11 +187,11 @@ handleAction action =
         EditMode -> do
           saveTablature
           H.modify_ _ { mode = ViewMode }
+          focusTablatureContainer
         ViewMode -> do
           H.modify_ _ { mode = EditMode, tablatureDocument = Nothing }
           setTablatureEditorText state.tablatureText
-      -- The order of the next two steps matters
-      focusTablatureContainer
+          -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
       H.modify_ _ { loading = false }
     CopyShortUrl -> do

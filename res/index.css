@@ -1,10 +1,10 @@
 @font-face {
   font-family: Cascadia Tablature;
-  src: url("CascadiaTablature.ttf") format('truetype');
+  src: url("CascadiaTablature.woff2");
 }
 @font-face {
   font-family: Cascadia Mono;
-  src: url("CascadiaMono.ttf") format('truetype');
+  src: url("CascadiaMono.woff2");
 }
 
 :root {
