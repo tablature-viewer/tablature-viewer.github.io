@@ -198,11 +198,12 @@ handleAction action =
       H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
+      H.modify_ _ { loading = false }
+      H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
       H.liftEffect $ case maybeShortUrl of
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit
       focusTablatureContainer
-      H.modify_ _ { loading = false }
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do

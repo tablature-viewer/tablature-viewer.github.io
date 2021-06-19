@@ -39,7 +39,6 @@ For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/
 
 ## Feature roadmap
 - Make sure the Initialize action is called when the fragment changes (either due to popstate or by navigating to a different tab manually)
-- Progress indication for longer actions such as save and share
 - Make sure the tablature gets focus after clicking 'New' or 'About'
 - Consider https://tny.im/ for shortening to more readable URLs that include the title of the tablature
 - Show error messages when an action fails
