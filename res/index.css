@@ -6,6 +6,8 @@
 }
 @font-face {
   font-family: Cascadia Mono;
+  font-weight: normal;
+  font-style: normal;
   src: url("CascadiaMono.ttf") format('truetype');
 }
 
@@ -93,15 +95,23 @@
 /* Minimalistic Webkit scrollbars for browsers not supporting scollbar-color (Chrome, Safari) */
 ::-webkit-scrollbar {
   background-color: var(--button-hover-bg);
+  cursor: pointer;
 }
-::-webkit-scrollbar-button       {
+::-webkit-scrollbar-button {
   height: 0;
+  width: 0;
 }
-::-webkit-scrollbar-track-piece  {
+::-webkit-scrollbar-corner {
+  background-color: var(--tab-bg);
+}
+::-webkit-scrollbar-track-piece {
   background-color: var(--tab-bg);
 }
 ::-webkit-scrollbar-thumb {
   background-color: var(--button-hover-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--button-active-bg);
 }
 ::-webkit-scrollbar-thumb:active {
   background-color: var(--button-active-bg);
@@ -111,6 +121,7 @@ body {
   border: 0;
   margin: 0;
   padding: 0;
+  background-color: var(--tab-bg);
 }
 
 .main {
@@ -122,7 +133,6 @@ body {
   padding: 0;
 
   font-family: Cascadia Mono;
-  background-color: var(--header-bg);
 }
 
 .header {
@@ -134,6 +144,7 @@ body {
 
   justify-content: center;
   box-shadow: 0 0 6px 0 var(--shadow);
+  background-color: var(--header-bg);
 }
 .title {
   margin: auto 0;
@@ -160,7 +171,7 @@ body {
 .controls button {
   height: 100%;
   border: 0;
-  padding: 10px 32px;
+  padding: 10px 25px;
 
   background-color: var(--button-bg);
   font-family: Cascadia Mono;
