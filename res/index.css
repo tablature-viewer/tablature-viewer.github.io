@@ -20,6 +20,7 @@
   --button-bg:#f5eddd;
   --button-hover-bg:#D1DFD0;
   --button-active-bg:#A9B5A9;
+
   --fg: #00a5a8;
   --fg-alt: #35c9ff;
   --fg-alt2: #0094f0;
@@ -34,6 +35,7 @@
     --header-bg:#241B2F;
     --button-bg:var(--header-bg);
     --button-hover-bg:#342847;
+    --button-active-bg:#4f3d6a;
 
     --fg: #acb3b3;
     --fg-alt2: #ecd13a;
