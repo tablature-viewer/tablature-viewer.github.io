@@ -142,6 +142,7 @@ body {
   margin: 0;
   border: 0;
   z-index: 100;
+  position: sticky;
 
   justify-content: center;
   box-shadow: 0 0 6px 0 var(--shadow);
