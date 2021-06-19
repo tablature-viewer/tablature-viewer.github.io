@@ -171,6 +171,7 @@ handleAction action =
               H.put { mode: EditMode, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
         Nothing ->
           H.put { mode: EditMode, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
+      focusTablatureContainer
     ToggleMode -> do
       saveScrollTop
       state <- H.get
@@ -190,6 +191,7 @@ handleAction action =
       H.liftEffect $ case maybeShortUrl of
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit
+      focusTablatureContainer
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do

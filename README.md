@@ -40,7 +40,8 @@ For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/
 ## Feature roadmap
 - Make sure the Initialize action is called when the fragment changes (either due to popstate or by navigating to a different tab manually)
 - Progress indication for longer actions such as save and share
+- Make sure the tablature gets focus after clicking 'New' or 'About'
+- Consider https://tny.im/ for shortening
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
 - Dedicated version for chord sheets
-- Consider https://tny.im/ for shortening
