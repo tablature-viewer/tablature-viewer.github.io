@@ -62,3 +62,13 @@ exports.setFragmentParameters = function (params) {
 window.addEventListener('popstate', () => {
   window.location.reload();
 });
+
+// TODO: move to purescript
+var root = document.querySelector(':root');
+window.addEventListener('resize', () => {
+  root.style.setProperty('--app-height',vh());
+});
+
+function vh() {
+  return Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+}

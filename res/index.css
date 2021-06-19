@@ -13,6 +13,7 @@
   --title-width: 360px;
   --controls-max-width: 475px;
   --tablature-font-size: 13px;
+  --app-height: 100vh;
 
   --tab-bg: #FEF8EC;
   --header-bg:#F9F1E1;
@@ -127,7 +128,7 @@ body {
   border: 0;
   margin: 0;
   padding: 0;
-  height: 100vh;
+  height: var(--app-height);
 
   font-family: Cascadia Mono;
 }
