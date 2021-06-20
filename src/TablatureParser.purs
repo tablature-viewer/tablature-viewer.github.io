@@ -1,8 +1,8 @@
 module TablatureParser where
 
 import Prelude hiding (between)
-import AppState
 
+import AppState (TablatureDocument, TablatureDocumentLine(..), TablatureElem(..))
 import Text.Parsing.StringParser (Parser, try, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex, string)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
