@@ -5,6 +5,7 @@ import Prelude
 import Affjax (defaultRequest, request)
 import Affjax.RequestBody as RequestBody
 import Affjax.RequestHeader (RequestHeader(..))
+import Affjax.ResponseFormat (ResponseFormat)
 import Affjax.ResponseFormat as ResponseFormat
 import Data.Either (Either(..))
 import Data.HTTP.Method as Method
@@ -14,32 +15,33 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Simple.JSON (readJSON, writeJSON)
 
-type RequestBodyRecord = {url :: String}
-type ResponseRecord = {shortlink :: {shortlink :: String}}
+type RequestRecord = {action :: String, format :: String, url :: String, title :: String}
+type ResponseRecord = {shorturl :: String, message :: String}
 
-createShortUrl :: String -> Aff (Maybe String)
-createShortUrl url = do
+instance showR :: forall a. Show (ResponseFormat a) where
+  show _ = ""
+
+createShortUrl :: String -> String -> Aff (Maybe String)
+createShortUrl url title = do
+  liftEffect $ Console.log $ show req
   response <- request req
   case response of
     Right result -> do
+      liftEffect $ Console.log result.body
       case readJSON result.body of
         Right (r :: ResponseRecord) -> do
-          pure $ Just $ r.shortlink.shortlink
+          liftEffect $ Console.log r.message
+          pure $ Just $ r.shorturl
         Left e -> do
           liftEffect $ Console.error $ "Can't parse response JSON: " <> show e
           pure Nothing
     _ -> liftEffect $ Console.error "No valid response obtained." *> pure Nothing
   where
-  apiEndpoint = "https://shortlink1.p.rapidapi.com/"
-  reqBody = { url: url }
+  apiEndpoint = "https://tny.im/yourls-api.php"
+  reqBody = { action: "shorturl", format: "json", url: url, title: title } :: RequestRecord
   req = defaultRequest
     { url = apiEndpoint
     , method = Left Method.POST
-    , headers =
-      [ RequestHeader "content-type" "application/json"
-      , RequestHeader "x-rapidapi-key" "5dffbe9520msh2ca951c0dbb64cdp1aebe4jsn61b4bad6925a"
-      , RequestHeader "x-rapidapi-host" "shortlink1.p.rapidapi.com"
-      , RequestHeader "useQueryString" "true"
-      ]
+    , headers = []
     , content = Just $ RequestBody.string $ writeJSON reqBody
     , responseFormat = ResponseFormat.string}

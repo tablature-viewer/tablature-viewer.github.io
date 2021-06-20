@@ -193,9 +193,10 @@ handleAction action =
       loadScrollTop
       H.modify_ _ { loading = false }
     CopyShortUrl -> do
+      state <- H.get
       H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
-      maybeShortUrl <- H.liftAff $ createShortUrl longUrl
+      maybeShortUrl <- H.liftAff $ createShortUrl longUrl state.tablatureTitle
       H.modify_ _ { loading = false }
       H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
       H.liftEffect $ case maybeShortUrl of

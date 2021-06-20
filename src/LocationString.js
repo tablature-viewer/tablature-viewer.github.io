@@ -64,7 +64,6 @@ window.addEventListener('popstate', () => {
 });
 
 // TODO: move to purescript
-// TODO: Also set scrollTop of main element to 0, because saving on a mobile phone still doesn't work properly.  
 var root = document.querySelector(':root');
 window.addEventListener('resize', () => {
   root.style.setProperty('--app-height', vh() + 'px');
