@@ -34,11 +34,13 @@ parseTitleLine = do
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
   p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
-  t <- lookAhead (regex """\|-[^\n\r]+-\|""") *> many
-    ((regex """((\|-)|(-\|-)|(-(?!\|)))+""" <#> \result -> Timeline result) <|>
-    (regex """\d+""" <#> \result -> Fret $ fromMaybe 0 $ fromString result) <|>
-    (regex """[^\r\n\d|-]+""" <#> \result -> Special result))
-  tClose <- string "-|" <#> \result -> Timeline result
+  t <- try $ lookAhead (regex """\|\|?""") *> many
+    (
+      (regex """((-(?!\|)|(-?\|\|?(?=[^\r\n\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
+      (regex """\d+""" <#> \result -> Fret $ fromMaybe 0 $ fromString result) <|>
+      (regex """[^\r\n\d|\-]+""" <#> \result -> Special result)
+    )
+  tClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TablatureLine (p:Nil <> t <> tClose:Nil <> s:Nil)
 

@@ -113,10 +113,8 @@ main = do
 
   assertParserFailed parseTablatureLine ""
   assertParserFailed parseTablatureLine "a"
-  assertParserFailed parseTablatureLine "|"
-  assertParserFailed parseTablatureLine "||"
-  assertParserSuccess parseTablatureLine "|---|"
-  assertParserSuccess parseTablatureLine "a|-2-|a"
+  assertParserSuccess parseTablatureLine "B|----------------------||o-------------------------|-----------7h8p7-----------|"
+  assertParserSuccess parseTablatureLine "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
   assertParserSuccess parseTablatureLine "|---|\n"
   assertParserFailed parseTablatureLine "|---|\na"
   assertParserFailed parseTablatureLine "|---|\n|---|"
