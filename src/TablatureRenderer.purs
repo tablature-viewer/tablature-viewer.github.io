@@ -1,9 +1,9 @@
 module TablatureRenderer where
 
 import Prelude
+import AppState
 
 import HalogenUtils (classString)
-import TablatureParser (TablatureDocument, TablatureDocumentLine(..), TablatureElem(..))
 import Data.Array (fromFoldable)
 import Data.Foldable (foldl)
 import Data.Int (decimal, radix, toStringAs)

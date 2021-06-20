@@ -1,6 +1,8 @@
 module TablatureParser where
 
 import Prelude hiding (between)
+import AppState
+
 import Text.Parsing.StringParser (Parser, try, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex, string)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
@@ -11,35 +13,9 @@ import Data.Int (fromString)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (drop)
-import Effect.Console (error)
+import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 
-type TablatureDocument = List TablatureDocumentLine
-
-data TablatureDocumentLine
-  = TitleLine {prefix::String, title::String, suffix::String}
-  | TablatureLine (List TablatureElem)
-  | CommentLine String
-
-data TablatureElem
-  = Prefix String
-  | Suffix String
-  | Timeline String
-  | Fret Int
-  | Special String
-
-
-instance showLine :: Show TablatureDocumentLine where
-  show (TitleLine line) = "Title: " <> line.prefix <> "|" <> line.title <> "|" <> line.suffix
-  show (TablatureLine elems) = "Tab: " <> show elems
-  show (CommentLine string) = "Comment: " <> string
-
-instance showTablatureElem :: Show TablatureElem where
-  show (Prefix string) = string
-  show (Suffix string) = string
-  show (Timeline string) = string
-  show (Fret string) = show string
-  show (Special string) = string
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
@@ -83,7 +59,7 @@ tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 
   case unParser (parser <* eof) { str: inputString, pos: 0 } of
-    Left rec -> error msg # unsafePerformEffect # \_ -> Nothing
+    Left rec -> Console.error msg # unsafePerformEffect # \_ -> Nothing
       where
       msg = "Position: " <> show rec.pos
         <> "\nError: " <> show rec.error

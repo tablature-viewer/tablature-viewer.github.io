@@ -2,7 +2,9 @@ module Main where
 
 import Prelude
 
-import HalogenUtils (classString, fontAwesome, optionalText)
+import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..))
+import AppUrl (getTablatureTextFromFragment, saveTablatureToFragment)
+
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.List (findIndex, (!!))
@@ -18,9 +20,9 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
-import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
-import LocationString (getFragmentString, getLocationString, setFragmentString)
-import TablatureParser (TablatureDocument, TablatureDocumentLine(..), tryParseTablature)
+import HalogenUtils (classString, fontAwesome, optionalText)
+import LocationString (getLocationString)
+import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
 import Web.DOM.Element (scrollTop, setScrollTop)
@@ -35,18 +37,6 @@ main :: Effect Unit
 main = HA.runHalogenAff do
   body <- HA.awaitBody
   runUI component unit body
-
-data Mode = ViewMode | EditMode
-type State =
-  { mode :: Mode
-  , loading :: Boolean
-  , tablatureText :: String
-  , tablatureTitle :: String
-  , tablatureDocument :: Maybe TablatureDocument
-  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
-  , scrollTop :: Number
-  }
-data Action = Initialize | ToggleMode | CopyShortUrl
 
 defaultTitle :: String
 defaultTitle = "Tab Viewer"
@@ -63,10 +53,6 @@ getTitle tablatureDocument =
   where
   isTitle (TitleLine _) = true
   isTitle _ = false
-
-instance showMode :: Show Mode where
-  show ViewMode = "View Mode"
-  show EditMode = "Edit Mode"
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -251,6 +237,8 @@ saveTablature :: forall output m . MonadEffect m => H.HalogenM State Action () o
 saveTablature = do
   tablatureText <- getTablatureEditorText
   saveTablatureToState tablatureText
+  state <- H.get
+  H.liftEffect $ setDocumentTitle state.tablatureTitle
   saveTablatureToFragment
   where
   saveTablatureToState :: String -> H.HalogenM State Action () output m Unit
@@ -260,22 +248,6 @@ saveTablature = do
         H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument }
       Nothing ->
         H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
-  saveTablatureToFragment :: H.HalogenM State Action () output m Unit
-  saveTablatureToFragment = do
-    state <- H.get
-    H.liftEffect $ setDocumentTitle state.tablatureTitle
-    case compressToEncodedURIComponent state.tablatureText of
-      Just compressed -> H.liftEffect $ setFragmentString compressed
-      Nothing -> H.liftEffect $ Console.error("Could not save tablature to URL")
-
-getTablatureTextFromFragment :: Effect (Maybe String)
-getTablatureTextFromFragment = do
-  fragment <- H.liftEffect getFragmentString
-  if fragment == "" || fragment == "#"
-  then pure Nothing
-  else case decompressFromEncodedURIComponent fragment of
-    Just decompressed -> pure $ Just decompressed
-    Nothing -> Console.error("Could not load tablature from URL") *> (pure Nothing)
 
 setTablatureEditorText :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
 setTablatureEditorText text = do
