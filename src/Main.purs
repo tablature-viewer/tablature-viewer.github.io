@@ -3,7 +3,7 @@ module Main where
 import Prelude
 
 import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..))
-import AppUrl (getTablatureTextFromFragment, saveTablatureToFragment)
+import AppUrl (getTablatureTextFromUrl, saveTablatureToUrl)
 
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -148,7 +148,7 @@ handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action
 handleAction action =
   case action of
     Initialize -> do
-      maybeTablatureText <- H.liftEffect getTablatureTextFromFragment
+      maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       state <- H.get
       case maybeTablatureText of
         Just tablatureText -> do
@@ -239,7 +239,7 @@ saveTablature = do
   saveTablatureToState tablatureText
   state <- H.get
   H.liftEffect $ setDocumentTitle state.tablatureTitle
-  saveTablatureToFragment
+  saveTablatureToUrl
   where
   saveTablatureToState :: String -> H.HalogenM State Action () output m Unit
   saveTablatureToState tablatureText = do
