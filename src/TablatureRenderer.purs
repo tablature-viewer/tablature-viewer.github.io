@@ -52,6 +52,12 @@ renderTablatureElem pendingDashes (Fret n) =
   dozenalString = toDozenalString n
 
 toDozenalString :: Int -> String
-toDozenalString n = toStringAs dozenal n # replaceAll (Pattern "a") (Replacement "↊") # replaceAll (Pattern "b") (Replacement "↋")
+toDozenalString n =
+  -- If the fret number is large it's probably not a single fret number but rather incorrectly concatenated fret numbers.
+  -- This already means that the tab is probably broken and ambiguous all over the place, but let's do a best effort
+  -- of showing something understandable and not convert it.
+  if n > 25
+  then show n
+  else toStringAs dozenal n # replaceAll (Pattern "a") (Replacement "↊") # replaceAll (Pattern "b") (Replacement "↋")
   where
   dozenal = fromMaybe decimal $ radix 12
