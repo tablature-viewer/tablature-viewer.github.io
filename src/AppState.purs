@@ -29,7 +29,7 @@ data TablatureElem
   = Prefix String
   | Suffix String
   | Timeline String
-  | Fret Int
+  | Fret String
   | Special String
 
 
@@ -42,7 +42,7 @@ instance showTablatureElem :: Show TablatureElem where
   show (Prefix string) = string
   show (Suffix string) = string
   show (Timeline string) = string
-  show (Fret string) = show string
+  show (Fret string) = string
   show (Special string) = string
 
 

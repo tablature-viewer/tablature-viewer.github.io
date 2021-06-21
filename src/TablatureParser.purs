@@ -4,14 +4,13 @@ import Prelude hiding (between)
 
 import AppState (TablatureDocument, TablatureDocumentLine(..), TablatureElem(..))
 import Text.Parsing.StringParser (Parser, try, unParser)
-import Text.Parsing.StringParser.CodePoints (eof, regex, string)
+import Text.Parsing.StringParser.CodePoints (eof, regex)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
 
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
-import Data.Int (fromString)
 import Data.List (List(..), (:))
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.String (drop)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
@@ -37,8 +36,8 @@ parseTablatureLine = do
   t <- try $ lookAhead (regex """\|\|?""") *> many
     (
       (regex """((-(?!\|)|(-?\|\|?(?=[^\r\n\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
-      (regex """\d+""" <#> \result -> Fret $ fromMaybe 0 $ fromString result) <|>
-      (regex """[^\r\n\d|\-]+""" <#> \result -> Special result)
+      (regex """[\d↊↋]+""" <#> \result -> Fret result) <|>
+      (regex """[^\r\n\d|\-↊↋]+""" <#> \result -> Special result)
     )
   tClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result

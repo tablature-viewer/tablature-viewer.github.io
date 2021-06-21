@@ -3,15 +3,15 @@ module TablatureRenderer where
 import Prelude
 
 import AppState (TablatureDocument, TablatureDocumentLine(..), TablatureElem(..))
-import HalogenUtils (classString)
 import Data.Array (fromFoldable)
 import Data.Foldable (foldl)
-import Data.Int (decimal, radix, toStringAs)
+import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List(..), reverse, (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
 import Data.String.Utils (repeat)
 import Halogen.HTML as HH
+import HalogenUtils (classString)
 
 renderTablature :: forall w i. Maybe TablatureDocument -> Boolean -> String -> List (HH.HTML w i)
 renderTablature maybeTablatureDoc dozenalize tablatureText = case maybeTablatureDoc of
@@ -43,21 +43,24 @@ renderTablatureElem _ pendingDashes (Prefix string) = { pendingDashes, result: H
 renderTablatureElem _ pendingDashes (Suffix string) = { pendingDashes, result: HH.span [ classString "tabSuffix" ] [ HH.text string ] }
 renderTablatureElem _ pendingDashes (Special string) = { pendingDashes, result: HH.span [ classString "tabSpecial" ] [ HH.text string ] }
 renderTablatureElem _ pendingDashes (Timeline string) = { pendingDashes: 0, result: HH.span [ classString "tabTimeline" ] [ HH.text (fromMaybe "" (repeat pendingDashes "-") <> string) ] }
-renderTablatureElem dozenalize pendingDashes (Fret n) =
+renderTablatureElem dozenalize pendingDashes (Fret string) =
   if dozenalize && (fretString == "↊" || fretString == "↋")
   then { pendingDashes: pendingDashes + 1, result: fretHtml }
   else { pendingDashes, result: fretHtml }
   where
   fretHtml = HH.span [ classString "tabFret" ] [ HH.text $ fretString ]
-  fretString = if dozenalize then toDozenalString n else show n
+  fretString = if dozenalize then toDozenalString string else string
 
-toDozenalString :: Int -> String
-toDozenalString n =
-  -- If the fret number is large it's probably not a single fret number but rather incorrectly concatenated fret numbers.
-  -- This already means that the tab is probably broken and ambiguous all over the place, but let's do a best effort
-  -- of showing something understandable and not convert it.
-  if n > 25
-  then show n
-  else toStringAs dozenal n # replaceAll (Pattern "a") (Replacement "↊") # replaceAll (Pattern "b") (Replacement "↋")
-  where
-  dozenal = fromMaybe decimal $ radix 12
+toDozenalString :: String -> String
+toDozenalString s =
+  case fromString s of
+    Nothing -> s
+    Just n ->
+      -- If the fret number is large it's probably not a single fret number but rather incorrectly concatenated fret numbers.
+      -- This already means that the tab is probably broken and ambiguous all over the place, but let's do a best effort
+      -- of showing something understandable and not convert it.
+      if n > 25
+      then show n
+      else toStringAs dozenal n # replaceAll (Pattern "a") (Replacement "↊") # replaceAll (Pattern "b") (Replacement "↋")
+      where
+      dozenal = fromMaybe decimal $ radix 12
