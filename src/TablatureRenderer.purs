@@ -39,10 +39,10 @@ renderTablatureDocument doc dozenalize = map renderLine doc
 type TablatureElemRenderResult w i = { result:: HH.HTML w i, pendingDashes:: Int }
 
 renderTablatureElem :: forall w i. Boolean -> Int -> TablatureElem -> TablatureElemRenderResult w i
-renderTablatureElem dozenalize pendingDashes (Prefix string) = { pendingDashes, result: HH.span [ classString "tabPrefix" ] [ HH.text string ] }
-renderTablatureElem dozenalize pendingDashes (Suffix string) = { pendingDashes, result: HH.span [ classString "tabSuffix" ] [ HH.text string ] }
-renderTablatureElem dozenalize pendingDashes (Special string) = { pendingDashes, result: HH.span [ classString "tabSpecial" ] [ HH.text string ] }
-renderTablatureElem dozenalize pendingDashes (Timeline string) = { pendingDashes: 0, result: HH.span [ classString "tabTimeline" ] [ HH.text (fromMaybe "" (repeat pendingDashes "-") <> string) ] }
+renderTablatureElem _ pendingDashes (Prefix string) = { pendingDashes, result: HH.span [ classString "tabPrefix" ] [ HH.text string ] }
+renderTablatureElem _ pendingDashes (Suffix string) = { pendingDashes, result: HH.span [ classString "tabSuffix" ] [ HH.text string ] }
+renderTablatureElem _ pendingDashes (Special string) = { pendingDashes, result: HH.span [ classString "tabSpecial" ] [ HH.text string ] }
+renderTablatureElem _ pendingDashes (Timeline string) = { pendingDashes: 0, result: HH.span [ classString "tabTimeline" ] [ HH.text (fromMaybe "" (repeat pendingDashes "-") <> string) ] }
 renderTablatureElem dozenalize pendingDashes (Fret n) =
   if dozenalize && (fretString == "↊" || fretString == "↋")
   then { pendingDashes: pendingDashes + 1, result: fretHtml }

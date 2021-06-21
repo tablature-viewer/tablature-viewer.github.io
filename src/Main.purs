@@ -7,7 +7,7 @@ import AppUrl (getTablatureTextFromUrl, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.List (findIndex, (!!))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff)
@@ -19,7 +19,8 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
-import HalogenUtils (alternativeHtml, classString, fontAwesome, optionalText)
+import HalogenUtils (classString, fontAwesome, optionalText)
+import LocalStorage (getLocalStorageBoolean, setLocalStorage)
 import LocationString (getLocationString)
 import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
@@ -58,6 +59,9 @@ refTablatureEditor = H.RefLabel "tablatureEditor"
 
 refTablatureViewer :: H.RefLabel
 refTablatureViewer = H.RefLabel "tablatureViewer"
+
+localStorageKeyDozenalizationEnabled :: String
+localStorageKeyDozenalizationEnabled = "dozenalizationEnabled"
 
 component :: forall query input output m. MonadAff m => H.Component query input output m
 component =
@@ -153,19 +157,21 @@ handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action
 handleAction action =
   case action of
     Initialize -> do
+      maybeDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyDozenalizationEnabled
+      dozenalizationEnabled <- pure $ fromMaybe true maybeDozenalizationEnabled
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       state <- H.get
       case maybeTablatureText of
         Just tablatureText -> do
           case tryParseTablature tablatureText of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled: true }
+              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled }
               H.liftEffect $ setDocumentTitle tablatureTitle
               where tablatureTitle = getTitle tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled: true }
+              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled }
         Nothing ->
-          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled: true }
+          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled }
       focusTablatureContainer
     ToggleEditMode -> do
       H.modify_ _ { loading = true }
@@ -186,6 +192,7 @@ handleAction action =
     ToggleDozenalization -> do
       state <- H.get
       H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
+      H.liftEffect $ setLocalStorage localStorageKeyDozenalizationEnabled (show $ not state.dozenalizationEnabled)
     CopyShortUrl -> do
       H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
