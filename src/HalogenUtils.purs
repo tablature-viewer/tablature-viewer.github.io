@@ -13,4 +13,13 @@ fontAwesome :: forall w i. String -> HH.HTML w i
 fontAwesome glyphName = HH.i [ classString $ "fas " <> glyphName] []
 
 optionalText :: forall w i. String -> HH.HTML w i
-optionalText text = HH.span [ classString "optional" ] [ HH.text text ]
+optionalText text = HH.span [ classString "largeViewport" ] [ HH.text text ]
+
+optionalHtml :: forall w i. HH.HTML w i -> HH.HTML w i
+optionalHtml html = HH.span [ classString "largeViewport" ] [ html ]
+
+alternativeHtml :: forall w i.  HH.HTML w i -> HH.HTML w i -> Array (HH.HTML w i)
+alternativeHtml longHtml shortAlt = 
+  [ HH.span [ classString "largeViewport" ] [ longHtml ]
+  , HH.span [ classString "smallViewport" ] [ shortAlt ]
+  ]

@@ -15,7 +15,7 @@
   --shadow:rgba(0, 0, 0, 0.2);
   
   --title-width: 360px;
-  --controls-max-width: 475px;
+  --controls-max-width: 560px;
   --tablature-font-size: 13px;
   --app-height: 100vh;
 
@@ -80,9 +80,16 @@
   color: var(--accent-alt);
 }
 
+.smallViewport {
+  display: none;
+}
+
 /* max-width must be larger that sum of --title-width and --controls-max-width */
-@media only screen and (max-width: 860px) {
-  .optional {
+@media only screen and (max-width: 950px) {
+  .smallViewport {
+    display: inline;
+  }
+  .largeViewport {
     display: none;
   }
   :root {
@@ -180,7 +187,7 @@ body {
   padding: 10px 25px;
 
   background-color: var(--button-bg);
-  font-family: Cascadia Mono;
+  font-family: Cascadia Tablature;
   font-size: 13px;
   color:var(--fg);
   cursor: pointer;

@@ -4,7 +4,6 @@ import Prelude
 
 import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..))
 import AppUrl (getTablatureTextFromUrl, saveTablatureToUrl)
-
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.List (findIndex, (!!))
@@ -20,7 +19,7 @@ import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
-import HalogenUtils (classString, fontAwesome, optionalText)
+import HalogenUtils (alternativeHtml, classString, fontAwesome, optionalText)
 import LocationString (getLocationString)
 import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
@@ -72,7 +71,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0 }
+initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0, dozenalizationEnabled: true }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -101,7 +100,7 @@ render state = HH.div
     , renderLoadingIcon
     ]
   renderTitle = HH.div
-    [ classString "title optional"]
+    [ classString "title largeViewport"]
     [ HH.a
       [ HP.href "https://github.com/dznl/tabviewer"
       , HP.target "_blank"
@@ -113,7 +112,13 @@ render state = HH.div
     if state.loading then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
   renderControls = HH.div 
     [ classString "controls" ]
-    [ HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleMode ] toggleButtonContent
+    [ HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleEditMode ] toggleButtonContent
+    , HH.button
+      [ HP.title "Toggle decimal to dozenal conversion on or off"
+      , HE.onClick \_ -> ToggleDozenalization
+      ] [ if state.dozenalizationEnabled then fontAwesome "fa-toggle-on" else fontAwesome "fa-toggle-off"
+        , optionalText " Dozenalize"
+        ]
     , HH.button
       [ HP.title "Create a short link to the tablature for sharing with other people"
       , HE.onClick \_ -> CopyShortUrl
@@ -142,7 +147,7 @@ render state = HH.div
 
 
 renderTablatureText :: forall w i. State -> Array (HH.HTML w i)
-renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument state.tablatureText
+renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument state.dozenalizationEnabled state.tablatureText
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
@@ -154,17 +159,17 @@ handleAction action =
         Just tablatureText -> do
           case tryParseTablature tablatureText of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop }
+              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled: true }
               H.liftEffect $ setDocumentTitle tablatureTitle
               where tablatureTitle = getTitle tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
+              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled: true }
         Nothing ->
-          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop }
+          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled: true }
       focusTablatureContainer
-    ToggleMode -> do
+    ToggleEditMode -> do
       H.modify_ _ { loading = true }
-      H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
+      H.liftAff $ delay $ Milliseconds 1.0 -- TODO: this shouldn't be necessary to force rerender
       saveScrollTop
       state <- H.get
       case state.mode of
@@ -178,12 +183,15 @@ handleAction action =
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
       H.modify_ _ { loading = false }
+    ToggleDozenalization -> do
+      state <- H.get
+      H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
     CopyShortUrl -> do
       H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
       H.modify_ _ { loading = false }
-      H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
+      H.liftAff $ delay $ Milliseconds 1.0 -- TODO: this shouldn't be necessary to force rerender
       H.liftEffect $ case maybeShortUrl of
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit

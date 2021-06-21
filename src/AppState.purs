@@ -15,6 +15,7 @@ type State =
   , tablatureDocument :: Maybe TablatureDocument
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
+  , dozenalizationEnabled :: Boolean
   }
 
 type TablatureDocument = List TablatureDocumentLine
@@ -45,7 +46,7 @@ instance showTablatureElem :: Show TablatureElem where
   show (Special string) = string
 
 
-data Action = Initialize | ToggleMode | CopyShortUrl
+data Action = Initialize | ToggleEditMode | ToggleDozenalization | CopyShortUrl
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"

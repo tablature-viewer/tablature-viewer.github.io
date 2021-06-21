@@ -38,6 +38,7 @@ There are browser-extensions which can help you with this.
 For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/addon/replace-bookmark/) which reduces the amount of clicks you have to do to update an existing bookmark.
 
 ## Feature roadmap
+- Make Dozenalization optional with a local storage setting
 - Consider https://tny.im/ for shortening to more readable URLs that include the title of the tablature
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
