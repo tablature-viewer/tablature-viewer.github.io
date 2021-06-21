@@ -16,11 +16,11 @@ import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 
 
-parseTablatureDocument :: Parser TablatureDocument
-parseTablatureDocument = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseCommentLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
+parseTablatureDocument :: Boolean -> Parser TablatureDocument
+parseTablatureDocument dozenalize = do
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseCommentLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine dozenalize)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
-  body <- many $ (try parseTablatureLine) <|> parseCommentLine
+  body <- many $ (try $ parseTablatureLine dozenalize) <|> parseCommentLine
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -30,14 +30,18 @@ parseTitleLine = do
   s <- regex """[^\n\r]*""" <* parseEndOfLine
   pure $ TitleLine {prefix:p, title:t, suffix:s}
 
-parseTablatureLine :: Parser TablatureDocumentLine
-parseTablatureLine = do
+digitsRegex :: Boolean -> String
+digitsRegex dozenalize = if dozenalize then """\d""" else """\d↊↋"""
+
+parseTablatureLine :: Boolean -> Parser TablatureDocumentLine
+parseTablatureLine dozenalize = do
   p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
   t <- try $ lookAhead (regex """\|\|?""") *> many
     (
+      -- if dozenalizationEnabled is false we regard ↊ and ↋ as Special and not as Fret, to avoid awkward rendering
       (regex """((-(?!\|)|(-?\|\|?(?=[^\r\n\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
-      (regex """[\d↊↋]+""" <#> \result -> Fret result) <|>
-      (regex """[^\r\n\d|\-↊↋]+""" <#> \result -> Special result)
+      (regex ("[" <> digitsRegex dozenalize <> "]+") <#> \result -> Fret result) <|>
+      (regex ("""[^\r\n|\-""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
     )
   tClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
@@ -54,8 +58,8 @@ parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n\r?|\r""" 
 
-tryParseTablature :: String -> Maybe (List TablatureDocumentLine)
-tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
+tryParseTablature :: Boolean -> String -> Maybe (List TablatureDocumentLine)
+tryParseTablature dozenalize inputString = tryRunParser (parseTablatureDocument dozenalize) inputString
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 

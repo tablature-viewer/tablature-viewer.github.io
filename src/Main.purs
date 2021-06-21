@@ -163,7 +163,7 @@ handleAction action =
       state <- H.get
       case maybeTablatureText of
         Just tablatureText -> do
-          case tryParseTablature tablatureText of
+          case tryParseTablature state.dozenalizationEnabled tablatureText of
             Just tablatureDocument -> do
               H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled }
               H.liftEffect $ setDocumentTitle tablatureTitle
@@ -180,7 +180,7 @@ handleAction action =
       state <- H.get
       case state.mode of
         EditMode -> do
-          saveTablature
+          saveAndParseTablature
           H.modify_ _ { mode = ViewMode }
           focusTablatureContainer
         ViewMode -> do
@@ -191,8 +191,12 @@ handleAction action =
       H.modify_ _ { loading = false }
     ToggleDozenalization -> do
       state <- H.get
-      H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
       H.liftEffect $ setLocalStorage localStorageKeyDozenalizationEnabled (show $ not state.dozenalizationEnabled)
+      H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
+      -- Dozenalization affects the way we parse the tablature, so we need to reparse it now
+      case state.mode of
+        ViewMode -> parseTablatureAndSaveToState state.tablatureText
+        _ -> pure unit
     CopyShortUrl -> do
       H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
@@ -248,21 +252,22 @@ getTablatureEditorText = do
     Nothing -> H.liftEffect $ Console.error "Could not find textareaTablature" *> pure ""
     Just textArea -> H.liftEffect $ WH.HTMLTextAreaElement.value textArea 
 
-saveTablature :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-saveTablature = do
+saveAndParseTablature :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+saveAndParseTablature = do
   tablatureText <- getTablatureEditorText
-  saveTablatureToState tablatureText
+  parseTablatureAndSaveToState  tablatureText
   state <- H.get
   H.liftEffect $ setDocumentTitle state.tablatureTitle
   saveTablatureToUrl
-  where
-  saveTablatureToState :: String -> H.HalogenM State Action () output m Unit
-  saveTablatureToState tablatureText = do
-    case tryParseTablature tablatureText of
-      Just tablatureDocument ->
-        H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument }
-      Nothing ->
-        H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
+
+parseTablatureAndSaveToState :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
+parseTablatureAndSaveToState  tablatureText = do
+  state <- H.get
+  case tryParseTablature state.dozenalizationEnabled tablatureText of
+    Just tablatureDocument ->
+      H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument }
+    Nothing ->
+      H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
 
 setTablatureEditorText :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
 setTablatureEditorText text = do
