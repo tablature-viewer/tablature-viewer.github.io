@@ -85,18 +85,18 @@ render state = HH.div
   ]
   where
   renderTablature = case state.mode of
-        ViewMode -> HH.div 
-          [ classString "tablatureViewer"
-          , HP.ref refTablatureViewer
-          , HP.tabIndex 0
-          ]
-          [ HH.pre_ $ renderTablatureText state ]
-        EditMode -> HH.textarea
-          [ HP.ref refTablatureEditor
-          , classString "tablatureEditor" 
-          , HP.placeholder "Paste your plaintext tablature here and click 'Save'"
-          , HP.spellcheck false
-          ]
+    ViewMode -> HH.div 
+      [ classString "tablatureViewer"
+      , HP.ref refTablatureViewer
+      , HP.tabIndex 0
+      ]
+      [ HH.pre_ $ renderTablatureText state ]
+    EditMode -> HH.textarea
+      [ HP.ref refTablatureEditor
+      , classString "tablatureEditor" 
+      , HP.placeholder "Paste your plaintext tablature here and click 'Save'"
+      , HP.spellcheck false
+      ]
   renderHeader = HH.div
     [ classString "header" ]
     [ renderTitle

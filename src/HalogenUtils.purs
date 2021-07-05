@@ -23,3 +23,6 @@ alternativeHtml longHtml shortAlt =
   [ HH.span [ classString "largeViewport" ] [ longHtml ]
   , HH.span [ classString "smallViewport" ] [ shortAlt ]
   ]
+
+renderLineEnding :: forall w i. HH.HTML w i
+renderLineEnding = HH.text "\n"

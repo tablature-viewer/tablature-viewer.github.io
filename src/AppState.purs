@@ -22,28 +22,49 @@ type TablatureDocument = List TablatureDocumentLine
 
 data TablatureDocumentLine
   = TitleLine {prefix::String, title::String, suffix::String}
-  | TablatureLine (List TablatureElem)
-  | CommentLine String
+  | TablatureLine (List TablatureLineElem)
+  | HeaderLine (List HeaderLineElem)
+  | ChordLine (List ChordLineElem)
+  | TextLine (List TextLineElem)
 
-data TablatureElem
+data TablatureLineElem
   = Prefix String
   | Suffix String
   | Timeline String
   | Fret String
   | Special String
 
+data TextLineElem
+  = Text String
+
+data ChordLineElem
+  = Chord String
+
+data HeaderLineElem
+  = Header String
 
 instance showLine :: Show TablatureDocumentLine where
   show (TitleLine line) = "Title: " <> line.prefix <> "|" <> line.title <> "|" <> line.suffix
   show (TablatureLine elems) = "Tab: " <> show elems
-  show (CommentLine string) = "Comment: " <> string
+  show (TextLine elems) = "Text: " <> show elems
+  show (ChordLine elems) = "Chords: " <> show elems
+  show (HeaderLine elems) = "Header: " <> show elems
 
-instance showTablatureElem :: Show TablatureElem where
+instance showTablatureLineElem :: Show TablatureLineElem where
   show (Prefix string) = string
   show (Suffix string) = string
   show (Timeline string) = string
   show (Fret string) = string
   show (Special string) = string
+
+instance showTextLineElem :: Show TextLineElem where
+  show (Text string) = string
+
+instance showChordLineElem :: Show ChordLineElem where
+  show (Chord string) = string
+
+instance showHeaderLineElem :: Show HeaderLineElem where
+  show (Header string) = string
 
 
 data Action = Initialize | ToggleEditMode | ToggleDozenalization | CopyShortUrl

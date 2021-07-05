@@ -2,11 +2,7 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (TablatureDocument, TablatureDocumentLine(..), TablatureElem(..))
-import Text.Parsing.StringParser (Parser, try, unParser)
-import Text.Parsing.StringParser.CodePoints (eof, regex)
-import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
-
+import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..))
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.List (List(..), (:))
@@ -14,13 +10,16 @@ import Data.Maybe (Maybe(..))
 import Data.String (drop)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
+import Text.Parsing.StringParser (Parser, try, unParser)
+import Text.Parsing.StringParser.CodePoints (eof, regex)
+import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
 
 
 parseTablatureDocument :: Boolean -> Parser TablatureDocument
 parseTablatureDocument dozenalize = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseCommentLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine dozenalize)))
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine dozenalize)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
-  body <- many $ (try $ parseTablatureLine dozenalize) <|> parseCommentLine
+  body <- many $ (try $ parseTablatureLine dozenalize) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> parseTextLine
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -47,8 +46,14 @@ parseTablatureLine dozenalize = do
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TablatureLine (p:Nil <> t <> tClose:Nil <> s:Nil)
 
-parseCommentLine :: Parser TablatureDocumentLine
-parseCommentLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> CommentLine result
+parseHeaderLine :: Parser TablatureDocumentLine
+parseHeaderLine = (regex """[ \t]*\[[^\n\r]+\][ \t]*""" <* parseEndOfLine) <#> \result -> HeaderLine ((Header result):Nil)
+
+parseChordLine :: Parser TablatureDocumentLine
+parseChordLine = (regex """([ABCDEFG][#b]*\S*|[ \t]+)+""" <* parseEndOfLine) <#> \result -> ChordLine ((Chord result):Nil)
+
+parseTextLine :: Parser TablatureDocumentLine
+parseTextLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> TextLine ((Text result):Nil)
 
 -- | We are as flexible as possible when it comes to line endings.
 -- | Any of the following forms are considered valid: \n \r \n\r eof.

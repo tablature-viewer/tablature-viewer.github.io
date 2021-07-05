@@ -1,7 +1,7 @@
 Dozenal Tablature Viewer
 ========================
 
-Available at https://dznl.github.io/tabviewer/
+Available at https://tabviewer.app
 
 - Paste a regular plain text tablature and then view it in the base twelve number system instead of the base ten number system.
 - All the tablature information is stored in the URL, so you easily can bookmark and save your tabs. No more dealing with all them ad-heavy tablature sites :)

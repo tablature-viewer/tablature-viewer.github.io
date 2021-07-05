@@ -26,8 +26,8 @@
   --button-active-bg:#A9B5A9;
 
   --fg: #00a5a8;
-  --fg-alt: #35c9ff;
-  --fg-alt2: #0094f0;
+  --fg-alt: #0094f0;
+  --fg-alt2: #35c9ff;
 
   --accent: #ff5792;
   --accent-alt: #fa9600;
@@ -42,10 +42,10 @@
     --button-active-bg:#4f3d6a;
 
     --fg: #acb3b3;
-    --fg-alt2: #ecd13a;
-    --fg-alt: #09c7e0;
+    --fg-alt: #ecd13a;
+    --fg-alt2: #09c7e0;
 
-    --accent: #f14fce;
+    --accent: #e25ac5;
     --accent-alt: #fa8900;
   }
 }
@@ -64,15 +64,23 @@
 }
 
 .tablatureViewer .tabSpecial {
+  color: var(--fg-alt2);
+}
+
+.tablatureViewer .tabText {
+  color: var(--fg);
+}
+
+.tablatureViewer .tabChord {
   color: var(--fg-alt);
 }
 
-.tablatureViewer .tabComment {
-  color: var(--fg-alt2);
+.tablatureViewer .tabHeader {
+  color: var(--accent-alt);
 }
 
 .tablatureViewer .tabPrefix {
-  color: var(--fg-alt2);
+  color: var(--fg-alt);
 }
 
 .tablatureViewer .tabSuffix {

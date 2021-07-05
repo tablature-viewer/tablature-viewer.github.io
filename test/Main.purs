@@ -12,7 +12,7 @@ import Effect.Class.Console (log)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import TablatureParser (parseCommentLine, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTitleLine)
+import TablatureParser (parseTextLine, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTitleLine)
 import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
@@ -93,16 +93,16 @@ main = do
   assertParserFailed parseEndOfLine "\n\r\r"
   assertParserFailed parseEndOfLine "a"
 
-  assertParserFailed parseCommentLine ""
-  assertParserSuccess parseCommentLine "a"
-  assertParserFailed parseCommentLine "123\n456"
+  assertParserFailed parseTextLine ""
+  assertParserSuccess parseTextLine "a"
+  assertParserFailed parseTextLine "123\n456"
 
-  assertParserSuccess (many parseCommentLine) "a"
-  assertParserSuccess (many parseCommentLine) "123\n456"
+  assertParserSuccess (many parseTextLine) "a"
+  assertParserSuccess (many parseTextLine) "123\n456"
 
-  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseCommentLine) false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll (many parseCommentLine) false s)
-  assertParserSuccess (many parseCommentLine) testTablature
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll (many parseTextLine) false s)
+  assertParserSuccess (many parseTextLine) testTablature
 
   assertParserFailed parseTitleLine ""
   assertParserSuccess parseTitleLine "a"
