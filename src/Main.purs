@@ -2,11 +2,11 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..))
+import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
 import AppUrl (getTablatureTextFromUrl, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
-import Data.List (findIndex, (!!))
+import Data.List (List, findIndex, (!!))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
@@ -41,17 +41,28 @@ main = HA.runHalogenAff do
 defaultTitle :: String
 defaultTitle = "Tab Viewer"
 
+findElement :: forall a. (a -> Boolean) -> List a -> Maybe a
+findElement p l =
+  case findIndex p l of
+    Nothing -> Nothing
+    Just index -> case l !! index of
+      Nothing -> Nothing
+      Just elem -> Just elem
+
 getTitle :: TablatureDocument -> String
 getTitle tablatureDocument = 
-  case findIndex isTitle tablatureDocument of
+  case findElement isTitleLine tablatureDocument of
     Nothing -> defaultTitle
-    Just index ->
-      case tablatureDocument !! index of
-        Just (TitleLine line) -> line.title
+    Just (TitleLine line) ->
+      case findElement isTitle line of
         Nothing -> defaultTitle
+        Just (Title title) -> title
         Just _ -> defaultTitle
+    Just _ -> defaultTitle
   where
-  isTitle (TitleLine _) = true
+  isTitleLine (TitleLine _) = true
+  isTitleLine _ = false
+  isTitle (Title _) = true
   isTitle _ = false
 
 refTablatureEditor :: H.RefLabel

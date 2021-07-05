@@ -21,7 +21,7 @@ type State =
 type TablatureDocument = List TablatureDocumentLine
 
 data TablatureDocumentLine
-  = TitleLine {prefix::String, title::String, suffix::String}
+  = TitleLine (List TitleLineElem)
   | TablatureLine (List TablatureLineElem)
   | HeaderLine (List HeaderLineElem)
   | ChordLine (List ChordLineElem)
@@ -42,9 +42,14 @@ data ChordLineElem
 
 data HeaderLineElem
   = Header String
+  | HeaderSuffix String
+
+data TitleLineElem
+  = Title String
+  | TitleOther String
 
 instance showLine :: Show TablatureDocumentLine where
-  show (TitleLine line) = "Title: " <> line.prefix <> "|" <> line.title <> "|" <> line.suffix
+  show (TitleLine elems) = "Title: " <> show elems
   show (TablatureLine elems) = "Tab: " <> show elems
   show (TextLine elems) = "Text: " <> show elems
   show (ChordLine elems) = "Chords: " <> show elems
@@ -65,6 +70,11 @@ instance showChordLineElem :: Show ChordLineElem where
 
 instance showHeaderLineElem :: Show HeaderLineElem where
   show (Header string) = string
+  show (HeaderSuffix string) = string
+
+instance showTitleLineElem :: Show TitleLineElem where
+  show (Title string) = string
+  show (TitleOther string) = string
 
 
 data Action = Initialize | ToggleEditMode | ToggleDozenalization | CopyShortUrl

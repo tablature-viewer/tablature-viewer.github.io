@@ -2,7 +2,7 @@ module TablatureRenderer where
 
 import Prelude
 
-import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..))
+import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
 import Data.Array (fromFoldable)
 import Data.Foldable (foldl)
 import Data.Int (decimal, fromString, radix, toStringAs)
@@ -22,20 +22,18 @@ renderTablatureDocument :: forall w i. TablatureDocument -> Boolean -> List (HH.
 renderTablatureDocument doc dozenalize = map renderLine doc
   where
   renderLine :: TablatureDocumentLine -> HH.HTML w i
-  renderLine (TitleLine line) = HH.span_
-    [ HH.span [ classString "tabText" ] [HH.text $ line.prefix]
-    , HH.span [ classString "tabTitle" ] [HH.text $ line.title]
-    , HH.span [ classString "tabText" ] [HH.text $ line.suffix]
-    , renderLineEnding
-    ]
+  renderLine (TitleLine line) = HH.span_ $ fromFoldable $ (renderTitleLineElem <$> line) <> renderLineEnding : Nil
   renderLine (TextLine line) = HH.span_ $ fromFoldable $ (renderTextLineElem <$> line) <> renderLineEnding : Nil
   renderLine (ChordLine line) = HH.span_ $ fromFoldable $ (renderChordLineElem <$> line) <> renderLineEnding : Nil
   renderLine (HeaderLine line) = HH.span_ $ fromFoldable $ (renderHeaderLineElem <$> line) <> renderLineEnding : Nil
   renderLine (TablatureLine line) = HH.span_ $ fromFoldable $ (renderTablatureLineElems dozenalize line) <> renderLineEnding : Nil
 
-  renderTextLineElem (Text text) = HH.span [ classString "tabText" ] [HH.text $ text]
-  renderChordLineElem (Chord text) = HH.span [ classString "tabChord" ] [HH.text $ text]
-  renderHeaderLineElem (Header text) = HH.span [ classString "tabHeader" ] [HH.text $ text]
+  renderTitleLineElem (Title text) = HH.span [ classString "tabTitle" ] [ HH.text text ]
+  renderTitleLineElem (TitleOther text) = HH.span [ classString "tabText" ] [ HH.text text ]
+  renderTextLineElem (Text text) = HH.span [ classString "tabText" ] [ HH.text text ]
+  renderChordLineElem (Chord text) = HH.span [ classString "tabChord" ] [ HH.text text ]
+  renderHeaderLineElem (Header text) = HH.span [ classString "tabHeader" ] [ HH.text text ]
+  renderHeaderLineElem (HeaderSuffix text) = HH.span [ classString "tabText" ] [ HH.text text ]
 
 -- Rendering elements needs care because the numbers ↊ and ↋ take less space than 10 and 11.
 -- We need to make up for this with extra dashes at the first next Timeline element.

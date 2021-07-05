@@ -2,7 +2,7 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..))
+import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.List (List(..), (:))
@@ -27,7 +27,7 @@ parseTitleLine = do
   p <- regex """[^\w\n\r]*"""
   t <- regex """[^\n\r]*\w"""
   s <- regex """[^\n\r]*""" <* parseEndOfLine
-  pure $ TitleLine {prefix:p, title:t, suffix:s}
+  pure $ TitleLine $ TitleOther p : Title t : TitleOther s : Nil
 
 digitsRegex :: Boolean -> String
 digitsRegex dozenalize = if dozenalize then """\d""" else """\d↊↋"""
@@ -47,7 +47,10 @@ parseTablatureLine dozenalize = do
   pure $ TablatureLine (p:Nil <> t <> tClose:Nil <> s:Nil)
 
 parseHeaderLine :: Parser TablatureDocumentLine
-parseHeaderLine = (regex """[ \t]*\[[^\n\r]+\][ \t]*""" <* parseEndOfLine) <#> \result -> HeaderLine ((Header result):Nil)
+parseHeaderLine = do
+  h <- regex """[ \t]*\[[^\n\r]+\]"""
+  s <- regex """[^\r\n]*""" <* parseEndOfLine
+  pure $ HeaderLine ((Header h):(HeaderSuffix s):Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
 parseChordLine = (regex """([ABCDEFG][#b]*\S*|[ \t]+)+""" <* parseEndOfLine) <#> \result -> ChordLine ((Chord result):Nil)
