@@ -6,7 +6,7 @@
     "test": "test"
   },
   "scripts": {
-    "install": "spago install && npm install",
+    "restore": "spago install && npm install",
     "build": "spago build && echo Ctrl-f5 your browser if non-purescript changes were made!",
     "test": "spago test",
     "start": "npm run build && parcel index.html",
