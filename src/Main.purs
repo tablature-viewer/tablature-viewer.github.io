@@ -3,7 +3,7 @@ module Main where
 import Prelude
 
 import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
-import AppUrl (getTablatureTextFromUrl, saveTablatureToUrl)
+import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.List (List, findIndex, (!!))
@@ -21,7 +21,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import HalogenUtils (classString, fontAwesome, optionalText)
 import LocalStorage (getLocalStorageBoolean, setLocalStorage)
-import LocationString (getLocationString)
+import LocationString (getLocationString, getQueryParam, setLocationString)
 import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
@@ -33,10 +33,14 @@ import Web.HTML.HTMLElement (focus, toElement)
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 import Web.HTML.Window (document)
 
+foreign import executeJavascriptHacks :: Effect Unit
+
 main :: Effect Unit
-main = HA.runHalogenAff do
-  body <- HA.awaitBody
-  runUI component unit body
+main = do
+  executeJavascriptHacks
+  HA.runHalogenAff do
+    body <- HA.awaitBody
+    runUI component unit body
 
 defaultTitle :: String
 defaultTitle = "Tab Viewer"
@@ -168,6 +172,11 @@ handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action
 handleAction action =
   case action of
     Initialize -> do
+      -- Get query string and maybe redirect
+      mode <- H.liftEffect $ getQueryParam "u"
+      case mode of
+        Just _ -> H.liftEffect redirectToUrlInFragment
+        _ -> pure unit
       maybeDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyDozenalizationEnabled
       dozenalizationEnabled <- pure $ fromMaybe true maybeDozenalizationEnabled
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl

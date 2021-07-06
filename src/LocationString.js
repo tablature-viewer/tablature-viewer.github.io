@@ -8,6 +8,19 @@ exports.getLocationBaseString = function () {
   return window.location.origin + window.location.pathname;
 };
 
+exports.setLocationString = function (value) {
+  return function () {
+    _setLocationString(value);
+  }
+};
+
+var _setLocationString = function (value) {
+  var newurl = value;
+  window.location = newurl;
+  // window.history.pushState({}, '', newurl);
+};
+
+
 exports.getFragmentString = function () {
   var result = window.location.hash;
   if (result.startsWith("#"))
@@ -52,33 +65,9 @@ var _setQueryString = function (value) {
   window.history.pushState({}, '', newurl);
 };
 
-
-/*
-exports.decodeAndGetFragmentString = function () {
-  return decodeURIComponent(exports.getFragmentString());
-};
-
-exports.encodeAndSetFragmentString = function (value) {
+exports._getQueryParam = function (paramName) {
   return function () {
-    _setFragmentString(encodeURIComponent(value));
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(paramName);
   }
-};
-*/
-
-
-// The popstate event of the Window interface is fired when the active history entry changes while the user navigates the session history. 
-// Hack for making sure hashchanges trigger a reload when nagivating history
-// TODO: handle this event properly without a reload by executing the Initialize action on this event
-window.addEventListener('popstate', () => {
-  window.location.reload();
-});
-
-// TODO: move to purescript
-var root = document.querySelector(':root');
-window.addEventListener('resize', () => {
-  root.style.setProperty('--app-height', vh() + 'px');
-});
-function vh() {
-  // - 1 because sometimes the innerHeight doesn't seem to be rounded correctly or something
-  return Math.max(document.documentElement.clientHeight, window.innerHeight || 0) - 1;
 }
