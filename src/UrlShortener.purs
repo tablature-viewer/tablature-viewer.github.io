@@ -12,6 +12,8 @@ import Data.Maybe (Maybe(..))
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
+import LZString (compressToEncodedURIComponent)
+import LocationString (getLocationBaseString)
 import Simple.JSON (readJSON, writeJSON)
 
 type RequestBodyRecord = {url :: String}
@@ -24,7 +26,10 @@ createShortUrl url = do
     Right result -> do
       case readJSON result.body of
         Right (r :: ResponseRecord) -> do
-          pure $ Just $ r.shortlink.shortlink
+          base <- liftEffect getLocationBaseString
+          case compressToEncodedURIComponent r.shortlink.shortlink of
+            Just compressed -> pure $ Just $ base <> "?u#" <> compressed
+            _ -> liftEffect $ Console.error "Could not compress shortlink URI" *> pure Nothing
         Left e -> do
           liftEffect $ Console.error $ "Can't parse response JSON: " <> show e
           pure Nothing

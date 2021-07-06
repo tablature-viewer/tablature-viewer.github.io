@@ -29,5 +29,7 @@ getTablatureTextFromUrl = do
 
 redirectToUrlInFragment :: Effect Unit
 redirectToUrlInFragment = do
-  url <- getFragmentString
-  setLocationString url
+  compressedUrl <- getFragmentString
+  case decompressFromEncodedURIComponent compressedUrl of
+    Just url -> setLocationString url
+    _ -> Console.error("Could not load decompressed shortlink URL") *> pure unit
