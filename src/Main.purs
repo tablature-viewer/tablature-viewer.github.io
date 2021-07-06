@@ -21,7 +21,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import HalogenUtils (classString, fontAwesome, optionalText)
 import LocalStorage (getLocalStorageBoolean, setLocalStorage)
-import LocationString (getLocationString, getQueryParam, setLocationString)
+import LocationString (getLocationString, getQueryParam)
 import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
 import UrlShortener (createShortUrl)
@@ -37,10 +37,15 @@ foreign import executeJavascriptHacks :: Effect Unit
 
 main :: Effect Unit
 main = do
-  executeJavascriptHacks
-  HA.runHalogenAff do
-    body <- HA.awaitBody
-    runUI component unit body
+  -- Get query string and maybe redirect to compressed shortlink in the fragment
+  mode <- getQueryParam "u"
+  case mode of
+    Just _ -> redirectToUrlInFragment
+    _ -> do
+      executeJavascriptHacks
+      HA.runHalogenAff do
+        body <- HA.awaitBody
+        runUI component unit body
 
 defaultTitle :: String
 defaultTitle = "Tab Viewer"
@@ -172,11 +177,6 @@ handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action
 handleAction action =
   case action of
     Initialize -> do
-      -- Get query string and maybe redirect
-      mode <- H.liftEffect $ getQueryParam "u"
-      case mode of
-        Just _ -> H.liftEffect redirectToUrlInFragment
-        _ -> pure unit
       maybeDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyDozenalizationEnabled
       dozenalizationEnabled <- pure $ fromMaybe true maybeDozenalizationEnabled
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
