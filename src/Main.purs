@@ -126,7 +126,7 @@ render state = HH.div
   renderTitle = HH.div
     [ classString "title largeViewport"]
     [ HH.a
-      [ HP.href "https://github.com/dznl/tabviewer"
+      [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
       , HP.target "_blank"
       ]
       [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
@@ -155,7 +155,7 @@ render state = HH.div
       [ HH.button
         [ HP.title "Open an empty tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
     , HH.a
-      [ HP.href "https://github.com/dznl/tabviewer"
+      [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
       , HP.target "_blank"
       , HP.tabIndex (-1)
       ]

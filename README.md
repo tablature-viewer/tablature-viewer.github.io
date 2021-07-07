@@ -29,7 +29,7 @@ It's funny coincidence here that the octave note has been called *do* in [musica
 For more information about pronounciation read [more about the do-gro-mo system](https://en.wikipedia.org/wiki/Duodecimal#Do-gro-mo_system).
 
 ## Can I customize the color theme?
-Yes you can. Install the *Stylish* browser extension and override the color CSS variables in [index.css](https://github.com/dznl/tabviewer/blob/main/index.css).
+Yes you can. Install the *Stylish* browser extension and override the color CSS variables in [index.css](https://github.com/tablature-viewer/tablature-viewer.github.io/blob/main/res/index.css).
 
 ## I want to undo my changes after I've already saved it
 Every saved version is added to your browser history.

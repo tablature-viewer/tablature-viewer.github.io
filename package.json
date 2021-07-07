@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dznl/tabviewer.git"
+    "url": "git+https://github.com/tablature-viewer/tablature-viewer.github.io.git"
   },
   "keywords": [
     "guitar",
@@ -25,9 +25,9 @@
   "author": "Chiel ten Brinke",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dznl/tabviewer/issues"
+    "url": "https://github.com/tablature-viewer/tablature-viewer.github.io/issues"
   },
-  "homepage": "https://dznl.github.io/tabviewer/",
+  "homepage": "https://github.com/tablature-viewer/tablature-viewer.github.io",
   "description": "",
   "devDependencies": {
     "parcel": "^2.0.0-beta.3.1",
