@@ -95,7 +95,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0, dozenalizationEnabled: true }
+initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0, dozenalizationEnabled: false }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -178,7 +178,7 @@ handleAction action =
   case action of
     Initialize -> do
       maybeDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyDozenalizationEnabled
-      dozenalizationEnabled <- pure $ fromMaybe true maybeDozenalizationEnabled
+      dozenalizationEnabled <- pure $ fromMaybe false maybeDozenalizationEnabled
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       state <- H.get
       case maybeTablatureText of
