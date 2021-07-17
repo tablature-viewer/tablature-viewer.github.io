@@ -15,9 +15,12 @@ Subsequent numbers in the dozenal system:
 Subsequent numbers in the decimal system: 
 - 1, 2, 3, 4, 5, 6, 6, 7, 8, 9, 10, 11, 12, 13, ...
 
+The reason that a turned two and three have been chosen as symbols for ten and eleven is because the _Dozenal Society of Great Britain_ has proposed this and it is a generally accepted notation.
+Akin to hexadecimal notation, `a` and `b` are also widely used, but these have other meanings in guitar tablature already.
+
 ## Why would you want this?
-In the end it is just a matter of fun or personal preference, but you might like a base twelve better in circumstances where it better matches the domain you're dealing with.
-In guitar tablature specifically, there are twelve notes (semitones) in each octave, so it makes sense to have the number `10` match the octave and have dedicated symbols for each note below the octave.
+In the end it is just a matter of fun or personal preference, but you might like because an octave consists of 12 frets.
+This makes the counting above the octave a little easier, because in the dozenal system, fret `15` would mean "five frets above the octave".
 The idea is that once you get used to using the dozenal system for reading tablature you require less mental work when reading tablature.
 But it's mostly for fun.
 

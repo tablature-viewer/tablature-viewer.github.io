@@ -136,17 +136,19 @@ render state = HH.div
     if state.loading then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
   renderControls = HH.div 
     [ classString "controls" ]
-    [ HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleEditMode ] toggleButtonContent
+    [ HH.a
+      [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
+      , HP.target "_blank"
+      , HP.tabIndex (-1)
+      ]
+      [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-question", optionalText " Readme" ] ]
     , HH.button
       [ HP.title "Toggle decimal to dozenal conversion on or off"
       , HE.onClick \_ -> ToggleDozenalization
       ] [ if state.dozenalizationEnabled then fontAwesome "fa-toggle-on" else fontAwesome "fa-toggle-off"
         , optionalText " Dozenalize"
         ]
-    , HH.button
-      [ HP.title "Create a short link to the tablature for sharing with other people"
-      , HE.onClick \_ -> CopyShortUrl
-      ] [ fontAwesome "fa-share", optionalText " Share" ]
+    , HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleEditMode ] toggleButtonContent
     , HH.a
       [ HP.href "./"
       , HP.target "_blank"
@@ -154,12 +156,10 @@ render state = HH.div
       ]
       [ HH.button
         [ HP.title "Open an empty tablature in a new browser tab" ] [ fontAwesome "fa-plus", optionalText " New" ] ]
-    , HH.a
-      [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
-      , HP.target "_blank"
-      , HP.tabIndex (-1)
-      ]
-      [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-info", optionalText " About" ] ]
+    , HH.button
+      [ HP.title "Create a short link to the tablature for sharing with other people"
+      , HE.onClick \_ -> CopyShortUrl
+      ] [ fontAwesome "fa-share", optionalText " Share" ]
     ]
     where
     toggleButtonContent = case state.mode of
