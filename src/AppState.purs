@@ -39,6 +39,7 @@ data TextLineElem
 
 data ChordLineElem
   = Chord String
+  | ChordComment String
 
 data HeaderLineElem
   = Header String
@@ -67,6 +68,7 @@ instance showTextLineElem :: Show TextLineElem where
 
 instance showChordLineElem :: Show ChordLineElem where
   show (Chord string) = string
+  show (ChordComment string) = string
 
 instance showHeaderLineElem :: Show HeaderLineElem where
   show (Header string) = string

@@ -25,12 +25,12 @@
   --button-hover-bg:#D1DFD0;
   --button-active-bg:#A9B5A9;
 
-  --fg: #00a5a8;
-  --fg-alt: #0094f0;
-  --fg-alt2: #35c9ff;
+  --fg: #28a0a2;
+  --fg-alt: #1c9ff0;
+  --fg-alt2: #5ed0fa;
 
-  --accent: #ff5792;
-  --accent-alt: #fa9600;
+  --accent: #ff6a9e;
+  --accent-alt: #f5970a;
 }
 
 @media (prefers-color-scheme: dark) {

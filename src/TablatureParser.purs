@@ -37,10 +37,9 @@ parseTablatureLine dozenalize = do
   p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
   t <- try $ lookAhead (regex """\|\|?""") *> many
     (
-      -- if dozenalizationEnabled is false we regard ↊ and ↋ as Special and not as Fret, to avoid awkward rendering
-      (regex """((-(?!\|)|(-?\|\|?(?=[^\r\n\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
+      (regex """((-(?!\|)|(-?\|\|?(?=[^\s\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
       (regex ("[" <> digitsRegex dozenalize <> "]+") <#> \result -> Fret result) <|>
-      (regex ("""[^\r\n|\-""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
+      (regex ("""[^\s|\-""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
     )
   tClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
   s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
@@ -53,7 +52,13 @@ parseHeaderLine = do
   pure $ HeaderLine ((Header h):(HeaderSuffix s):Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = (regex """([ABCDEFG][#b]*\S*|[ \t]+)+""" <* parseEndOfLine) <#> \result -> ChordLine ((Chord result):Nil)
+parseChordLine = (many parseChordComment <> (parseChord <#> \c -> c:Nil) <> many (parseChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
+
+parseChord :: Parser ChordLineElem
+parseChord = regex """[ \t]*[ABCDEFGabcdefg][#b]*\S*[ \t]*""" <#> \result -> Chord result
+
+parseChordComment :: Parser ChordLineElem
+parseChordComment = regex """[ \t]*\([^\n\r()]*\)[ \t]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
 parseTextLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> TextLine ((Text result):Nil)

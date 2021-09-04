@@ -32,6 +32,7 @@ renderTablatureDocument doc dozenalize = map renderLine doc
   renderTitleLineElem (TitleOther text) = HH.span [ classString "tabText" ] [ HH.text text ]
   renderTextLineElem (Text text) = HH.span [ classString "tabText" ] [ HH.text text ]
   renderChordLineElem (Chord text) = HH.span [ classString "tabChord" ] [ HH.text text ]
+  renderChordLineElem (ChordComment text) = HH.span [ classString "tabSuffix" ] [ HH.text text ]
   renderHeaderLineElem (Header text) = HH.span [ classString "tabHeader" ] [ HH.text text ]
   renderHeaderLineElem (HeaderSuffix text) = HH.span [ classString "tabText" ] [ HH.text text ]
 
