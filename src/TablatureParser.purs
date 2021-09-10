@@ -25,7 +25,7 @@ parseTablatureDocument dozenalize = do
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
   p <- regex """[^\w\n\r]*"""
-  t <- regex """[^\n\r]*\w"""
+  t <- regex """[^\n\r]*[\w)!?"']"""
   s <- regex """[^\n\r]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther p : Title t : TitleOther s : Nil
 
@@ -55,7 +55,7 @@ parseChordLine :: Parser TablatureDocumentLine
 parseChordLine = (many parseChordComment <> (parseChord <#> \c -> c:Nil) <> many (parseChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
 
 parseChord :: Parser ChordLineElem
-parseChord = regex """[ \t]*[ABCDEFGabcdefg][#b]*\S*[ \t]*""" <#> \result -> Chord result
+parseChord = regex """[ \t]*[ABCDEFG][#b]*[\w-+#()/]*[ \t]*""" <#> \result -> Chord result
 
 parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[ \t]*\([^\n\r()]*\)[ \t]*""" <#> \result -> ChordComment result

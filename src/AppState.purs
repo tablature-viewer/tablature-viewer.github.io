@@ -16,14 +16,15 @@ type State =
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
   , dozenalizationEnabled :: Boolean
+  , ignoreDozenalization :: Boolean
   }
 
 type TablatureDocument = List TablatureDocumentLine
 
 data TablatureDocumentLine
-  = TitleLine (List TitleLineElem)
+  = TitleLine (List TitleLineElem) -- Title of whole document
   | TablatureLine (List TablatureLineElem)
-  | HeaderLine (List HeaderLineElem)
+  | HeaderLine (List HeaderLineElem) -- Header per section of document
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
 

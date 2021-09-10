@@ -8,6 +8,9 @@ import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.List (List, findIndex, (!!))
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String.Regex (test)
+import Data.String.Regex.Flags (ignoreCase)
+import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff)
@@ -74,6 +77,9 @@ getTitle tablatureDocument =
   isTitle (Title _) = true
   isTitle _ = false
 
+getIgnoreDozenalization :: TablatureDocument -> Boolean
+getIgnoreDozenalization tablatureDocument = test (unsafeRegex "dozenal" ignoreCase) (getTitle tablatureDocument)
+
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
 
@@ -95,7 +101,7 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0, dozenalizationEnabled: false }
+initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0, dozenalizationEnabled: false, ignoreDozenalization: false }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -145,7 +151,10 @@ render state = HH.div
     , HH.button
       [ HP.title "Toggle decimal to dozenal conversion on or off"
       , HE.onClick \_ -> ToggleDozenalization
-      ] [ if state.dozenalizationEnabled then fontAwesome "fa-toggle-on" else fontAwesome "fa-toggle-off"
+      , classString $ if state.ignoreDozenalization then "disabled" else ""
+      ] [ if state.dozenalizationEnabled && not state.ignoreDozenalization
+            then fontAwesome "fa-toggle-on"
+            else fontAwesome "fa-toggle-off"
         , optionalText " Dozenalize"
         ]
     , HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleEditMode ] toggleButtonContent
@@ -171,7 +180,7 @@ render state = HH.div
 
 
 renderTablatureText :: forall w i. State -> Array (HH.HTML w i)
-renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument state.dozenalizationEnabled state.tablatureText
+renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument (state.dozenalizationEnabled && not state.ignoreDozenalization) state.tablatureText
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
@@ -185,13 +194,15 @@ handleAction action =
         Just tablatureText -> do
           case tryParseTablature state.dozenalizationEnabled tablatureText of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled }
+              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled, ignoreDozenalization }
               H.liftEffect $ setDocumentTitle tablatureTitle
-              where tablatureTitle = getTitle tablatureDocument
+              where
+                tablatureTitle = getTitle tablatureDocument
+                ignoreDozenalization = getIgnoreDozenalization tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled }
+              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled, ignoreDozenalization: false }
         Nothing ->
-          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled }
+          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled, ignoreDozenalization: false }
       focusTablatureContainer
     ToggleEditMode -> do
       H.modify_ _ { loading = true }
@@ -211,12 +222,15 @@ handleAction action =
       H.modify_ _ { loading = false }
     ToggleDozenalization -> do
       state <- H.get
-      H.liftEffect $ setLocalStorage localStorageKeyDozenalizationEnabled (show $ not state.dozenalizationEnabled)
-      H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
-      -- Dozenalization affects the way we parse the tablature, so we need to reparse it now
-      case state.mode of
-        ViewMode -> parseTablatureAndSaveToState state.tablatureText
-        _ -> pure unit
+      if not state.ignoreDozenalization
+      then pure unit
+      else do
+        H.liftEffect $ setLocalStorage localStorageKeyDozenalizationEnabled (show $ not state.dozenalizationEnabled)
+        H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
+        -- Dozenalization affects the way we parse the tablature, so we need to reparse it now
+        case state.mode of
+          ViewMode -> parseTablatureAndSaveToState state.tablatureText
+          _ -> pure unit
     CopyShortUrl -> do
       H.modify_ _ { loading = true }
       longUrl <- H.liftEffect getLocationString
@@ -275,7 +289,7 @@ getTablatureEditorText = do
 saveAndParseTablature :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 saveAndParseTablature = do
   tablatureText <- getTablatureEditorText
-  parseTablatureAndSaveToState  tablatureText
+  parseTablatureAndSaveToState tablatureText
   state <- H.get
   H.liftEffect $ setDocumentTitle state.tablatureTitle
   saveTablatureToUrl
@@ -285,7 +299,7 @@ parseTablatureAndSaveToState  tablatureText = do
   state <- H.get
   case tryParseTablature state.dozenalizationEnabled tablatureText of
     Just tablatureDocument ->
-      H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument }
+      H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument, ignoreDozenalization = getIgnoreDozenalization tablatureDocument }
     Nothing ->
       H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
 
