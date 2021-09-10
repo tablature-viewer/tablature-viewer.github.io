@@ -222,7 +222,7 @@ handleAction action =
       H.modify_ _ { loading = false }
     ToggleDozenalization -> do
       state <- H.get
-      if not state.ignoreDozenalization
+      if state.ignoreDozenalization
       then pure unit
       else do
         H.liftEffect $ setLocalStorage localStorageKeyDozenalizationEnabled (show $ not state.dozenalizationEnabled)
