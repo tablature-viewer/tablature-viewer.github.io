@@ -42,6 +42,11 @@ You can navigate them by going back and forth just like you would on other websi
 There are browser-extensions which can help you with this.
 For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/addon/replace-bookmark/) which reduces the amount of clicks you have to do to update an existing bookmark.
 
+## How do I keep tabs that are already dozenal themselves from being redozenalized?
+You can put the word "dozenal" or "dozenalized" in the title (first line) of your tab, e.g. by appending `(dozenal)` to it.
+This will turn off dozenalization for that tab, regardless of your settings.
+
 ## Feature roadmap
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
+- Chord dozenalization (i.e. CM13 rendered as CM11)
