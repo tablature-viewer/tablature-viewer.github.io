@@ -19,6 +19,11 @@ type State =
   , ignoreDozenalization :: Boolean
   }
 
+type RenderingOptions =
+  { dozenalize :: Boolean
+  , normalize :: Boolean
+  }
+
 type TablatureDocument = List TablatureDocumentLine
 
 data TablatureDocumentLine

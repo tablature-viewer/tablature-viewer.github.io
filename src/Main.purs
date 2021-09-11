@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
+import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), RenderingOptions)
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -27,6 +27,7 @@ import LocalStorage (getLocalStorageBoolean, setLocalStorage)
 import LocationString (getLocationString, getQueryParam)
 import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
+import TablatureRewriter (rewriteTablatureDocument)
 import UrlShortener (createShortUrl)
 import Web.DOM.Element (scrollTop, setScrollTop)
 import Web.HTML (window)
@@ -79,6 +80,9 @@ getTitle tablatureDocument =
 
 getIgnoreDozenalization :: TablatureDocument -> Boolean
 getIgnoreDozenalization tablatureDocument = test (unsafeRegex "dozenal" ignoreCase) (getTitle tablatureDocument)
+
+getRenderingOptions :: State -> RenderingOptions
+getRenderingOptions state = {dozenalize: state.dozenalizationEnabled && not state.ignoreDozenalization, normalize: true}
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -180,7 +184,7 @@ render state = HH.div
 
 
 renderTablatureText :: forall w i. State -> Array (HH.HTML w i)
-renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument (state.dozenalizationEnabled && not state.ignoreDozenalization) state.tablatureText
+renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument state.tablatureText $ getRenderingOptions state
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action =
@@ -298,7 +302,8 @@ parseTablatureAndSaveToState :: forall output m . MonadEffect m => String -> H.H
 parseTablatureAndSaveToState  tablatureText = do
   state <- H.get
   case tryParseTablature state.dozenalizationEnabled tablatureText of
-    Just tablatureDocument ->
+    Just parseResult ->
+      let tablatureDocument = rewriteTablatureDocument parseResult (getRenderingOptions state) in
       H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument, ignoreDozenalization = getIgnoreDozenalization tablatureDocument }
     Nothing ->
       H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
