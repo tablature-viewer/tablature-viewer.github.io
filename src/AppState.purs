@@ -44,8 +44,18 @@ data TextLineElem
   = Text String
 
 data ChordLineElem
-  = Chord String
+  = Chord Chord
+  | ChordLegend String
   | ChordComment String
+
+type Chord =
+  { root :: String
+  , rootMod :: String
+  , type :: String
+  , mods :: String
+  , bass :: String
+  , bassMod :: String
+  }
 
 data HeaderLineElem
   = Header String
@@ -73,8 +83,9 @@ instance showTextLineElem :: Show TextLineElem where
   show (Text string) = string
 
 instance showChordLineElem :: Show ChordLineElem where
-  show (Chord string) = string
+  show (Chord chord) = show chord
   show (ChordComment string) = string
+  show (ChordLegend string) = string
 
 instance showHeaderLineElem :: Show HeaderLineElem where
   show (Header string) = string

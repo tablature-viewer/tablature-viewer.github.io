@@ -30,14 +30,22 @@ renderTablatureDocument doc _ = map renderLine doc
   renderTitleLineElem (Title string) = renderWithClass string "tabTitle"
   renderTitleLineElem (TitleOther string) = renderWithClass string "tabText"
   renderTextLineElem (Text string) = renderWithClass string "tabText"
-  renderChordLineElem (Chord string) = renderWithClass string "tabChord"
-  renderChordLineElem (ChordComment string) = renderWithClass string "tabSuffix"
-  renderHeaderLineElem (Header string) = renderWithClass string "tabHeader"
-  renderHeaderLineElem (HeaderSuffix string) = renderWithClass string "tabText"
   renderTablatureLineElem (Prefix string) = renderWithClass string "tabPrefix"
   renderTablatureLineElem (Suffix string) = renderWithClass string "tabSuffix"
   renderTablatureLineElem (Special string) = renderWithClass string "tabSpecial"
   renderTablatureLineElem (Timeline string) = renderWithClass string "tabTimeline"
   renderTablatureLineElem (Fret string) = renderWithClass string "tabFret"
+  renderHeaderLineElem (Header string) = renderWithClass string "tabHeader"
+  renderHeaderLineElem (HeaderSuffix string) = renderWithClass string "tabText"
+  renderChordLineElem (ChordComment string) = renderWithClass string "tabSuffix"
+  renderChordLineElem (ChordLegend string) = renderWithClass string "tabFret"
+  renderChordLineElem (Chord chord) =
+    HH.span [ classString "tabChord" ] [HH.text chord.root
+    , HH.sub_ [ HH.text chord.rootMod ]
+    , HH.text chord.type
+    , HH.sup_ [ HH.text $ chord.mods ]
+    , HH.text chord.bass
+    , HH.sub_ [ HH.text chord.bassMod ]
+    ]
 
   renderWithClass string klass = HH.span [ classString klass ] [ HH.text string ]

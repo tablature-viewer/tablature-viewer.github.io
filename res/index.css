@@ -236,6 +236,18 @@ body {
   color:var(--fg);
 }
 
+.tablatureViewer sup, .tablatureViewer sub {
+  font-size: inherit;
+  vertical-align: baseline;
+  position: relative;
+}
+.tablatureViewer sup {
+  top: -0.1em;
+}
+.tablatureViewer sub {
+  top: 0.2em;
+}
+
 .tablatureEditor {
   margin: 0;
   border: 0;

@@ -24,41 +24,64 @@ parseTablatureDocument dozenalize = do
 
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
-  p <- regex """[^\w\n\r]*"""
-  t <- regex """[^\n\r]*[\w)!?"']"""
-  s <- regex """[^\n\r]*""" <* parseEndOfLine
-  pure $ TitleLine $ TitleOther p : Title t : TitleOther s : Nil
+  prefix <- regex """[^\w\n\r]*"""
+  title <- regex """[^\n\r]*[\w)!?"']"""
+  suffix <- regex """[^\n\r]*""" <* parseEndOfLine
+  pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
 digitsRegex :: Boolean -> String
 digitsRegex dozenalize = if dozenalize then """\d""" else """\d↊↋"""
 
 parseTablatureLine :: Boolean -> Parser TablatureDocumentLine
 parseTablatureLine dozenalize = do
-  p <- regex """[^|\n\r]*""" <#> \result -> Prefix result
-  t <- try $ lookAhead (regex """\|\|?""") *> many
+  prefix <- regex """[^|\n\r]*""" <#> \result -> Prefix result
+  tabLine <- try $ lookAhead (regex """\|\|?""") *> many
     (
       (regex """((-(?!\|)|(-?\|\|?(?=[^\s\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
       (regex ("[" <> digitsRegex dozenalize <> "]+") <#> \result -> Fret result) <|>
       (regex ("""[^\s|\-""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
     )
-  tClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
-  s <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
-  pure $ TablatureLine (p:Nil <> t <> tClose:Nil <> s:Nil)
+  tabLineClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
+  suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
+  pure $ TablatureLine (prefix:Nil <> tabLine <> tabLineClose:Nil <> suffix:Nil)
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
-  h <- regex """[ \t]*\[[^\n\r]+\]"""
-  s <- regex """[^\r\n]*""" <* parseEndOfLine
-  pure $ HeaderLine ((Header h):(HeaderSuffix s):Nil)
+  header <- regex """[ \t]*\[[^\n\r]+\]"""
+  suffix <- regex """[^\r\n]*""" <* parseEndOfLine
+  pure $ HeaderLine ((Header header):(HeaderSuffix suffix):Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = (many parseChordComment <> (parseChord <#> \c -> c:Nil) <> many (parseChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
+parseChordLine = (many parseChordComment <> (parseChord <#> \c -> c:Nil) <> many (parseChord <|> parseChordComment <|> parseChordLegend) <* parseEndOfLine) <#> \result -> ChordLine result
 
 parseChord :: Parser ChordLineElem
-parseChord = regex """[ \t]*[ABCDEFG][#b]*[\w-+#()/]*[ \t]*""" <#> \result -> Chord result
+parseChord = do
+  root <- parseChordRoot
+  rootMod <- parseChordRootMod
+  chordType <- parseChordType
+  mods <- parseChordMods
+  bass <- parseChordBass
+  bassMod <- parseChordRootMod
+  pure $ Chord { root : root
+  , rootMod : rootMod
+  , type : chordType
+  , mods : mods
+  , bass : bass
+  , bassMod : bassMod
+  }
+  where
+  parseChordRoot = regex """[A-G]"""
+  parseChordRootMod = regex """[#b]*"""
+  parseChordType = regex """(ø|Δ|major|Maj|Ma|maj|Min|minor|min|M|m|[-]|dim|sus|dom|aug|[+]|o)?"""
+  parseChordMods = regex """(\(?(b|#|[+]|o|no|add|dim|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?\)?)*"""
+  parseChordBass = regex """(/[A-G])?"""
 
+parseChordLegend :: Parser ChordLineElem
+parseChordLegend = regex """[\dxX]{6}""" <#> \result -> ChordLegend result
+
+-- A chord comment is a non chord string that is either a series of dots or a series of spaces or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
-parseChordComment = regex """[ \t]*\([^\n\r()]*\)[ \t]*""" <#> \result -> ChordComment result
+parseChordComment = regex """[ \t]*(\([^\n\r()]*\)|\.\.+| +)[ \t]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
 parseTextLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> TextLine ((Text result):Nil)
