@@ -37,11 +37,12 @@ parseTablatureLine dozenalize = do
   prefix <- regex """[^|\n\r]*""" <#> \result -> Prefix result
   tabLine <- try $ lookAhead (regex """\|\|?""") *> many
     (
-      (regex """((-(?!\|)|(-?\|\|?(?=[^\s\-|]*[\-|]))))+""" <#> \result -> Timeline result) <|>
+      -- We allow normal dashes and em dashes
+      (regex """(([-—](?!\|)|([-—]?\|\|?(?=[^\s\[-—]|]*[\[-—]|]))))+""" <#> \result -> Timeline result) <|>
       (regex ("[" <> digitsRegex dozenalize <> "]+") <#> \result -> Fret result) <|>
-      (regex ("""[^\s|\-""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
+      (regex ("""[^\s|\[-—]""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
     )
-  tabLineClose <- regex """-?\|?\|?""" <#> \result -> Timeline result
+  tabLineClose <- regex """[-—]?\|?\|?""" <#> \result -> Timeline result
   suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TablatureLine (prefix:Nil <> tabLine <> tabLineClose:Nil <> suffix:Nil)
 

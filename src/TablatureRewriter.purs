@@ -14,30 +14,36 @@ rewriteTablatureDocument :: TablatureDocument -> RenderingOptions -> TablatureDo
 rewriteTablatureDocument doc renderingOptions = map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
-  rewriteLine (TablatureLine line) = TablatureLine $ (rewriteTablatureLineElems renderingOptions.dozenalize line)
+  rewriteLine (TablatureLine line) = TablatureLine $ (rewriteTablatureLineElems renderingOptions line)
   rewriteLine x = x
 
 -- Rendering elements needs care because the numbers ↊ and ↋ take less space than 10 and 11.
 -- We need to make up for this with extra dashes at the first next Timeline element.
-rewriteTablatureLineElems :: Boolean -> List TablatureLineElem -> List TablatureLineElem
-rewriteTablatureLineElems dozenalize elems = reverse result.acc
-  where result = foldl (accTablatureLineElems dozenalize) {pendingDashes:0, acc: Nil} elems
+rewriteTablatureLineElems :: RenderingOptions -> List TablatureLineElem -> List TablatureLineElem
+rewriteTablatureLineElems renderingOptions elems = reverse result.acc
+  where result = foldl (accTablatureLineElems renderingOptions) {pendingDashes:0, acc: Nil} elems
 
-accTablatureLineElems :: Boolean -> { acc:: List TablatureLineElem, pendingDashes:: Int } -> TablatureLineElem -> { acc:: List TablatureLineElem, pendingDashes:: Int } 
-accTablatureLineElems dozenalize { pendingDashes, acc } elem = { pendingDashes: elemResult.pendingDashes, acc: (elemResult.result:acc) }
-  where elemResult = rewriteTablatureLineElem dozenalize pendingDashes elem
+accTablatureLineElems :: RenderingOptions -> { acc:: List TablatureLineElem, pendingDashes:: Int } -> TablatureLineElem -> { acc:: List TablatureLineElem, pendingDashes:: Int } 
+accTablatureLineElems renderingOptions { pendingDashes, acc } elem = { pendingDashes: elemResult.pendingDashes, acc: (elemResult.result:acc) }
+  where elemResult = rewriteTablatureLineElem renderingOptions pendingDashes elem
 
 type TablatureLineElemRenderResult = { result:: TablatureLineElem, pendingDashes:: Int }
 
-rewriteTablatureLineElem :: Boolean -> Int -> TablatureLineElem -> TablatureLineElemRenderResult
-rewriteTablatureLineElem _ pendingDashes (Timeline string) = { pendingDashes: 0, result: Timeline (fromMaybe "" (repeat pendingDashes "-") <> string) }
-rewriteTablatureLineElem dozenalize pendingDashes (Fret string) =
-  if dozenalize && (fretString == "↊" || fretString == "↋")
+rewriteTablatureLineElem :: RenderingOptions -> Int -> TablatureLineElem -> TablatureLineElemRenderResult
+rewriteTablatureLineElem renderingOptions pendingDashes (Timeline string) =
+  { pendingDashes: 0
+  , result: Timeline (fromMaybe "" (repeat pendingDashes "-") <> rewriteTimeline renderingOptions.normalize string) }
+rewriteTablatureLineElem renderingOptions pendingDashes (Fret string) =
+  if renderingOptions.dozenalize && (fretString == "↊" || fretString == "↋")
   then { pendingDashes: pendingDashes + 1, result: Fret fretString }
   else { pendingDashes, result: Fret fretString }
   where
-  fretString = if dozenalize then toDozenalString string else string
+  fretString = if renderingOptions.dozenalize then toDozenalString string else string
 rewriteTablatureLineElem _ pendingDashes elem = { pendingDashes, result: elem }
+
+-- Replace em dashes by normal dashes
+rewriteTimeline :: Boolean -> String -> String
+rewriteTimeline normalize string = if normalize then replaceAll (Pattern "—") (Replacement "-") string else string
 
 toDozenalString :: String -> String
 toDozenalString s =

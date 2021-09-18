@@ -29,6 +29,7 @@ import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
 import TablatureRewriter (rewriteTablatureDocument)
 import UrlShortener (createShortUrl)
+import Utils (debug)
 import Web.DOM.Element (scrollTop, setScrollTop)
 import Web.HTML (window)
 import Web.HTML as WH
