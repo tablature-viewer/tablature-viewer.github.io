@@ -15,11 +15,11 @@ import Text.Parsing.StringParser.CodePoints (eof, regex)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
 
 
-parseTablatureDocument :: Boolean -> Parser TablatureDocument
-parseTablatureDocument dozenalize = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine dozenalize)))
+parseTablatureDocument :: Parser TablatureDocument
+parseTablatureDocument = do
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
-  body <- many $ (try $ parseTablatureLine dozenalize) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> parseTextLine
+  body <- many $ (try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> parseTextLine
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -29,20 +29,17 @@ parseTitleLine = do
   suffix <- regex """[^\n\r]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
-digitsRegex :: Boolean -> String
-digitsRegex dozenalize = if dozenalize then """\d""" else """\d↊↋"""
-
-parseTablatureLine :: Boolean -> Parser TablatureDocumentLine
-parseTablatureLine dozenalize = do
+parseTablatureLine :: Parser TablatureDocumentLine
+parseTablatureLine = do
   prefix <- regex """[^|\n\r]*""" <#> \result -> Prefix result
   tabLine <- try $ lookAhead (regex """\|\|?""") *> many
     (
-      -- We allow normal dashes and em dashes
-      (regex """(([-—](?!\|)|([-—]?\|\|?(?=[^\s\[-—]|]*[\[-—]|]))))+""" <#> \result -> Timeline result) <|>
-      (regex ("[" <> digitsRegex dozenalize <> "]+") <#> \result -> Fret result) <|>
-      (regex ("""[^\s|\[-—]""" <> digitsRegex dozenalize <> "]+") <#> \result -> Special result)
+      -- We allow normal dashes - and em dashes —
+      (regex """(([\-—](?!\|)|([\-—]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> \result -> Timeline result) <|>
+      (regex ("""[\d↊↋]+""") <#> \result -> Fret result) <|>
+      (regex ("""[^\s|\-—\d↊↋]+""") <#> \result -> Special result)
     )
-  tabLineClose <- regex """[-—]?\|?\|?""" <#> \result -> Timeline result
+  tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
   suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TablatureLine (prefix:Nil <> tabLine <> tabLineClose:Nil <> suffix:Nil)
 
@@ -95,8 +92,8 @@ parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n\r?|\r""" 
 
-tryParseTablature :: Boolean -> String -> Maybe (List TablatureDocumentLine)
-tryParseTablature dozenalize inputString = tryRunParser (parseTablatureDocument dozenalize) inputString
+tryParseTablature :: String -> Maybe (List TablatureDocumentLine)
+tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 

@@ -29,7 +29,6 @@ import TablatureParser (tryParseTablature)
 import TablatureRenderer (renderTablature)
 import TablatureRewriter (rewriteTablatureDocument)
 import UrlShortener (createShortUrl)
-import Utils (debug)
 import Web.DOM.Element (scrollTop, setScrollTop)
 import Web.HTML (window)
 import Web.HTML as WH
@@ -234,7 +233,7 @@ handleAction action =
         H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
         -- Dozenalization affects the way we parse the tablature, so we need to reparse it now
         case state.mode of
-          ViewMode -> parseTablatureAndSaveToState state.tablatureText
+          ViewMode -> readTablatureAndSaveToState state.tablatureText
           _ -> pure unit
     CopyShortUrl -> do
       H.modify_ _ { loading = true }
@@ -294,19 +293,19 @@ getTablatureEditorText = do
 saveTablature :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 saveTablature = do
   tablatureText <- getTablatureEditorText
-  parseTablatureAndSaveToState tablatureText
+  readTablatureAndSaveToState tablatureText
   state <- H.get
   H.liftEffect $ setDocumentTitle state.tablatureTitle
   saveTablatureToUrl
 
 readTablature :: String -> RenderingOptions -> Maybe TablatureDocument
 readTablature tablatureText renderingOptions = do
-  case tryParseTablature renderingOptions.dozenalize tablatureText of
-    Just parseResult -> Just $ rewriteTablatureDocument parseResult renderingOptions
+  case tryParseTablature tablatureText of
+    Just parseResult -> Just $ rewriteTablatureDocument renderingOptions parseResult
     Nothing -> Nothing
 
-parseTablatureAndSaveToState :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
-parseTablatureAndSaveToState tablatureText = do
+readTablatureAndSaveToState :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
+readTablatureAndSaveToState tablatureText = do
   state <- H.get
   case readTablature tablatureText (getRenderingOptions state) of
     Just tablatureDocument ->

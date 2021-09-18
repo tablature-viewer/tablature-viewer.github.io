@@ -111,32 +111,32 @@ main = do
   assertParserSuccess (many parseTitleLine) "a"
   assertParserSuccess (many parseTitleLine) "123\n456"
 
-  assertParserFailed (parseTablatureLine true) ""
-  assertParserFailed (parseTablatureLine true) "a"
-  assertParserSuccess (parseTablatureLine true) "B|----------------------||o-------------------------|-----------7h8p7-----------|"
-  assertParserSuccess (parseTablatureLine true) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
-  assertParserSuccess (parseTablatureLine true) "|---|\n"
-  assertParserFailed (parseTablatureLine true) "|---|\na"
-  assertParserFailed (parseTablatureLine true) "|---|\n|---|"
-  assertParserSuccess (many (parseTablatureLine true)) "|---|\n|---|"
-  assertParserFailed (many (parseTablatureLine true)) "|---|\na"
-  assertParserFailed (many (parseTablatureLine true)) "a\n|---|"
-  assertParserSuccess (parseTablatureLine true) (lines testTabLines # unsafePartial head)
-  assertParserSuccess (many (parseTablatureLine true)) testTabLines
-  assertParserFailed (many (parseTablatureLine true)) testTablature
+  assertParserFailed (parseTablatureLine) ""
+  assertParserFailed (parseTablatureLine) "a"
+  assertParserSuccess (parseTablatureLine) "B|----------------------||o-------------------------|-----------7h8p7-----------|"
+  assertParserSuccess (parseTablatureLine) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
+  assertParserSuccess (parseTablatureLine) "|---|\n"
+  assertParserFailed (parseTablatureLine) "|---|\na"
+  assertParserFailed (parseTablatureLine) "|---|\n|---|"
+  assertParserSuccess (many (parseTablatureLine)) "|---|\n|---|"
+  assertParserFailed (many (parseTablatureLine)) "|---|\na"
+  assertParserFailed (many (parseTablatureLine)) "a\n|---|"
+  assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
+  assertParserSuccess (many (parseTablatureLine)) testTabLines
+  assertParserFailed (many (parseTablatureLine)) testTablature
 
-  assertParserSuccess (parseTablatureDocument true) ""
-  assertParserSuccess (parseTablatureDocument true) "asdf"
-  assertParserSuccess (parseTablatureDocument true) "   asdf   "
-  assertParserSuccess (parseTablatureDocument true) "||"
-  assertParserSuccess (parseTablatureDocument true) "|---|"
-  assertParserSuccess (parseTablatureDocument true) "|---|\na"
-  assertParserSuccess (parseTablatureDocument true) "|---|\n|---|"
-  assertParserSuccess (parseTablatureDocument true) testTabLines
-  assertParserSuccess (parseTablatureDocument true) testTablature
-  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument true) false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument true) false s)
-  quickCheck $ doParseAll (parseTablatureDocument true) false
+  assertParserSuccess (parseTablatureDocument) ""
+  assertParserSuccess (parseTablatureDocument) "asdf"
+  assertParserSuccess (parseTablatureDocument) "   asdf   "
+  assertParserSuccess (parseTablatureDocument) "||"
+  assertParserSuccess (parseTablatureDocument) "|---|"
+  assertParserSuccess (parseTablatureDocument) "|---|\na"
+  assertParserSuccess (parseTablatureDocument) "|---|\n|---|"
+  assertParserSuccess (parseTablatureDocument) testTabLines
+  assertParserSuccess (parseTablatureDocument) testTablature
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument ) false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument ) false s)
+  quickCheck $ doParseAll (parseTablatureDocument ) false
 
 testTabLines :: String
 testTabLines = """e|---------------------------------------------------------------------------|
