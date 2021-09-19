@@ -2,19 +2,25 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..))
+import AppState (ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..))
 import Data.Foldable (foldl)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List(..), reverse, (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
+import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
+import Debug (spy)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
-rewriteTablatureDocument renderingOptions doc = doc # fixEmDashes renderingOptions # dozenalizeFrets renderingOptions
+rewriteTablatureDocument renderingOptions =
+  fixEmDashes renderingOptions >>>
+  addMissingClosingPipe renderingOptions >>>
+  dozenalizeChords renderingOptions >>>
+  dozenalizeFrets renderingOptions
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalize then doc else map rewriteLine doc
@@ -24,10 +30,46 @@ fixEmDashes renderingOptions doc = if not renderingOptions.normalize then doc el
   rewriteLine x = x
 
   rewriteTablatureLineElem :: TablatureLineElem -> TablatureLineElem
-  rewriteTablatureLineElem (Timeline string) = Timeline $ rewriteTimeline string
+  rewriteTablatureLineElem (Timeline string) = Timeline $ replaceAll (Pattern "—") (Replacement "-") string
   rewriteTablatureLineElem x = x
 
-  rewriteTimeline string = replaceAll (Pattern "—") (Replacement "-") string
+addMissingClosingPipe :: TablatureDocumentRewriter
+addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize then doc else map rewriteLine doc
+  where
+  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLine line
+  rewriteLine x = x
+
+  -- rewriteTablatureLine = foldl loop { result : Nil, done : false }
+  -- loop :: { result :: List TablatureLineElem, done :: Boolean } -> TablatureLineElem -> { result :: List TablatureLineElem, done :: Boolean }
+  rewriteTablatureLine :: List TablatureLineElem -> List TablatureLineElem
+  rewriteTablatureLine elems = (loop $ reverse elems).result
+    where
+    loop :: List TablatureLineElem -> { done :: Boolean , result :: List TablatureLineElem }
+    loop = foldl (\{ result, done } elem ->
+      case elem of
+        Timeline t ->
+          { result : Timeline (if done then t else rewriteLastTimelinePiece t):result
+          , done : true }
+        _ -> { result : elem:result, done })
+      { result : Nil, done : false }
+
+  rewriteLastTimelinePiece :: String -> String
+  rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
+
+dozenalizeChords :: TablatureDocumentRewriter
+dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
+  where
+  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
+  rewriteLine x = x
+
+  -- TODO: compensate for the ↋ by adding a space after the bass mod
+  rewriteChordLineElem :: ChordLineElem -> ChordLineElem
+  rewriteChordLineElem (Chord chord) = Chord $ chord { type = dozenalize chord.type, mods = dozenalize chord.mods }
+  rewriteChordLineElem x = x
+
+  dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 
 dozenalizeFrets :: TablatureDocumentRewriter
 dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
@@ -40,7 +82,7 @@ dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalize then d
   -- We need to make up for this with extra dashes at the first next Timeline element.
   rewriteTablatureLineElems :: List TablatureLineElem -> List TablatureLineElem
   rewriteTablatureLineElems elems = reverse result.acc
-    where result = foldl (accTablatureLineElems ) {pendingDashes:0, acc: Nil} elems
+    where result = foldl (accTablatureLineElems) { pendingDashes:0, acc: Nil } elems
 
   accTablatureLineElems :: { acc:: List TablatureLineElem, pendingDashes:: Int } -> TablatureLineElem -> { acc:: List TablatureLineElem, pendingDashes:: Int } 
   accTablatureLineElems { pendingDashes, acc } elem = { pendingDashes: elemResult.pendingDashes, acc: (elemResult.result:acc) }
