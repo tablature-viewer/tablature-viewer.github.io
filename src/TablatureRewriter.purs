@@ -10,7 +10,8 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
-import Debug (spy)
+import Data.Tuple (Tuple(..))
+import Utils (foreach)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
@@ -40,19 +41,13 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize t
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLine line
   rewriteLine x = x
 
-  -- rewriteTablatureLine = foldl loop { result : Nil, done : false }
-  -- loop :: { result :: List TablatureLineElem, done :: Boolean } -> TablatureLineElem -> { result :: List TablatureLineElem, done :: Boolean }
   rewriteTablatureLine :: List TablatureLineElem -> List TablatureLineElem
-  rewriteTablatureLine elems = (loop $ reverse elems).result
-    where
-    loop :: List TablatureLineElem -> { done :: Boolean , result :: List TablatureLineElem }
-    loop = foldl (\{ result, done } elem ->
+  rewriteTablatureLine elems = reverse $
+    foreach (reverse elems) { done : false } (\elem state ->
       case elem of
-        Timeline t ->
-          { result : Timeline (if done then t else rewriteLastTimelinePiece t):result
-          , done : true }
-        _ -> { result : elem:result, done })
-      { result : Nil, done : false }
+        Timeline t -> Tuple (Timeline (if state.done then t else rewriteLastTimelinePiece t)) { done : true }
+        _ -> Tuple elem state
+    )
 
   rewriteLastTimelinePiece :: String -> String
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
