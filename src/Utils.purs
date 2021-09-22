@@ -11,7 +11,7 @@ debug :: forall a. String -> a -> a
 debug msg = snd $ unsafePerformEffect $ log msg
   where snd _ b = b
 
-foreach :: forall a b s. List a -> s -> (a -> s -> Tuple b s) -> List b
-foreach Nil _ _ = Nil
-foreach (x : xs) state loop = fst next : (foreach xs (snd next) loop)
-  where next = loop x state
+foreach :: forall a b s. s -> List a -> (s -> a -> Tuple s b) -> List b
+foreach _ Nil _ = Nil
+foreach state (x : xs) loop = snd next : (foreach (fst next) xs loop)
+  where next = loop state x

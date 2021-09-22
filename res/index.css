@@ -16,8 +16,11 @@
   
   --title-width: 360px;
   --controls-max-width: 565px;
-  --tablature-font-size: 13px;
   --app-height: 100vh;
+
+  --tablature-font-size: 13px;
+  --tablature-sup-font-size: 10px;
+  --tablature-sup-top: -0.3em;
 
   --tab-bg: #FEF8EC;
   --header-bg:#F9F1E1;
@@ -104,6 +107,7 @@
   }
   :root {
     --tablature-font-size: 10px;
+    --tablature-sup-font-size: 8px;
   }
 }
 
@@ -237,14 +241,18 @@ body {
 }
 
 .tablatureViewer sup, .tablatureViewer sub {
-  font-size: inherit;
   vertical-align: baseline;
   position: relative;
 }
 .tablatureViewer sup {
-  top: -0.1em;
+  font-size: var(--tablature-sup-font-size);
+  top: var(--tablature-sup-top);
+}
+.tablatureViewer sup .filler {
+  font-size: calc(var(--tablature-font-size) - var(--tablature-sup-font-size));
 }
 .tablatureViewer sub {
+  font-size: inherit;
   top: 0.2em;
 }
 

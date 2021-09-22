@@ -5,7 +5,9 @@ import Prelude
 import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), RenderingOptions)
 import Data.Array (fromFoldable)
 import Data.List (List(..), (:))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String.Utils (repeat)
+import Data.String (length)
 import Halogen.HTML as HH
 import HalogenUtils (classString, renderLineEnding)
 
@@ -43,7 +45,7 @@ renderTablatureDocument doc _ = map renderLine doc
     HH.span [ classString "tabChord" ] [HH.text chord.root
     , HH.sub_ [ HH.text chord.rootMod ]
     , HH.text chord.type
-    , HH.sup_ [ HH.text $ chord.mods ]
+    , HH.sup_ [ HH.text $ chord.mods, HH.span [ classString "filler" ] [ HH.text $ fromMaybe "" $ repeat (length chord.mods) " " ] ]
     , HH.text chord.bass
     , HH.sub_ [ HH.text chord.bassMod ]
     ]

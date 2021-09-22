@@ -43,10 +43,10 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize t
 
   rewriteTablatureLine :: List TablatureLineElem -> List TablatureLineElem
   rewriteTablatureLine elems = reverse $
-    foreach (reverse elems) { done : false } (\elem state ->
+    foreach false (reverse elems) (\done elem ->
       case elem of
-        Timeline t -> Tuple (Timeline (if state.done then t else rewriteLastTimelinePiece t)) { done : true }
-        _ -> Tuple elem state
+        Timeline t -> Tuple true (Timeline (if done then t else rewriteLastTimelinePiece t))
+        _ -> Tuple done elem
     )
 
   rewriteLastTimelinePiece :: String -> String
@@ -79,6 +79,7 @@ dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalize then d
   rewriteTablatureLineElems elems = reverse result.acc
     where result = foldl (accTablatureLineElems) { pendingDashes:0, acc: Nil } elems
 
+  -- TODO: try using foreach
   accTablatureLineElems :: { acc:: List TablatureLineElem, pendingDashes:: Int } -> TablatureLineElem -> { acc:: List TablatureLineElem, pendingDashes:: Int } 
   accTablatureLineElems { pendingDashes, acc } elem = { pendingDashes: elemResult.pendingDashes, acc: (elemResult.result:acc) }
     where elemResult = rewriteTablatureLineElem pendingDashes elem
