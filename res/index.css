@@ -221,6 +221,17 @@ body {
   color:var(--fg-disabled);
 }
 
+.dropdown {
+  display: none;
+  position: absolute;
+  box-shadow: 0 0 2px 0 var(--shadow);
+  z-index: 1;
+}
+
+.dropdown-button:hover .dropdown {
+  display: block;
+}
+
 .loadingIcon {
   padding: 18px 0px;
 }

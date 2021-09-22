@@ -146,21 +146,32 @@ render state = HH.div
     if state.loading then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
   renderControls = HH.div 
     [ classString "controls" ]
-    [ HH.a
+    [ HH.div
+      [ classString "dropdown-button" ]
+      [ HH.button
+        [ HP.title "Settings" ]
+        [ fontAwesome "fa-wrench"
+        , optionalText " Settings"
+        ]
+      , HH.div [ classString "dropdown" ]
+        [ HH.button
+          [ HP.title "Toggle decimal to dozenal conversion on or off"
+          , HE.onClick \_ -> ToggleDozenalization
+          , classString $ if state.ignoreDozenalization then "disabled" else ""
+          ]
+          [ if state.dozenalizationEnabled && not state.ignoreDozenalization
+              then fontAwesome "fa-toggle-on"
+              else fontAwesome "fa-toggle-off"
+          , HH.text " Dozenalize"
+          ]
+        ]
+      ]
+    , HH.a
       [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
       , HP.target "_blank"
       , HP.tabIndex (-1)
       ]
       [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-question", optionalText " Readme" ] ]
-    , HH.button
-      [ HP.title "Toggle decimal to dozenal conversion on or off"
-      , HE.onClick \_ -> ToggleDozenalization
-      , classString $ if state.ignoreDozenalization then "disabled" else ""
-      ] [ if state.dozenalizationEnabled && not state.ignoreDozenalization
-            then fontAwesome "fa-toggle-on"
-            else fontAwesome "fa-toggle-off"
-        , optionalText " Dozenalize"
-        ]
     , HH.button [ HP.title toggleButtonTitle, HE.onClick \_ -> ToggleEditMode ] toggleButtonContent
     , HH.a
       [ HP.href "./"
