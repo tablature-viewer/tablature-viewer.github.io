@@ -17,4 +17,11 @@ exports.executeJavascriptHacks = function () {
     // - 1 because sometimes the innerHeight doesn't seem to be rounded correctly or something
     return Math.max(document.documentElement.clientHeight, window.innerHeight || 0) - 1;
   }
+
+  const styles = getComputedStyle(document.documentElement);
+  const bgColor = styles.getPropertyValue('--header-bg');
+  var m = document.createElement('meta');
+  m.name = 'theme-color';
+  m.content = bgColor;
+  document.head.appendChild(m);
 };
