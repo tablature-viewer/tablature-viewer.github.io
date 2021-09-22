@@ -5,6 +5,18 @@ import Prelude
 import Data.List (List)
 import Data.Maybe (Maybe)
 
+data Action
+  = Initialize 
+  | ToggleEditMode 
+  | ToggleTabNormalization 
+  | ToggleTabDozenalization 
+  | ToggleChordDozenalization 
+  | CopyShortUrl
+
+instance showMode :: Show Mode where
+  show ViewMode = "View Mode"
+  show EditMode = "Edit Mode"
+
 data Mode = ViewMode | EditMode
 
 type State =
@@ -15,13 +27,17 @@ type State =
   , tablatureDocument :: Maybe TablatureDocument
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
-  , dozenalizationEnabled :: Boolean
+  , tabNormalizationEnabled :: Boolean
+  , tabDozenalizationEnabled :: Boolean
+  , chordDozenalizationEnabled :: Boolean
+  -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
   , ignoreDozenalization :: Boolean
   }
 
 type RenderingOptions =
-  { dozenalize :: Boolean
-  , normalize :: Boolean
+  { dozenalizeTabs :: Boolean
+  , dozenalizeChords :: Boolean
+  , normalizeTabs :: Boolean
   }
 
 type TablatureDocument = List TablatureDocumentLine
@@ -95,9 +111,3 @@ instance showTitleLineElem :: Show TitleLineElem where
   show (Title string) = string
   show (TitleOther string) = string
 
-
-data Action = Initialize | ToggleEditMode | ToggleDozenalization | CopyShortUrl
-
-instance showMode :: Show Mode where
-  show ViewMode = "View Mode"
-  show EditMode = "Edit Mode"

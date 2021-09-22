@@ -82,7 +82,10 @@ getIgnoreDozenalization :: TablatureDocument -> Boolean
 getIgnoreDozenalization tablatureDocument = test (unsafeRegex "dozenal" ignoreCase) (getTitle tablatureDocument)
 
 getRenderingOptions :: State -> RenderingOptions
-getRenderingOptions state = { dozenalize: state.dozenalizationEnabled && not state.ignoreDozenalization, normalize: true }
+getRenderingOptions state =
+  { dozenalizeTabs: state.tabDozenalizationEnabled && not state.ignoreDozenalization
+  , dozenalizeChords: state.chordDozenalizationEnabled && not state.ignoreDozenalization
+  , normalizeTabs: state.tabNormalizationEnabled }
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -90,8 +93,14 @@ refTablatureEditor = H.RefLabel "tablatureEditor"
 refTablatureViewer :: H.RefLabel
 refTablatureViewer = H.RefLabel "tablatureViewer"
 
-localStorageKeyDozenalizationEnabled :: String
-localStorageKeyDozenalizationEnabled = "dozenalizationEnabled"
+localStorageKeyTabNormalizationEnabled :: String
+localStorageKeyTabNormalizationEnabled = "tabNormalizationEnabled"
+
+localStorageKeyTabDozenalizationEnabled :: String
+localStorageKeyTabDozenalizationEnabled = "tabDozenalizationEnabled"
+
+localStorageKeyChordDozenalizationEnabled :: String
+localStorageKeyChordDozenalizationEnabled = "ChordDozenalizationEnabled"
 
 component :: forall query input output m. MonadAff m => H.Component query input output m
 component =
@@ -105,7 +114,17 @@ component =
     }
 
 initialState :: forall input. input -> State
-initialState _ = { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: 0.0, dozenalizationEnabled: false, ignoreDozenalization: false }
+initialState _ =
+  { mode: EditMode
+  , loading: false
+  , tablatureText: ""
+  , tablatureTitle: defaultTitle
+  , tablatureDocument: Nothing
+  , scrollTop: 0.0
+  , tabNormalizationEnabled: true
+  , tabDozenalizationEnabled: false
+  , chordDozenalizationEnabled: false
+  , ignoreDozenalization: false }
 
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div 
@@ -147,22 +166,41 @@ render state = HH.div
   renderControls = HH.div 
     [ classString "controls" ]
     [ HH.div
-      [ classString "dropdown-button" ]
+      [ classString "dropdown-container" ]
       [ HH.button
         [ HP.title "Settings" ]
         [ fontAwesome "fa-wrench"
         , optionalText " Settings"
         ]
-      , HH.div [ classString "dropdown" ]
+      , HH.div [ classString "dropdown-menu" ]
         [ HH.button
-          [ HP.title "Toggle decimal to dozenal conversion on or off"
-          , HE.onClick \_ -> ToggleDozenalization
-          , classString $ if state.ignoreDozenalization then "disabled" else ""
+          [ HP.title "Toggle normalization for tabs on or off"
+          , HE.onClick \_ -> ToggleTabNormalization
           ]
-          [ if state.dozenalizationEnabled && not state.ignoreDozenalization
+          [ if state.tabNormalizationEnabled
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
-          , HH.text " Dozenalize"
+          , HH.text " Normalize tabs"
+          ]
+        , HH.button
+          [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
+          , HE.onClick \_ -> ToggleTabDozenalization
+          , classString $ if state.ignoreDozenalization then "disabled" else ""
+          ]
+          [ if state.tabDozenalizationEnabled && not state.ignoreDozenalization
+              then fontAwesome "fa-toggle-on"
+              else fontAwesome "fa-toggle-off"
+          , HH.text " Dozenalize tabs"
+          ]
+        , HH.button
+          [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
+          , HE.onClick \_ -> ToggleChordDozenalization
+          , classString $ if state.ignoreDozenalization then "disabled" else ""
+          ]
+          [ if state.chordDozenalizationEnabled && not state.ignoreDozenalization
+              then fontAwesome "fa-toggle-on"
+              else fontAwesome "fa-toggle-off"
+          , HH.text " Dozenalize chords"
           ]
         ]
       ]
@@ -201,23 +239,27 @@ handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action
 handleAction action =
   case action of
     Initialize -> do
-      maybeDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyDozenalizationEnabled
-      dozenalizationEnabled <- pure $ fromMaybe false maybeDozenalizationEnabled
-      maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       state <- H.get
+      maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
+      tabNormalizationEnabled <- pure $ fromMaybe state.tabNormalizationEnabled maybeTabNormalizationEnabled
+      maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
+      tabDozenalizationEnabled <- pure $ fromMaybe state.tabDozenalizationEnabled maybeTabDozenalizationEnabled
+      maybeChordDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyChordDozenalizationEnabled
+      chordDozenalizationEnabled <- pure $ fromMaybe state.chordDozenalizationEnabled maybeChordDozenalizationEnabled
+      maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       case maybeTablatureText of
         Just tablatureText -> do
-          case readTablature tablatureText { dozenalize : dozenalizationEnabled, normalize: true } of
+          case readTablature tablatureText { dozenalizeTabs: tabDozenalizationEnabled, dozenalizeChords: chordDozenalizationEnabled, normalizeTabs: true } of
             Just tablatureDocument -> do
-              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, dozenalizationEnabled, ignoreDozenalization }
+              H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, tabNormalizationEnabled, tabDozenalizationEnabled, chordDozenalizationEnabled, ignoreDozenalization }
               H.liftEffect $ setDocumentTitle tablatureTitle
               where
                 tablatureTitle = getTitle tablatureDocument
                 ignoreDozenalization = getIgnoreDozenalization tablatureDocument
             Nothing ->
-              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled, ignoreDozenalization: false }
+              H.put { mode: EditMode, loading: false, tablatureText: tablatureText, tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, tabNormalizationEnabled, tabDozenalizationEnabled, chordDozenalizationEnabled, ignoreDozenalization: false }
         Nothing ->
-          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, dozenalizationEnabled, ignoreDozenalization: false }
+          H.put { mode: EditMode, loading: false, tablatureText: "", tablatureTitle: defaultTitle, tablatureDocument: Nothing, scrollTop: state.scrollTop, tabNormalizationEnabled, tabDozenalizationEnabled, chordDozenalizationEnabled, ignoreDozenalization: false }
       focusTablatureContainer
     ToggleEditMode -> do
       H.modify_ _ { loading = true }
@@ -235,14 +277,33 @@ handleAction action =
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
       H.modify_ _ { loading = false }
-    ToggleDozenalization -> do
+    ToggleTabNormalization -> do
+      state <- H.get
+      H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not state.tabNormalizationEnabled)
+      H.modify_ _ { tabNormalizationEnabled = not state.tabNormalizationEnabled }
+      -- Normalization affects the TablatureDocument, so we need to re-read it now
+      case state.mode of
+        ViewMode -> readTablatureAndSaveToState state.tablatureText
+        _ -> pure unit
+    ToggleTabDozenalization -> do
       state <- H.get
       if state.ignoreDozenalization
       then pure unit
       else do
-        H.liftEffect $ setLocalStorage localStorageKeyDozenalizationEnabled (show $ not state.dozenalizationEnabled)
-        H.modify_ _ { dozenalizationEnabled = not state.dozenalizationEnabled }
-        -- Dozenalization affects the way we parse the tablature, so we need to reparse it now
+        H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not state.tabDozenalizationEnabled)
+        H.modify_ _ { tabDozenalizationEnabled = not state.tabDozenalizationEnabled }
+        -- Dozenalization affects the TablatureDocument, so we need to re-read it now
+        case state.mode of
+          ViewMode -> readTablatureAndSaveToState state.tablatureText
+          _ -> pure unit
+    ToggleChordDozenalization -> do
+      state <- H.get
+      if state.ignoreDozenalization
+      then pure unit
+      else do
+        H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not state.chordDozenalizationEnabled)
+        H.modify_ _ { chordDozenalizationEnabled = not state.chordDozenalizationEnabled }
+        -- Dozenalization affects the TablatureDocument, so we need to re-read it now
         case state.mode of
           ViewMode -> readTablatureAndSaveToState state.tablatureText
           _ -> pure unit

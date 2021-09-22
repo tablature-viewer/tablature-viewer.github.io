@@ -23,7 +23,7 @@ rewriteTablatureDocument renderingOptions =
   dozenalizeFrets renderingOptions
 
 fixEmDashes :: TablatureDocumentRewriter
-fixEmDashes renderingOptions doc = if not renderingOptions.normalize then doc else map rewriteLine doc
+fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ (map rewriteTablatureLineElem line)
@@ -34,7 +34,7 @@ fixEmDashes renderingOptions doc = if not renderingOptions.normalize then doc el
   rewriteTablatureLineElem x = x
 
 addMissingClosingPipe :: TablatureDocumentRewriter
-addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize then doc else map rewriteLine doc
+addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLine line
@@ -52,7 +52,7 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize t
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
 
 dozenalizeChords :: TablatureDocumentRewriter
-dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
+dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
@@ -66,7 +66,7 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalize then 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 
 dozenalizeFrets :: TablatureDocumentRewriter
-dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
+dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLineElems line
