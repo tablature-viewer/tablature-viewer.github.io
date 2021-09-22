@@ -3,9 +3,8 @@ module TablatureRewriter where
 import Prelude
 
 import AppState (ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..))
-import Data.Foldable (foldl)
 import Data.Int (decimal, fromString, radix, toStringAs)
-import Data.List (List(..), reverse, (:))
+import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
 import Data.String.CodeUnits (charAt, length)
@@ -70,31 +69,22 @@ dozenalizeFrets :: TablatureDocumentRewriter
 dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
-  rewriteLine (TablatureLine line) = TablatureLine $ (rewriteTablatureLineElems line)
+  rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLineElems line
   rewriteLine x = x
 
   -- Rendering elements needs care because the numbers ↊ and ↋ take less space than 10 and 11.
   -- We need to make up for this with extra dashes at the first next Timeline element.
   rewriteTablatureLineElems :: List TablatureLineElem -> List TablatureLineElem
-  rewriteTablatureLineElems elems = reverse result.acc
-    where result = foldl (accTablatureLineElems) { pendingDashes:0, acc: Nil } elems
-
-  -- TODO: try using foreach
-  accTablatureLineElems :: { acc:: List TablatureLineElem, pendingDashes:: Int } -> TablatureLineElem -> { acc:: List TablatureLineElem, pendingDashes:: Int } 
-  accTablatureLineElems { pendingDashes, acc } elem = { pendingDashes: elemResult.pendingDashes, acc: (elemResult.result:acc) }
-    where elemResult = rewriteTablatureLineElem pendingDashes elem
-
-  rewriteTablatureLineElem :: Int -> TablatureLineElem -> { result:: TablatureLineElem, pendingDashes:: Int }
-  rewriteTablatureLineElem pendingDashes (Timeline string) =
-    { pendingDashes: 0
-    , result: Timeline (fromMaybe "" (repeat pendingDashes "-") <> string) }
-  rewriteTablatureLineElem pendingDashes (Fret string) =
-    if fretString == "↊" || fretString == "↋"
-    then { pendingDashes: pendingDashes + 1, result: Fret fretString }
-    else { pendingDashes, result: Fret fretString }
-    where
-    fretString = toDozenalString string
-  rewriteTablatureLineElem pendingDashes elem = { pendingDashes, result: elem }
+  rewriteTablatureLineElems elems = foreach 0 elems (\pendingDashes elem ->
+    case elem of
+      Timeline string -> Tuple 0 $ Timeline (fromMaybe "" (repeat pendingDashes "-") <> string)
+      Fret string -> flip Tuple (Fret fretString) $
+        if fretString == "↊" || fretString == "↋"
+        then pendingDashes + 1
+        else pendingDashes
+        where fretString = toDozenalString string
+      _ -> Tuple pendingDashes elem
+    )
 
   toDozenalString :: String -> String
   toDozenalString s =
