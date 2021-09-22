@@ -21,6 +21,8 @@
   --tablature-font-size: 13px;
   --tablature-sup-font-size: 10px;
   --tablature-sup-top: -0.3em;
+  --tablature-sub-font-size: 13px;
+  --tablature-sub-top: 0.2em;
 
   --tab-bg: #FEF8EC;
   --header-bg:#F9F1E1;
@@ -108,6 +110,7 @@
   :root {
     --tablature-font-size: 10px;
     --tablature-sup-font-size: 8px;
+    --tablature-sub-font-size: 10px;
   }
 }
 
@@ -259,12 +262,15 @@ body {
   font-size: var(--tablature-sup-font-size);
   top: var(--tablature-sup-top);
 }
-.tablatureViewer sup .filler {
+.tablatureViewer sup .fontsize-compensation {
   font-size: calc(var(--tablature-font-size) - var(--tablature-sup-font-size));
 }
 .tablatureViewer sub {
-  font-size: inherit;
-  top: 0.2em;
+  font-size: var(--tablature-sub-font-size);
+  top: var(--tablature-sub-top);
+}
+.tablatureViewer sub .fontsize-compensation {
+  font-size: calc(var(--tablature-font-size) - var(--tablature-sub-font-size));
 }
 
 .tablatureEditor {

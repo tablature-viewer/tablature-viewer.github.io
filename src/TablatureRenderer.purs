@@ -43,11 +43,12 @@ renderTablatureDocument doc _ = map renderLine doc
   renderChordLineElem (ChordLegend string) = renderWithClass string "tabFret"
   renderChordLineElem (Chord chord) =
     HH.span [ classString "tabChord" ] [HH.text chord.root
-    , HH.sub_ [ HH.text chord.rootMod ]
+    , HH.sub_ [ HH.text chord.rootMod, createFontSizeCompensation chord.rootMod ]
     , HH.text chord.type
-    , HH.sup_ [ HH.text $ chord.mods, HH.span [ classString "filler" ] [ HH.text $ fromMaybe "" $ repeat (length chord.mods) " " ] ]
+    , HH.sup_ [ HH.text chord.mods, createFontSizeCompensation chord.mods ]
     , HH.text chord.bass
-    , HH.sub_ [ HH.text chord.bassMod ]
+    , HH.sub_ [ HH.text chord.bassMod, createFontSizeCompensation chord.bassMod ]
     ]
+    where createFontSizeCompensation string = HH.span [ classString "fontsize-compensation" ] [ HH.text $ fromMaybe "" $ repeat (length string) " " ]
 
   renderWithClass string klass = HH.span [ classString klass ] [ HH.text string ]
