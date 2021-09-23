@@ -2,7 +2,7 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..))
+import AppState (Chord, ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..))
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -57,17 +57,25 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
+  rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
   rewriteLine x = x
 
   rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ chord { type = newType, mods = newMods, bassMod = newBassMod }
+  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ rewriteChord chord
+  rewriteChordLineElem x = x
+
+  rewriteTextLineElem :: TextLineElem -> TextLineElem
+  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ rewriteChord chord
+  rewriteTextLineElem x = x
+
+  rewriteChord :: Chord -> Chord
+  rewriteChord chord = chord { type = newType, mods = newMods, bassMod = newBassMod }
     where
     -- compensate for each 11 converted to ↋ by adding spaces after the bass mod
     newType = dozenalize chord.type
     newMods = dozenalize chord.mods
     shrunkChars = (newType <> newMods) # filter (_ == "↋") # length
     newBassMod = chord.bassMod <> fromMaybe "" (repeat shrunkChars " ")
-  rewriteChordLineElem x = x
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 
