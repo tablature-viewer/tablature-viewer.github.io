@@ -8,7 +8,7 @@ import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
 import Data.String.CodeUnits (charAt, length)
-import Data.String.Utils (repeat)
+import Data.String.Utils (repeat, filter)
 import Data.Tuple (Tuple(..))
 import Utils (foreach)
 
@@ -59,9 +59,14 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords
   rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
   rewriteLine x = x
 
-  -- TODO: compensate for the ↋ by adding a space after the bass mod
   rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ chord { type = dozenalize chord.type, mods = dozenalize chord.mods }
+  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ chord { type = newType, mods = newMods, bassMod = newBassMod }
+    where
+    -- compensate for each 11 converted to ↋ by adding spaces after the bass mod
+    newType = dozenalize chord.type
+    newMods = dozenalize chord.mods
+    shrunkChars = (newType <> newMods) # filter (_ == "↋") # length
+    newBassMod = chord.bassMod <> fromMaybe "" (repeat shrunkChars " ")
   rewriteChordLineElem x = x
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
