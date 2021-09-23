@@ -91,7 +91,7 @@ parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+| +)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = many1Till (parseSpaces <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseWord) parseEndOfLine
+parseTextLine = many1Till (parseSpaces <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
   <#> \result -> TextLine $ toList result
 
 parseSpaces :: Parser TextLineElem
@@ -101,7 +101,7 @@ parseWord :: Parser TextLineElem
 parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
 
 parseChordLegend :: Parser TextLineElem
-parseChordLegend = regex """[\dxX]{6}""" <#> \result -> ChordLegend result
+parseChordLegend = regex """(?<!\S)[\dxX]{6}(?!\S)""" <#> \result -> ChordLegend result
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine
