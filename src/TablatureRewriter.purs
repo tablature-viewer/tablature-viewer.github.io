@@ -14,6 +14,7 @@ import Utils (foreach)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
+-- TODO: recognize false positives for chords in text and revert them to regular text.
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
@@ -60,7 +61,7 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords
 
   -- TODO: compensate for the ↋ by adding a space after the bass mod
   rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (Chord chord) = Chord $ chord { type = dozenalize chord.type, mods = dozenalize chord.mods }
+  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ chord { type = dozenalize chord.type, mods = dozenalize chord.mods }
   rewriteChordLineElem x = x
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 

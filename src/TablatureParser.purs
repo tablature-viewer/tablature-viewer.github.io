@@ -2,24 +2,32 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
+import AppState (Chord, ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.List (List(..), (:))
+import Data.List.NonEmpty (toList)
 import Data.Maybe (Maybe(..))
 import Data.String (drop)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Text.Parsing.StringParser (Parser, try, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex)
-import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill, option)
+import Text.Parsing.StringParser.Combinators (lookAhead, many, many1Till, manyTill, option)
 
+-- NOTES
+-- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds
+-- many (many p) will get stuck for any p
+-- parseEndOfLine doesn't consume input at the end of the file but still succeeds
+
+-- TODO: Improve the parser code
+-- TODO: Prove that the parser can never get stuck into a loop
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
   commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
-  body <- many $ (try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> parseTextLine
+  body <- manyTill ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine) eof
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -45,22 +53,25 @@ parseTablatureLine = do
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
-  header <- regex """[ \t]*\[[^\n\r]+\]"""
+  header <- regex """[^\S\n\r]*\[[^\n\r]+\]"""
   suffix <- regex """[^\r\n]*""" <* parseEndOfLine
   pure $ HeaderLine ((Header header):(HeaderSuffix suffix):Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = (many parseChordComment <> (parseChord <#> \c -> c:Nil) <> many (parseChord <|> parseChordComment <|> parseChordLegend) <* parseEndOfLine) <#> \result -> ChordLine result
+parseChordLine = (many parseChordComment <> (parseChordLineChord <#> \c -> c:Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
 
-parseChord :: Parser ChordLineElem
+parseChordLineChord :: Parser ChordLineElem
+parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
+
+parseChord :: Parser Chord
 parseChord = do
   root <- parseChordRoot
   rootMod <- parseChordRootMod
   chordType <- parseChordType
   mods <- parseChordMods
   bass <- parseChordBass
-  bassMod <- parseChordRootMod
-  pure $ Chord { root : root
+  bassMod <- parseBassMod
+  pure $ { root : root
   , rootMod : rootMod
   , type : chordType
   , mods : mods
@@ -68,21 +79,33 @@ parseChord = do
   , bassMod : bassMod
   }
   where
-  parseChordRoot = regex """[A-G]"""
+  parseChordRoot = regex """(?<!\S)[A-G]"""
   parseChordRootMod = regex """[#b]*"""
-  parseChordType = regex """(ø|Δ|major|Maj|Ma|maj|Min|minor|min|M|m|[-]|dim|sus|dom|aug|[+]|o)?"""
+  parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|dim|sus|dom|aug|[+]|o)?"""
   parseChordMods = regex """(\(?(b|#|[+]|o|no|add|dim|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?\)?)*"""
   parseChordBass = regex """(/[A-G])?"""
-
-parseChordLegend :: Parser ChordLineElem
-parseChordLegend = regex """[\dxX]{6}""" <#> \result -> ChordLegend result
+  parseBassMod = regex """[#b]*(?!\S)"""
 
 -- A chord comment is a non chord string that is either a series of dots or a series of spaces or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
-parseChordComment = regex """[ \t]*(\([^\n\r()]*\)|\.\.+| +)[ \t]*""" <#> \result -> ChordComment result
+parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+| +)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> TextLine ((Text result):Nil)
+parseTextLine = many1Till (parseSpaces <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseWord) parseEndOfLine
+  <#> \result -> TextLine $ toList result
+
+parseSpaces :: Parser TextLineElem
+parseSpaces = regex """[^\S\n\r]+""" <#> \result -> Spaces result
+
+parseWord :: Parser TextLineElem
+parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
+
+parseChordLegend :: Parser TextLineElem
+parseChordLegend = regex """[\dxX]{6}""" <#> \result -> ChordLegend result
+
+-- This is a backup in case the other parsers fail
+parseAnyLine :: Parser TablatureDocumentLine
+parseAnyLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> TextLine ((Text result):Nil)
 
 -- | We are as flexible as possible when it comes to line endings.
 -- | Any of the following forms are considered valid: \n \r \n\r eof.

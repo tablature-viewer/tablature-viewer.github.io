@@ -58,10 +58,12 @@ data TablatureLineElem
 
 data TextLineElem
   = Text String
+  | Spaces String
+  | TextLineChord Chord
+  | ChordLegend String
 
 data ChordLineElem
-  = Chord Chord
-  | ChordLegend String
+  = ChordLineChord Chord
   | ChordComment String
 
 type Chord =
@@ -97,11 +99,13 @@ instance showTablatureLineElem :: Show TablatureLineElem where
 
 instance showTextLineElem :: Show TextLineElem where
   show (Text string) = string
+  show (Spaces string) = string
+  show (TextLineChord chord) = show chord
+  show (ChordLegend string) = string
 
 instance showChordLineElem :: Show ChordLineElem where
-  show (Chord chord) = show chord
+  show (ChordLineChord chord) = show chord
   show (ChordComment string) = string
-  show (ChordLegend string) = string
 
 instance showHeaderLineElem :: Show HeaderLineElem where
   show (Header string) = string

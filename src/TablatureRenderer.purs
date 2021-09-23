@@ -2,12 +2,12 @@ module TablatureRenderer where
 
 import Prelude
 
-import AppState (ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), RenderingOptions)
+import AppState (ChordLineElem(..), HeaderLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
 import Data.Array (fromFoldable)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String.Utils (repeat)
 import Data.String (length)
+import Data.String.Utils (repeat)
 import Halogen.HTML as HH
 import HalogenUtils (classString, renderLineEnding)
 
@@ -32,6 +32,9 @@ renderTablatureDocument doc _ = map renderLine doc
   renderTitleLineElem (Title string) = renderWithClass string "tabTitle"
   renderTitleLineElem (TitleOther string) = renderWithClass string "tabText"
   renderTextLineElem (Text string) = renderWithClass string "tabText"
+  renderTextLineElem (Spaces string) = renderWithClass string "tabText"
+  renderTextLineElem (TextLineChord chord) = renderChord chord
+  renderTextLineElem (ChordLegend string) = renderWithClass string "tabFret"
   renderTablatureLineElem (Prefix string) = renderWithClass string "tabPrefix"
   renderTablatureLineElem (Suffix string) = renderWithClass string "tabSuffix"
   renderTablatureLineElem (Special string) = renderWithClass string "tabSpecial"
@@ -40,8 +43,8 @@ renderTablatureDocument doc _ = map renderLine doc
   renderHeaderLineElem (Header string) = renderWithClass string "tabHeader"
   renderHeaderLineElem (HeaderSuffix string) = renderWithClass string "tabText"
   renderChordLineElem (ChordComment string) = renderWithClass string "tabSuffix"
-  renderChordLineElem (ChordLegend string) = renderWithClass string "tabFret"
-  renderChordLineElem (Chord chord) =
+  renderChordLineElem (ChordLineChord chord) = renderChord chord
+  renderChord chord =
     HH.span [ classString "tabChord" ] [HH.text chord.root
     , HH.sub_ [ HH.text chord.rootMod, createFontSizeCompensation chord.rootMod ]
     , HH.text chord.type
