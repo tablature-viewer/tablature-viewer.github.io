@@ -2,13 +2,15 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (Chord, ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
+import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
 import Control.Alt ((<|>))
+import Data.Array (elem)
 import Data.Either (Either(..))
-import Data.List (List(..), (:))
+import Data.List (List(..), fromFoldable, (:))
 import Data.List.NonEmpty (toList)
 import Data.Maybe (Maybe(..))
-import Data.String (drop)
+import Data.String (drop, Pattern(..), singleton)
+import Data.String.CodePoints (toCodePointArray)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Text.Parsing.StringParser (Parser, try, unParser)
@@ -101,7 +103,8 @@ parseWord :: Parser TextLineElem
 parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
 
 parseChordLegend :: Parser TextLineElem
-parseChordLegend = regex """(?<!\S)[\dxX]{6}(?!\S)""" <#> \result -> ChordLegend result
+parseChordLegend = regex """(?<!\S)[\dxX]{6}(?!\S)""" <#> \result -> ChordLegend $ fromFoldable $ map
+  (\c -> if elem c (toCodePointArray "1234567890") then ChordFret $ singleton c else ChordSpecial $ singleton c) $ toCodePointArray result
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine

@@ -60,7 +60,11 @@ data TextLineElem
   = Text String
   | Spaces String
   | TextLineChord Chord
-  | ChordLegend String
+  | ChordLegend (List ChordLegendElem)
+
+data ChordLegendElem
+  = ChordFret String
+  | ChordSpecial String
 
 data ChordLineElem
   = ChordLineChord Chord
@@ -101,7 +105,7 @@ instance showTextLineElem :: Show TextLineElem where
   show (Text string) = string
   show (Spaces string) = string
   show (TextLineChord chord) = show chord
-  show (ChordLegend string) = string
+  show (ChordLegend _) = "legend"
 
 instance showChordLineElem :: Show ChordLineElem where
   show (ChordLineChord chord) = show chord

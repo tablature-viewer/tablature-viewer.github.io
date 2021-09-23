@@ -2,7 +2,7 @@ module TablatureRenderer where
 
 import Prelude
 
-import AppState (ChordLineElem(..), HeaderLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
+import AppState (ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), Chord)
 import Data.Array (fromFoldable)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -31,10 +31,11 @@ renderTablatureDocument doc _ = map renderLine doc
 
   renderTitleLineElem (Title string) = renderWithClass string "tabTitle"
   renderTitleLineElem (TitleOther string) = renderWithClass string "tabText"
+  renderTextLineElem :: TextLineElem -> HH.HTML w i
   renderTextLineElem (Text string) = renderWithClass string "tabText"
   renderTextLineElem (Spaces string) = renderWithClass string "tabText"
   renderTextLineElem (TextLineChord chord) = renderChord chord
-  renderTextLineElem (ChordLegend string) = renderWithClass string "tabFret"
+  renderTextLineElem (ChordLegend legend) = HH.span_ $ fromFoldable $ map renderChordLegendElem legend
   renderTablatureLineElem (Prefix string) = renderWithClass string "tabPrefix"
   renderTablatureLineElem (Suffix string) = renderWithClass string "tabSuffix"
   renderTablatureLineElem (Special string) = renderWithClass string "tabSpecial"
@@ -44,6 +45,10 @@ renderTablatureDocument doc _ = map renderLine doc
   renderHeaderLineElem (HeaderSuffix string) = renderWithClass string "tabText"
   renderChordLineElem (ChordComment string) = renderWithClass string "tabSuffix"
   renderChordLineElem (ChordLineChord chord) = renderChord chord
+  renderChordLegendElem :: ChordLegendElem -> HH.HTML w i
+  renderChordLegendElem (ChordFret string) = renderWithClass string "tabFret"
+  renderChordLegendElem (ChordSpecial string) = renderWithClass string "tabSpecial"
+  renderChord :: Chord -> HH.HTML w i
   renderChord chord =
     HH.span [ classString "tabChord" ] [HH.text chord.root
     , HH.sub_ [ HH.text chord.rootMod, createFontSizeCompensation chord.rootMod ]
