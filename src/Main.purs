@@ -249,7 +249,7 @@ handleAction action =
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       case maybeTablatureText of
         Just tablatureText -> do
-          case readTablature tablatureText { dozenalizeTabs: tabDozenalizationEnabled, dozenalizeChords: chordDozenalizationEnabled, normalizeTabs: true } of
+          case readTablature tablatureText { dozenalizeTabs: tabDozenalizationEnabled, dozenalizeChords: chordDozenalizationEnabled, normalizeTabs: tabNormalizationEnabled } of
             Just tablatureDocument -> do
               H.put { mode: ViewMode, loading: false, tablatureText: tablatureText, tablatureTitle, tablatureDocument: Just tablatureDocument, scrollTop: state.scrollTop, tabNormalizationEnabled, tabDozenalizationEnabled, chordDozenalizationEnabled, ignoreDozenalization }
               H.liftEffect $ setDocumentTitle tablatureTitle
