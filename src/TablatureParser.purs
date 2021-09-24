@@ -9,8 +9,8 @@ import Data.Either (Either(..))
 import Data.List (List(..), fromFoldable, (:))
 import Data.List.NonEmpty (toList)
 import Data.Maybe (Maybe(..))
-import Data.String (drop, Pattern(..), singleton)
-import Data.String.CodePoints (toCodePointArray)
+import Data.String (drop, singleton)
+import Data.String.CodePoints (codePointAt, codePointFromChar, length, toCodePointArray)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Text.Parsing.StringParser (Parser, try, unParser)
@@ -29,7 +29,7 @@ parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
   commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
-  body <- manyTill ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine) eof
+  body <- many ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -108,18 +108,24 @@ parseChordLegend = regex """(?<!\S)[\dxX]{6}(?!\S)""" <#> \result -> ChordLegend
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine
-parseAnyLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLineString *> pure "") <#> \result -> TextLine ((Text result):Nil)
+parseAnyLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLine *> pure "") <#> \result -> TextLine ((Text result):Nil)
 
 -- | We are as flexible as possible when it comes to line endings.
--- | Any of the following forms are considered valid: \n \r \n\r eof.
+-- | Any of the following forms are considered valid: \n \r \n\r
 parseEndOfLine :: Parser Unit
-parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
-
-parseEndOfLineString :: Parser String
-parseEndOfLineString = regex """\n\r?|\r""" 
+parseEndOfLine = regex """\n\r?|\r""" *> pure unit
 
 tryParseTablature :: String -> Maybe (List TablatureDocumentLine)
-tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
+tryParseTablature inputString =
+  if endsWithNewLine inputString
+  then tryRunParser parseTablatureDocument inputString
+  -- Add newline after each line to make parsing a lot easier and fail-safe (no more zero width eof leading to infinite loops)
+  else tryRunParser parseTablatureDocument (inputString <> "\n")
+
+endsWithNewLine :: String -> Boolean
+endsWithNewLine string =
+  lastChar == Just (codePointFromChar '\n') || lastChar == Just (codePointFromChar '\r')
+  where lastChar = codePointAt (length string - 1) string
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 
