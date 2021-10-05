@@ -73,16 +73,17 @@ parseChord = do
   mods <- parseChordMods
   bassLetter <- parseChordBass
   bassMod <- parseBassMod
-  pure $ { root: { letter: rootLetter, mod: rootMod }
-  , type: chordType
-  , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
-  , bass: { letter: bassLetter, mod: bassMod }
-  }
+  pure $
+    { root: { letter: rootLetter, mod: rootMod }
+    , type: chordType
+    , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
+    , bass: { letter: bassLetter, mod: bassMod }
+    }
   where
   parseChordRoot = regex """(?<!\S)[A-G]"""
   parseChordRootMod = regex """[#b]*"""
-  parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|dim|sus|dom|aug|augm|[+]|o)?"""
-  parseChordMods = regex """(\(?(b|#|[+]|o|no|add|dim|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?\)?)*"""
+  parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|[+]|o)?"""
+  parseChordMods = regex """((sus[24]?)|\(?(o|no|add|dim|dom|augm(?![a-zA-Z])|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?(b|#|[+]|[-])?\)?)*"""
   parseChordBass = regex """(/[A-G])?"""
   parseBassMod = regex """[#b]*(?!\S)"""
 
