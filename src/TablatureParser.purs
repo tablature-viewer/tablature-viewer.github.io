@@ -2,7 +2,7 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..))
+import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), ChordMod(..))
 import Control.Alt ((<|>))
 import Data.Array (elem)
 import Data.Either (Either(..))
@@ -67,23 +67,21 @@ parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
 
 parseChord :: Parser Chord
 parseChord = do
-  root <- parseChordRoot
+  rootLetter <- parseChordRoot
   rootMod <- parseChordRootMod
   chordType <- parseChordType
   mods <- parseChordMods
-  bass <- parseChordBass
+  bassLetter <- parseChordBass
   bassMod <- parseBassMod
-  pure $ { root : root
-  , rootMod : rootMod
-  , type : chordType
-  , mods : mods
-  , bass : bass
-  , bassMod : bassMod
+  pure $ { root: { letter: rootLetter, mod: rootMod }
+  , type: chordType
+  , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
+  , bass: { letter: bassLetter, mod: bassMod }
   }
   where
   parseChordRoot = regex """(?<!\S)[A-G]"""
   parseChordRootMod = regex """[#b]*"""
-  parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|dim|sus|dom|aug|[+]|o)?"""
+  parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|dim|sus|dom|aug|augm|[+]|o)?"""
   parseChordMods = regex """(\(?(b|#|[+]|o|no|add|dim|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?\)?)*"""
   parseChordBass = regex """(/[A-G])?"""
   parseBassMod = regex """[#b]*(?!\S)"""

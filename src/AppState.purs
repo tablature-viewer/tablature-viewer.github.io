@@ -44,10 +44,18 @@ type TablatureDocument = List TablatureDocumentLine
 
 data TablatureDocumentLine
   = TitleLine (List TitleLineElem) -- Title of whole document
-  | TablatureLine (List TablatureLineElem)
   | HeaderLine (List HeaderLineElem) -- Header per section of document
+  | TablatureLine (List TablatureLineElem)
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
+
+data TitleLineElem
+  = Title String
+  | TitleOther String
+
+data HeaderLineElem
+  = Header String
+  | HeaderSuffix String
 
 data TablatureLineElem
   = Prefix String
@@ -71,21 +79,22 @@ data ChordLineElem
   | ChordComment String
 
 type Chord =
-  { root :: String
-  , rootMod :: String
+  { root :: Note
   , type :: String
-  , mods :: String
-  , bass :: String
-  , bassMod :: String
+  , mods :: List ChordMod
+  , bass :: Note
   }
 
-data HeaderLineElem
-  = Header String
-  | HeaderSuffix String
+newtype ChordMod = ChordMod
+  { pre :: String
+  , interval :: String
+  , post :: String
+  }
 
-data TitleLineElem
-  = Title String
-  | TitleOther String
+type Note =
+  { letter :: String
+  , mod :: String
+  }
 
 instance showLine :: Show TablatureDocumentLine where
   show (TitleLine elems) = "Title: " <> show elems
@@ -110,6 +119,9 @@ instance showTextLineElem :: Show TextLineElem where
 instance showChordLineElem :: Show ChordLineElem where
   show (ChordLineChord chord) = show chord
   show (ChordComment string) = string
+
+instance showChordMod :: Show ChordMod where
+  show (ChordMod x) = x.pre <> x.interval <> x.post
 
 instance showHeaderLineElem :: Show HeaderLineElem where
   show (Header string) = string
