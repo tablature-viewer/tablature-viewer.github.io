@@ -2,18 +2,20 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..))
+import AppState (Chord, ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), ChordMod(..))
+import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll)
 import Data.String.CodeUnits (charAt, length)
-import Data.String.Utils (repeat)
+import Data.String.Utils (repeat, filter)
 import Data.Tuple (Tuple(..))
 import Utils (foreach)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
+-- TODO: recognize false positives for chords in text and revert them to regular text.
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
@@ -23,7 +25,7 @@ rewriteTablatureDocument renderingOptions =
   dozenalizeFrets renderingOptions
 
 fixEmDashes :: TablatureDocumentRewriter
-fixEmDashes renderingOptions doc = if not renderingOptions.normalize then doc else map rewriteLine doc
+fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ (map rewriteTablatureLineElem line)
@@ -34,7 +36,7 @@ fixEmDashes renderingOptions doc = if not renderingOptions.normalize then doc el
   rewriteTablatureLineElem x = x
 
 addMissingClosingPipe :: TablatureDocumentRewriter
-addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize then doc else map rewriteLine doc
+addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLine line
@@ -52,21 +54,34 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalize t
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
 
 dozenalizeChords :: TablatureDocumentRewriter
-dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
+dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
+  rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
   rewriteLine x = x
 
-  -- TODO: compensate for the ↋ by adding a space after the bass mod
   rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (Chord chord) = Chord $ chord { type = dozenalize chord.type, mods = dozenalize chord.mods }
+  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ rewriteChord chord
   rewriteChordLineElem x = x
+
+  rewriteTextLineElem :: TextLineElem -> TextLineElem
+  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ rewriteChord chord
+  rewriteTextLineElem x = x
+
+  rewriteChord :: Chord -> Chord
+  rewriteChord chord = chord { type = newType, mods = newMods, bass = newBass }
+    where
+    -- compensate for each 11 converted to ↋ by adding spaces after the bass mod
+    newType = dozenalize chord.type
+    newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods
+    shrunkChars = (newType <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) newMods)) # filter (_ == "↋") # length
+    newBass = chord.bass { mod = dozenalize chord.bass.mod <> fromMaybe "" (repeat shrunkChars " ") }
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 
 dozenalizeFrets :: TablatureDocumentRewriter
-dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalize then doc else map rewriteLine doc
+dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLineElems line

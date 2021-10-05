@@ -5,6 +5,18 @@ import Prelude
 import Data.List (List)
 import Data.Maybe (Maybe)
 
+data Action
+  = Initialize 
+  | ToggleEditMode 
+  | ToggleTabNormalization 
+  | ToggleTabDozenalization 
+  | ToggleChordDozenalization 
+  | CopyShortUrl
+
+instance showMode :: Show Mode where
+  show ViewMode = "View Mode"
+  show EditMode = "Edit Mode"
+
 data Mode = ViewMode | EditMode
 
 type State =
@@ -15,23 +27,35 @@ type State =
   , tablatureDocument :: Maybe TablatureDocument
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
-  , dozenalizationEnabled :: Boolean
+  , tabNormalizationEnabled :: Boolean
+  , tabDozenalizationEnabled :: Boolean
+  , chordDozenalizationEnabled :: Boolean
+  -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
   , ignoreDozenalization :: Boolean
   }
 
 type RenderingOptions =
-  { dozenalize :: Boolean
-  , normalize :: Boolean
+  { dozenalizeTabs :: Boolean
+  , dozenalizeChords :: Boolean
+  , normalizeTabs :: Boolean
   }
 
 type TablatureDocument = List TablatureDocumentLine
 
 data TablatureDocumentLine
   = TitleLine (List TitleLineElem) -- Title of whole document
-  | TablatureLine (List TablatureLineElem)
   | HeaderLine (List HeaderLineElem) -- Header per section of document
+  | TablatureLine (List TablatureLineElem)
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
+
+data TitleLineElem
+  = Title String
+  | TitleOther String
+
+data HeaderLineElem
+  = Header String
+  | HeaderSuffix String
 
 data TablatureLineElem
   = Prefix String
@@ -42,28 +66,35 @@ data TablatureLineElem
 
 data TextLineElem
   = Text String
+  | Spaces String
+  | TextLineChord Chord
+  | ChordLegend (List ChordLegendElem)
+
+data ChordLegendElem
+  = ChordFret String
+  | ChordSpecial String
 
 data ChordLineElem
-  = Chord Chord
-  | ChordLegend String
+  = ChordLineChord Chord
   | ChordComment String
 
 type Chord =
-  { root :: String
-  , rootMod :: String
+  { root :: Note
   , type :: String
-  , mods :: String
-  , bass :: String
-  , bassMod :: String
+  , mods :: List ChordMod
+  , bass :: Note
   }
 
-data HeaderLineElem
-  = Header String
-  | HeaderSuffix String
+newtype ChordMod = ChordMod
+  { pre :: String
+  , interval :: String
+  , post :: String
+  }
 
-data TitleLineElem
-  = Title String
-  | TitleOther String
+type Note =
+  { letter :: String
+  , mod :: String
+  }
 
 instance showLine :: Show TablatureDocumentLine where
   show (TitleLine elems) = "Title: " <> show elems
@@ -81,11 +112,16 @@ instance showTablatureLineElem :: Show TablatureLineElem where
 
 instance showTextLineElem :: Show TextLineElem where
   show (Text string) = string
+  show (Spaces string) = string
+  show (TextLineChord chord) = show chord
+  show (ChordLegend _) = "legend"
 
 instance showChordLineElem :: Show ChordLineElem where
-  show (Chord chord) = show chord
+  show (ChordLineChord chord) = show chord
   show (ChordComment string) = string
-  show (ChordLegend string) = string
+
+instance showChordMod :: Show ChordMod where
+  show (ChordMod x) = x.pre <> x.interval <> x.post
 
 instance showHeaderLineElem :: Show HeaderLineElem where
   show (Header string) = string
@@ -95,9 +131,3 @@ instance showTitleLineElem :: Show TitleLineElem where
   show (Title string) = string
   show (TitleOther string) = string
 
-
-data Action = Initialize | ToggleEditMode | ToggleDozenalization | CopyShortUrl
-
-instance showMode :: Show Mode where
-  show ViewMode = "View Mode"
-  show EditMode = "Edit Mode"
