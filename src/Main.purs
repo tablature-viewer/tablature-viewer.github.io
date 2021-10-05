@@ -143,7 +143,7 @@ render state = HH.div
     EditMode -> HH.textarea
       [ HP.ref refTablatureEditor
       , classString "tablatureEditor" 
-      , HP.placeholder "Paste your plaintext tablature here and click 'Save'"
+      , HP.placeholder "Paste your plaintext tablature or chord sheet here, click 'Save' and bookmark it"
       , HP.spellcheck false
       ]
   renderHeader = HH.div
@@ -158,7 +158,7 @@ render state = HH.div
       [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
       , HP.target "_blank"
       ]
-      [ HH.h1_ [ HH.text "Dozenal Tablature Viewer" ] ]
+      [ HH.h1_ [ HH.text "Tablature Viewer" ] ]
     ]
   renderLoadingIcon = HH.div 
     [ classString "loadingIcon lds-ellipsis" ]
