@@ -13,7 +13,7 @@ import Data.String (drop, singleton)
 import Data.String.CodePoints (codePointAt, codePointFromChar, length, toCodePointArray)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
-import Text.Parsing.StringParser (Parser, try, unParser)
+import Text.Parsing.StringParser (Parser(..), try, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, many1Till, manyTill, option)
 
@@ -21,6 +21,17 @@ import Text.Parsing.StringParser.Combinators (lookAhead, many, many1Till, manyTi
 -- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds
 -- many (many p) will get stuck for any p
 -- parseEndOfLine doesn't consume input at the end of the file but still succeeds
+
+-- TODO: make pull request for this combinator
+-- Fails with parse error if parser did not consume any input
+assertConsume :: forall a. Parser a -> Parser a
+assertConsume p = Parser $ \posStrBefore ->
+  case unParser p posStrBefore of
+    Right result ->
+      if posStrBefore.pos < result.suffix.pos
+      then Right result
+      else Left { pos: result.suffix.pos, error: "Consumed no input." }
+    x -> x
 
 -- TODO: Improve the parser code
 -- TODO: Prove that the parser can never get stuck into a loop
