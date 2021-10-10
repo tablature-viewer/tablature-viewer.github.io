@@ -12,8 +12,8 @@
 }
 
 :root {
-  --shadow:rgba(0, 0, 0, 0.2);
-  
+  --shadow: rgba(0, 0, 0, 0.2);
+
   --title-width: 360px;
   --controls-max-width: 565px;
   --app-height: 100vh;
@@ -23,15 +23,15 @@
   --tablature-sup-top: -0.3em;
 
   --tab-bg: #FEF8EC;
-  --header-bg:#F9F1E1;
-  --button-bg:#f5eddd;
-  --button-hover-bg:#D1DFD0;
-  --button-active-bg:#A9B5A9;
+  --header-bg: #F9F1E1;
+  --button-bg: #f5eddd;
+  --button-hover-bg: #D1DFD0;
+  --button-active-bg: #A9B5A9;
 
   --fg: #28a0a2;
   --fg-alt: #1c9ff0;
   --fg-alt2: #5ed0fa;
-  --fg-disabled:#9ec5c5;
+  --fg-disabled: #9ec5c5;
 
   --accent: #ff6a9e;
   --accent-alt: #f5970a;
@@ -40,19 +40,41 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --tab-bg: #262335;
-    --header-bg:#241B2F;
-    --button-bg:var(--header-bg);
-    --button-hover-bg:#342847;
-    --button-active-bg:#4f3d6a;
+    --header-bg: #241B2F;
+    --button-bg: var(--header-bg);
+    --button-hover-bg: #342847;
+    --button-active-bg: #4f3d6a;
 
     --fg: #acb3b3;
     --fg-alt: #ecd13a;
     --fg-alt2: #09c7e0;
-    --fg-disabled:#585858;
+    --fg-disabled: #585858;
 
     --accent: #e25ac5;
     --accent-alt: #fa8900;
   }
+}
+
+@media print {
+    :root {
+        --tab-bg: #fff;
+        --header-bg: #fff;
+        --button-bg: var(--header-bg);
+        --button-hover-bg: #ddd;
+        --button-active-bg: #eee;
+
+        --fg: #888;
+        --fg-alt: #666;
+        --fg-alt2: #666;
+        --fg-disabled: #aaa;
+
+        --accent: #000;
+        --accent-alt: #000;
+    }
+
+    .header {
+        visibility: hidden;
+    }
 }
 
 .tablatureViewer .tabTitle {
@@ -113,7 +135,7 @@
 
 * {
   box-sizing: border-box;
-  outline:none;
+  outline: none;
 
   scrollbar-color: var(--button-hover-bg) var(--tab-bg);
 }
@@ -184,7 +206,7 @@ body {
 .title h1 {
   margin: auto auto;
 
-  color:var(--fg);
+  color: var(--fg);
   font-family: Cascadia Mono;
   font-size: 24px;
 }
@@ -203,7 +225,7 @@ body {
   background-color: var(--button-bg);
   font-family: Cascadia Tablature;
   font-size: 13px;
-  color:var(--fg);
+  color: var(--fg);
   cursor: pointer;
   box-shadow: 0 0 2px 0 var(--shadow);
 }
@@ -218,7 +240,7 @@ body {
 }
 
 .controls button.disabled {
-  color:var(--fg-disabled);
+  color: var(--fg-disabled);
 }
 
 .loadingIcon {
@@ -228,7 +250,7 @@ body {
 .tablatureViewer {
   display: flex;
   overflow: auto;
-  background-color:var(--tab-bg);
+  background-color: var(--tab-bg);
 }
 .tablatureViewer pre {
   margin: auto;
@@ -237,7 +259,7 @@ body {
 
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
-  color:var(--fg);
+  color: var(--fg);
 }
 
 .tablatureViewer sup, .tablatureViewer sub {
@@ -265,8 +287,8 @@ body {
   resize: none;
   white-space: pre;
 
-  background-color:var(--tab-bg);
-  color:var(--fg);
+  background-color: var(--tab-bg);
+  color: var(--fg);
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
 }
