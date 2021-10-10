@@ -46,6 +46,12 @@ For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/
 You can put the word "dozenal" or "dozenalized" in the title (first line) of your tab, e.g. by appending `(dozenal)` to it.
 This will turn off dozenalization for that tab, regardless of your settings.
 
+## Setup dev environment
+- Install Node.js (64 bit)
+- Clone the repo
+- Run `npm install`
+- Run `npm run serve`
+
 ## Feature roadmap
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
