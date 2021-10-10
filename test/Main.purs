@@ -13,13 +13,14 @@ import Effect.Class.Console (log)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import TablatureParser (assertConsume, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
+import TablatureParser (parseAnyLine, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
 import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Text.Parsing.StringParser (Parser, PosString, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex, string)
-import Text.Parsing.StringParser.Combinators (lookAhead, many, manyTill)
+import Text.Parsing.StringParser.Combinators (lookAhead)
+import Utils (safeMany, safeManyTill)
 
 newtype AsciiString = AsciiString String
 newtype AsciiStringNoCtrl = AsciiStringNoCtrl String
@@ -78,19 +79,22 @@ main :: Effect Unit
 main = do
   log "🍝"
 
-  -- assertConsume should make sure that many doesn't hang
-  assertParserSuccess (many (assertConsume eof)) ""
-  assertParserSuccess (many (assertConsume ((string "1" *> pure unit) <|> eof))) "1"
+  -- safeMany should make sure that many doesn't hang
+  assertParserSuccess (safeMany eof) ""
+  assertParserSuccess (safeMany ((string "1" *> pure unit) <|> eof)) "1"
 
-  -- TODO: be able to parse lines not ending in newlines
+  -- safeMany should succeed when parser doesn't consume and stop looping
+  assertParserSuccess ((safeMany (regex "2?")) *> string "1") "1"
+  -- safeManyTill should fail when parser doesn't consume
+  assertParserFailed ((safeManyTill (regex "2?") (string "2")) *> string "1") "1"
 
   -- Check if manyTill works the way we expect it to
-  assertParserFailed (manyTill (string "1") (string "2") ) "111111"
-  assertParserSuccess (manyTill (string "1") (string "2") ) "1111112"
-  assertParserFailed (manyTill (string "1") (lookAhead $ string "2") ) "1111112"
-  assertParserSuccess ( (manyTill (string "1") (lookAhead $ string "2")) *> (string "2") ) "1111112"
-  assertParserSuccess ( (manyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "1111112"
-  assertParserSuccess ( (manyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "2"
+  assertParserFailed (safeManyTill (string "1") (string "2") ) "111111"
+  assertParserSuccess (safeManyTill (string "1") (string "2") ) "1111112"
+  assertParserFailed (safeManyTill (string "1") (lookAhead $ string "2") ) "1111112"
+  assertParserSuccess ( (safeManyTill (string "1") (lookAhead $ string "2")) *> (string "2") ) "1111112"
+  assertParserSuccess ( (safeManyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "1111112"
+  assertParserSuccess ( (safeManyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "2"
 
   -- assertParserSuccess parseEndOfLine ""
   -- assertParserFailed parseEndOfLine "a"
@@ -100,50 +104,47 @@ main = do
   assertParserFailed parseEndOfLine "\r\r"
   assertParserFailed parseEndOfLine "\n\r\r"
 
-  assertParserFailed parseTextLine ""
-  -- assertParserSuccess parseTextLine "a"
-  assertParserFailed parseTextLine "123\n456"
+  assertParserSuccess parseTextLine "a"
+  assertParserSuccess (safeMany parseTextLine) "a"
+  assertParserSuccess (safeMany parseTextLine) "123\n456"
+  assertParserSuccess (safeMany parseTextLine) testTablature
 
-  -- assertParserSuccess (many parseTextLine) "a"
-  -- assertParserSuccess (many parseTextLine) "123\n456"
+  assertParserFailed parseTitleLine ""
+  assertParserSuccess parseTitleLine "a"
+  assertParserFailed parseTitleLine "123\n456"
+  assertParserSuccess parseTitleLine "---title---"
+  assertParserSuccess (safeMany parseTitleLine) "a"
+  assertParserSuccess (safeMany parseTitleLine) "123\n456"
 
-  -- quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s)
-  -- quickCheck $ (\(AsciiString s) -> doParseAll (many parseTextLine) false s)
-  -- assertParserSuccess (many parseTextLine) testTablature
+  assertParserFailed (parseTablatureLine) ""
+  assertParserFailed (parseTablatureLine) "a"
+  assertParserSuccess (parseTablatureLine) "B|----------------------||o-------------------------|-----------7h8p7-----------|"
+  assertParserSuccess (parseTablatureLine) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
+  assertParserSuccess (parseTablatureLine) "|---|\n"
+  assertParserFailed (parseTablatureLine) "|---|\na"
+  assertParserFailed (parseTablatureLine) "|---|\n|---|"
+  assertParserSuccess (safeMany (parseTablatureLine)) "|---|\n|---|"
+  assertParserFailed (safeMany (parseTablatureLine)) "|---|\na"
+  assertParserFailed (safeMany (parseTablatureLine)) "a\n|---|"
+  assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
+  assertParserSuccess (safeMany (parseTablatureLine)) testTabLines
+  assertParserFailed (safeMany (parseTablatureLine)) testTablature
 
-  -- assertParserFailed parseTitleLine ""
-  -- assertParserSuccess parseTitleLine "a"
-  -- assertParserFailed parseTitleLine "123\n456"
-  -- assertParserSuccess parseTitleLine "---title---"
-  -- assertParserSuccess (many parseTitleLine) "a"
-  -- assertParserSuccess (many parseTitleLine) "123\n456"
+  assertParserSuccess (parseTablatureDocument) ""
+  assertParserSuccess (parseTablatureDocument) "asdf"
+  assertParserSuccess (parseTablatureDocument) "   asdf   "
+  assertParserSuccess (parseTablatureDocument) "||"
+  assertParserSuccess (parseTablatureDocument) "|---|"
+  assertParserSuccess (parseTablatureDocument) "|---|\na"
+  assertParserSuccess (parseTablatureDocument) "|---|\n|---|"
+  assertParserSuccess (parseTablatureDocument) testTabLines
+  assertParserSuccess (parseTablatureDocument) testTablature
 
-  -- assertParserFailed (parseTablatureLine) ""
-  -- assertParserFailed (parseTablatureLine) "a"
-  -- assertParserSuccess (parseTablatureLine) "B|----------------------||o-------------------------|-----------7h8p7-----------|"
-  -- assertParserSuccess (parseTablatureLine) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
-  -- assertParserSuccess (parseTablatureLine) "|---|\n"
-  -- assertParserFailed (parseTablatureLine) "|---|\na"
-  -- assertParserFailed (parseTablatureLine) "|---|\n|---|"
-  -- assertParserSuccess (many (parseTablatureLine)) "|---|\n|---|"
-  -- assertParserFailed (many (parseTablatureLine)) "|---|\na"
-  -- assertParserFailed (many (parseTablatureLine)) "a\n|---|"
-  -- assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
-  -- assertParserSuccess (many (parseTablatureLine)) testTabLines
-  -- assertParserFailed (many (parseTablatureLine)) testTablature
-
-  -- assertParserSuccess (parseTablatureDocument) ""
-  -- assertParserSuccess (parseTablatureDocument) "asdf"
-  -- assertParserSuccess (parseTablatureDocument) "   asdf   "
-  -- assertParserSuccess (parseTablatureDocument) "||"
-  -- assertParserSuccess (parseTablatureDocument) "|---|"
-  -- assertParserSuccess (parseTablatureDocument) "|---|\na"
-  -- assertParserSuccess (parseTablatureDocument) "|---|\n|---|"
-  -- assertParserSuccess (parseTablatureDocument) testTabLines
-  -- assertParserSuccess (parseTablatureDocument) testTablature
-  -- quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument ) false s)
-  -- quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument ) false s)
-  -- quickCheck $ doParseAll (parseTablatureDocument ) false
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll (safeMany parseAnyLine) false s)
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument ) false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument ) false s)
+  quickCheck $ doParseAll (parseTablatureDocument ) false
 
 testTabLines :: String
 testTabLines = """e|---------------------------------------------------------------------------|
@@ -154,8 +155,7 @@ A|------9-------------------9---/5-------5/7-7-------------------------------|
 E|--/7------7----------------------------------------------------------------|"""
   
 testTablature :: String
-testTablature = """
--------------------------------------------------------------------------------
+testTablature = """-------------------------------------------------------------------------------
                              Aftermath - Muse
 -------------------------------------------------------------------------------
 Tabbed by: Muser00

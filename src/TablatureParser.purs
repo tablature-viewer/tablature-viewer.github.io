@@ -7,40 +7,23 @@ import Control.Alt ((<|>))
 import Data.Array (elem)
 import Data.Either (Either(..))
 import Data.List (List(..), fromFoldable, (:))
-import Data.List.NonEmpty (toList)
 import Data.Maybe (Maybe(..))
 import Data.String (drop, singleton)
-import Data.String.CodePoints (codePointAt, codePointFromChar, length, toCodePointArray)
+import Data.String.CodePoints (toCodePointArray)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
-import Text.Parsing.StringParser (Parser(..), try, unParser)
+import Text.Parsing.StringParser (Parser, try, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex)
-import Text.Parsing.StringParser.Combinators (lookAhead, many, many1Till, manyTill, option)
-
--- NOTES
--- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds
--- many (many p) will get stuck for any p
--- parseEndOfLine doesn't consume input at the end of the file but still succeeds
-
--- TODO: make pull request for this combinator
--- Fails with parse error if parser did not consume any input
-assertConsume :: forall a. Parser a -> Parser a
-assertConsume p = Parser $ \posStrBefore ->
-  case unParser p posStrBefore of
-    Right result ->
-      if posStrBefore.pos < result.suffix.pos
-      then Right result
-      else Left { pos: result.suffix.pos, error: "Consumed no input." }
-    x -> x
+import Text.Parsing.StringParser.Combinators (lookAhead, option)
+import Utils (safeMany, safeManyTill)
 
 -- TODO: Improve the parser code
--- TODO: Prove that the parser can never get stuck into a loop
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
+  commentLinesBeforeTitle <- option Nil $ (try $ safeManyTill parseTextLine (try $ lookAhead (parseTitleLine <|> parseTablatureLine)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
-  body <- many ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine)
+  body <- safeMany ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -53,7 +36,7 @@ parseTitleLine = do
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
   prefix <- regex """[^|\n\r]*""" <#> \result -> Prefix result
-  tabLine <- try $ lookAhead (regex """\|\|?""") *> many
+  tabLine <- try $ lookAhead (regex """\|\|?""") *> safeMany
     (
       -- We allow normal dashes - and em dashes —
       (regex """(([\-—](?!\|)|([\-—]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> \result -> Timeline result) <|>
@@ -71,7 +54,7 @@ parseHeaderLine = do
   pure $ HeaderLine ((Header header):(HeaderSuffix suffix):Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = (many parseChordComment <> (parseChordLineChord <#> \c -> c:Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
+parseChordLine = (safeMany parseChordComment <> (parseChordLineChord <#> \c -> c:Nil) <> safeMany (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
 
 parseChordLineChord :: Parser ChordLineElem
 parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
@@ -103,8 +86,8 @@ parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+| +)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = many1Till (parseSpaces <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
-  <#> \result -> TextLine $ toList result
+parseTextLine = safeManyTill (parseSpaces <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
+  <#> \result -> TextLine result
 
 parseSpaces :: Parser TextLineElem
 parseSpaces = regex """[^\S\n\r]+""" <#> \result -> Spaces result
@@ -118,24 +101,18 @@ parseChordLegend = regex """(?<!\S)[\dxX]{6}(?!\S)""" <#> \result -> ChordLegend
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine
-parseAnyLine = (regex """[^\n\r]+""" <* parseEndOfLine) <|> (parseEndOfLine *> pure "") <#> \result -> TextLine ((Text result):Nil)
+parseAnyLine = regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result):Nil)
 
 -- | We are as flexible as possible when it comes to line endings.
--- | Any of the following forms are considered valid: \n \r \n\r
+-- | Any of the following forms are considered valid: \n \r \n\r eof
 parseEndOfLine :: Parser Unit
-parseEndOfLine = regex """\n\r?|\r""" *> pure unit
+parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
+
+parseEndOfLineString :: Parser String
+parseEndOfLineString = regex """\n\r?|\r"""
 
 tryParseTablature :: String -> Maybe (List TablatureDocumentLine)
-tryParseTablature inputString =
-  if endsWithNewLine inputString
-  then tryRunParser parseTablatureDocument inputString
-  -- Add newline after each line to make parsing a lot easier and fail-safe (no more zero width eof leading to infinite loops)
-  else tryRunParser parseTablatureDocument (inputString <> "\n")
-
-endsWithNewLine :: String -> Boolean
-endsWithNewLine string =
-  lastChar == Just (codePointFromChar '\n') || lastChar == Just (codePointFromChar '\r')
-  where lastChar = codePointAt (length string - 1) string
+tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 
