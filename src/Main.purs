@@ -127,15 +127,20 @@ initialState _ =
   , ignoreDozenalization: false }
 
 render :: forall m. State -> H.ComponentHTML Action () m
-render state = HH.div 
-  [ classString "main" ]
-  [ renderHeader
-  , renderTablature
+render state = HH.div_
+  [ HH.div 
+    [ classString "app" ]
+    [ renderHeader
+    , renderTablature
+    ]
+  , HH.div
+    [ classString "tablaturePrinter tablature" ]
+    [ HH.pre_ $ renderTablatureText state ]
   ]
   where
   renderTablature = case state.mode of
     ViewMode -> HH.div 
-      [ classString "tablatureViewer"
+      [ classString "tablatureViewer tablature"
       , HP.ref refTablatureViewer
       , HP.tabIndex 0
       ]
