@@ -57,62 +57,40 @@
   }
 }
 
-@media print {
-    :root {
-        --tab-bg: #fff;
-        --header-bg: #fff;
-        --button-bg: var(--header-bg);
-        --button-hover-bg: #ddd;
-        --button-active-bg: #eee;
-
-        --fg: #888;
-        --fg-alt: #666;
-        --fg-alt2: #666;
-        --fg-disabled: #aaa;
-
-        --accent: #000;
-        --accent-alt: #000;
-    }
-
-    .header {
-        visibility: hidden;
-    }
-}
-
-.tablatureViewer .tabTitle {
+.tablature .tabTitle {
   font-family: Cascadia Mono Italic;
   color: var(--accent-alt);
 }
 
-.tablatureViewer .tabTimeline {
+.tablature .tabTimeline {
   color: var(--fg);
 }
 
-.tablatureViewer .tabFret {
+.tablature .tabFret {
   color: var(--accent);
 }
 
-.tablatureViewer .tabSpecial {
+.tablature .tabSpecial {
   color: var(--fg-alt2);
 }
 
-.tablatureViewer .tabText {
+.tablature .tabText {
   color: var(--fg);
 }
 
-.tablatureViewer .tabChord {
+.tablature .tabChord {
   color: var(--fg-alt);
 }
 
-.tablatureViewer .tabHeader {
+.tablature .tabHeader {
   color: var(--accent-alt);
 }
 
-.tablatureViewer .tabPrefix {
+.tablature .tabPrefix {
   color: var(--fg-alt);
 }
 
-.tablatureViewer .tabSuffix {
+.tablature .tabSuffix {
   font-family: Cascadia Mono Italic;
   color: var(--accent-alt);
 }
@@ -176,7 +154,7 @@ body {
 
 }
 
-.main {
+.app {
   display: grid;
   grid-template-rows: 40px auto;
   border: 0;
@@ -275,28 +253,30 @@ body {
   margin: auto;
   border: 0;
   padding: 10px;
+}
 
+.tablature pre {
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
   color: var(--fg);
 }
 
-.tablatureViewer sup, .tablatureViewer sub {
+.tablature sup, .tablature sub {
   vertical-align: baseline;
   position: relative;
 }
-.tablatureViewer sup {
+.tablature sup {
   font-size: var(--tablature-sup-font-size);
   top: var(--tablature-sup-top);
 }
-.tablatureViewer sup .fontsize-compensation {
+.tablature sup .fontsize-compensation {
   font-size: calc(var(--tablature-font-size) - var(--tablature-sup-font-size));
 }
-.tablatureViewer sub {
+.tablature sub {
   font-size: var(--tablature-sub-font-size);
   top: var(--tablature-sub-top);
 }
-.tablatureViewer sub .fontsize-compensation {
+.tablature sub .fontsize-compensation {
   font-size: calc(var(--tablature-font-size) - var(--tablature-sub-font-size));
 }
 
@@ -313,4 +293,33 @@ body {
   color: var(--fg);
   font-family: Cascadia Tablature;
   font-size: var(--tablature-font-size);
+}
+
+.tablaturePrinter {
+  display: none;
+}
+
+@media print {
+  :root {
+    --tab-bg: #fff;
+    --header-bg: #fff;
+    --button-bg: var(--header-bg);
+    --button-hover-bg: #ddd;
+    --button-active-bg: #eee;
+
+    --fg: #888;
+    --fg-alt: #666;
+    --fg-alt2: #666;
+    --fg-disabled: #aaa;
+
+    --accent: #000;
+    --accent-alt: #000;
+  }
+
+  .app {
+    display: none;
+  }
+  .tablaturePrinter {
+    display: block;
+  }
 }
