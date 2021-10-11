@@ -14,7 +14,7 @@
 :root {
   --shadow:rgba(0, 0, 0, 0.2);
   
-  --title-width: 360px;
+  --title-width: 260px;
   --controls-max-width: 565px;
   --app-height: 100vh;
 
@@ -201,7 +201,7 @@ body {
 .controls button {
   height: 100%;
   border: 0;
-  padding: 10px 25px;
+  padding: 10px 20px;
 
   background-color: var(--button-bg);
   font-family: Cascadia Tablature;

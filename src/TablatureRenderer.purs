@@ -52,11 +52,14 @@ renderTablatureDocument doc _ = map renderLine doc
   renderChord :: Chord -> HH.HTML w i
   renderChord chord =
     HH.span [ classString "tabChord" ] [HH.text chord.root.letter
-    , HH.sub_ [ HH.text chord.root.mod, createFontSizeCompensation chord.root.mod ]
+    , HH.sub_ [ HH.text chord.root.mod ]
     , HH.text chord.type
-    , HH.sup_ [ HH.text chordMods, createFontSizeCompensation chordMods ]
+    , HH.sup_ [ HH.text chordMods ]
     , HH.text chord.bass.letter
-    , HH.sub_ [ HH.text chord.bass.mod, createFontSizeCompensation chord.bass.mod ]
+    , HH.sub_ [ HH.text chord.bass.mod ]
+    , HH.sub_ [ createFontSizeCompensation chord.root.mod ]
+    , HH.sup_ [ createFontSizeCompensation chordMods ]
+    , HH.sub_ [ createFontSizeCompensation chord.bass.mod ]
     ]
     where
     createFontSizeCompensation string = HH.span [ classString "fontsize-compensation" ] [ HH.text $ fromMaybe "" $ repeat (length string) " " ]
