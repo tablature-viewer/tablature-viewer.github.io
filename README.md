@@ -3,8 +3,9 @@ Dozenal Tablature Viewer
 
 Available at https://tabviewer.app
 
-- Paste a regular plain text tablature and then view it in the base twelve number system instead of the base ten number system.
+- Paste a regular plain text tablature and then view it in a nicely formatted and colorized way.
 - All the tablature information is stored in the URL, so you easily can bookmark and save your tabs. No more dealing with all them ad-heavy tablature sites :)
+- Optionally view the tablature in the base twelve numerical system. (Turn option `dozenalization` on)
 
 ## What is the base twelve numerical system?
 The [base twelve system](https://en.wikipedia.org/wiki/Duodecimal) (also called *dozenal* or *duodecimal* system) is a number system in which we count till twelve instead of ten, and have dedicated symbols for ten (↊, a turned two) and eleven (↋, a turned three).
@@ -31,6 +32,9 @@ So five notes above the octave is called *do five*.
 It's funny coincidence here that the octave note has been called *do* in [musical solfège](https://en.wikipedia.org/wiki/Solf%C3%A8ge) for centuries.
 For more information about pronounciation read [more about the do-gro-mo system](https://en.wikipedia.org/wiki/Duodecimal#Do-gro-mo_system).
 
+## Can I print the sheets on paper?
+Yes you can. Press Ctrl/Cmd-P in the browser.
+
 ## Can I customize the color theme?
 Yes you can. Install the *Stylish* browser extension and override the color CSS variables in [index.css](https://github.com/tablature-viewer/tablature-viewer.github.io/blob/main/res/index.css).
 
@@ -55,5 +59,7 @@ This will turn off dozenalization for that tab, regardless of your settings.
 ## Feature roadmap
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
 - Autoscroll
-- Chord dozenalization (i.e. CM13 rendered as CM11)
 - Chord and tab notation normalization
+- Improve parsing
+- Improve normalization
+- Chord and tab transposition
