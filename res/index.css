@@ -11,11 +11,15 @@
   src: url("CascadiaMonoItalic.woff2");
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
   --shadow: rgba(0, 0, 0, 0.2);
   
   --title-width: 260px;
-  --controls-max-width: 565px;
+  --controls-max-width: 665px;
   --app-height: 100vh;
 
   --tablature-font-size: 13px;

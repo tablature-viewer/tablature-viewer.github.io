@@ -4,6 +4,7 @@ import Prelude
 
 import Data.List (List)
 import Data.Maybe (Maybe)
+import Effect.Timer (IntervalId)
 
 data Action
   = Initialize 
@@ -12,6 +13,7 @@ data Action
   | ToggleTabDozenalization 
   | ToggleChordDozenalization 
   | CopyShortUrl
+  | ToggleAutoscroll
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"
@@ -22,6 +24,7 @@ data Mode = ViewMode | EditMode
 type State =
   { mode :: Mode
   , loading :: Boolean
+  , scrollTimer :: Maybe IntervalId
   , tablatureText :: String
   , tablatureTitle :: String
   , tablatureDocument :: Maybe TablatureDocument

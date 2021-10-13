@@ -26,6 +26,7 @@ to generate this file without the comments in this block.
   , "halogen"
   , "http-methods"
   , "integers"
+  , "js-timers"
   , "lists"
   , "maybe"
   , "partial"
