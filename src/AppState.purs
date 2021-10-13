@@ -6,6 +6,10 @@ import Data.List (List)
 import Data.Maybe (Maybe)
 import Effect.Timer (IntervalId)
 
+import Data.Enum (class Enum)
+import Data.Enum.Generic (genericPred, genericSucc)
+import Data.Generic.Rep (class Generic)
+
 data Action
   = Initialize 
   | ToggleEditMode 
@@ -21,15 +25,32 @@ instance showMode :: Show Mode where
 
 data Mode = ViewMode | EditMode
 
+data AutoscrollSpeed
+  = Speed1
+  | Speed2
+
+instance showAutoscrollSpeed :: Show AutoscrollSpeed where
+  show Speed1 = "Speed1"
+  show Speed2 = "Speed2"
+
+derive instance eqAutoscrollSpeed :: Eq AutoscrollSpeed
+derive instance ordAutoscrollSpeed :: Ord AutoscrollSpeed
+derive instance genericAutoscrollSpeed :: Generic AutoscrollSpeed _
+instance enumAutoscrollSpeed :: Enum AutoscrollSpeed where
+  succ = genericSucc
+  pred = genericPred
+
 type State =
   { mode :: Mode
   , loading :: Boolean
-  , scrollTimer :: Maybe IntervalId
   , tablatureText :: String
   , tablatureTitle :: String
   , tablatureDocument :: Maybe TablatureDocument
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
+  , autoscrollTimer :: Maybe IntervalId
+  , autoscrollSpeed :: AutoscrollSpeed
+  , autoscroll :: Boolean
   , tabNormalizationEnabled :: Boolean
   , tabDozenalizationEnabled :: Boolean
   , chordDozenalizationEnabled :: Boolean

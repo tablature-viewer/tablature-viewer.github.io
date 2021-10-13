@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), Mode(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), RenderingOptions)
+import AppState (Action(..), Mode(..), RenderingOptions, AutoscrollSpeed(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -215,9 +215,9 @@ render state = HH.div_
       , HE.onClick \_ -> CopyShortUrl
       ] [ fontAwesome "fa-share", optionalText " Share" ]
     , HH.button
-      [ HP.title "Turn on autoscrolling"
+      [ HP.title "Toggle autoscrolling"
       , HE.onClick \_ -> ToggleAutoscroll
-      ] [ fontAwesome "fa-play", optionalText " Autoscroll" ]
+      ] toggleAutoscrollContent
     ]
     where
     toggleButtonContent = case state.mode of
@@ -226,6 +226,10 @@ render state = HH.div_
     toggleButtonTitle = case state.mode of
       EditMode -> "Save tablature"
       ViewMode  -> "Edit tablature"
+    toggleAutoscrollContent =
+      if state.autoscroll
+      then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
+      else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
 
 
 renderTablatureText :: forall w i. State -> Array (HH.HTML w i)
@@ -238,11 +242,13 @@ _initialState :: State
 _initialState =
   { mode: EditMode
   , loading: false
-  , scrollTimer: Nothing
   , tablatureText: ""
   , tablatureTitle: defaultTitle
   , tablatureDocument: Nothing
   , scrollTop: 0.0
+  , autoscroll: false
+  , autoscrollTimer: Nothing
+  , autoscrollSpeed: Speed1
   , tabNormalizationEnabled: true
   , tabDozenalizationEnabled: false
   , chordDozenalizationEnabled: false
@@ -328,9 +334,7 @@ handleAction action = do
       focusTablatureContainer
     ToggleAutoscroll -> do
       state <- H.get
-      case state.mode of
-        ViewMode -> pure unit
-        _ -> pure unit
+      H.modify_ _ { autoscroll = not state.autoscroll }
 
   H.modify_ _ { loading = false }
   pure unit

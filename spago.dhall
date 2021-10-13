@@ -21,6 +21,7 @@ to generate this file without the comments in this block.
   , "debug"
   , "effect"
   , "either"
+  , "enums"
   , "foldable-traversable"
   , "foreign"
   , "halogen"
