@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
+import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), speedToIntervalMs)
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -276,23 +276,22 @@ _initialState =
   , chordDozenalizationEnabled: false
   , ignoreDozenalization: false }
 
--- TODO: should we make the app reactive to changes in the app state?
-
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action = do
-  H.modify_ _ { loading = true }
-  state <- H.get
-  stopAutoscroll
+  originalState <- H.get
+  H.modify_ _ { loading = true, autoscroll = false }
+  intermediateState <- H.get
+  updateAutoscroll intermediateState
   H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
   case action of
     Initialize -> do
       maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
-      tabNormalizationEnabled <- pure $ fromMaybe state.tabNormalizationEnabled maybeTabNormalizationEnabled
+      tabNormalizationEnabled <- pure $ fromMaybe originalState.tabNormalizationEnabled maybeTabNormalizationEnabled
       maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
-      tabDozenalizationEnabled <- pure $ fromMaybe state.tabDozenalizationEnabled maybeTabDozenalizationEnabled
+      tabDozenalizationEnabled <- pure $ fromMaybe originalState.tabDozenalizationEnabled maybeTabDozenalizationEnabled
       maybeChordDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyChordDozenalizationEnabled
-      chordDozenalizationEnabled <- pure $ fromMaybe state.chordDozenalizationEnabled maybeChordDozenalizationEnabled
-      H.put $ _initialState { scrollTop = state.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled }
+      chordDozenalizationEnabled <- pure $ fromMaybe originalState.chordDozenalizationEnabled maybeChordDozenalizationEnabled
+      H.put $ _initialState { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled }
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       case maybeTablatureText of
         Just tablatureText -> do
@@ -309,42 +308,42 @@ handleAction action = do
       focusTablatureContainer
     ToggleEditMode -> do
       saveScrollTop
-      case state.mode of
+      case originalState.mode of
         EditMode -> do
           saveTablature
           H.modify_ _ { mode = ViewMode }
           focusTablatureContainer
         ViewMode -> do
           H.modify_ _ { mode = EditMode, tablatureDocument = Nothing }
-          setTablatureEditorText state.tablatureText
+          setTablatureEditorText originalState.tablatureText
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
     ToggleTabNormalization -> do
-      H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not state.tabNormalizationEnabled)
-      H.modify_ _ { tabNormalizationEnabled = not state.tabNormalizationEnabled }
+      H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not originalState.tabNormalizationEnabled)
+      H.modify_ _ { tabNormalizationEnabled = not originalState.tabNormalizationEnabled }
       -- Normalization affects the TablatureDocument, so we need to re-read it now
-      case state.mode of
-        ViewMode -> readTablatureAndSaveToState state.tablatureText
+      case originalState.mode of
+        ViewMode -> readTablatureAndSaveToState originalState.tablatureText
         _ -> pure unit
     ToggleTabDozenalization -> do
-      if state.ignoreDozenalization
+      if originalState.ignoreDozenalization
       then pure unit
       else do
-        H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not state.tabDozenalizationEnabled)
-        H.modify_ _ { tabDozenalizationEnabled = not state.tabDozenalizationEnabled }
+        H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not originalState.tabDozenalizationEnabled)
+        H.modify_ _ { tabDozenalizationEnabled = not originalState.tabDozenalizationEnabled }
         -- Dozenalization affects the TablatureDocument, so we need to re-read it now
-        case state.mode of
-          ViewMode -> readTablatureAndSaveToState state.tablatureText
+        case originalState.mode of
+          ViewMode -> readTablatureAndSaveToState originalState.tablatureText
           _ -> pure unit
     ToggleChordDozenalization -> do
-      if state.ignoreDozenalization
+      if originalState.ignoreDozenalization
       then pure unit
       else do
-        H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not state.chordDozenalizationEnabled)
-        H.modify_ _ { chordDozenalizationEnabled = not state.chordDozenalizationEnabled }
+        H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not originalState.chordDozenalizationEnabled)
+        H.modify_ _ { chordDozenalizationEnabled = not originalState.chordDozenalizationEnabled }
         -- Dozenalization affects the TablatureDocument, so we need to re-read it now
-        case state.mode of
-          ViewMode -> readTablatureAndSaveToState state.tablatureText
+        case originalState.mode of
+          ViewMode -> readTablatureAndSaveToState originalState.tablatureText
           _ -> pure unit
     CopyShortUrl -> do
       longUrl <- H.liftEffect getLocationString
@@ -353,10 +352,16 @@ handleAction action = do
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit
       focusTablatureContainer
-    ToggleAutoscroll -> if state.autoscroll then stopAutoscroll else startAutoscroll
-    IncreaseAutoscrollSpeed -> increaseAutoscrollSpeed
-    DecreaseAutoscrollSpeed -> decreaseAutoscrollSpeed
+    ToggleAutoscroll -> H.modify_ _ { autoscroll = not originalState.autoscroll }
+    IncreaseAutoscrollSpeed -> do
+      increaseAutoscrollSpeed originalState
+      H.modify_ _ { autoscroll = originalState.autoscroll }
+    DecreaseAutoscrollSpeed -> do
+      decreaseAutoscrollSpeed originalState
+      H.modify_ _ { autoscroll = originalState.autoscroll }
 
+  newState <- H.get
+  updateAutoscroll newState
   H.modify_ _ { loading = false }
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
@@ -384,37 +389,37 @@ loadScrollTop = do
     Just tablatureContainerElem -> do
       H.liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
 
-stopAutoscroll :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-stopAutoscroll = do
-  H.modify_ _ { autoscroll = false }
-  state <- H.get
+updateAutoscroll :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
+updateAutoscroll state =
   case state.autoscrollTimer of
-    Nothing -> pure unit
-    Just timerId -> do
-      H.liftEffect $ clearInterval timerId
-      H.modify_ _ { autoscrollTimer = Nothing }
+    Nothing ->
+      if state.autoscroll
+      then startAutoscroll
+      else pure unit
+    Just timerId ->
+      if state.autoscroll
+      then pure unit
+      else stopAutoscroll timerId
+  where
+  stopAutoscroll timerId = do
+    H.liftEffect $ clearInterval timerId
+    H.modify_ _ { autoscrollTimer = Nothing }
+  startAutoscroll = do
+    maybeTablatureContainerElem <- getTablatureContainerElement
+    case maybeTablatureContainerElem of
+      Nothing -> pure unit
+      Just elem -> do
+        timerId <- H.liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 1 elem
+        H.modify_ _ { autoscrollTimer = Just timerId }
 
-startAutoscroll :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-startAutoscroll = do
-  stopAutoscroll
-  H.modify_ _ { autoscroll = true }
-  maybeTablatureContainerElem <- getTablatureContainerElement
-  case maybeTablatureContainerElem of
-    Nothing -> pure unit
-    Just elem -> do
-      timerId <- H.liftEffect $ setInterval 100 $ scrollBy 0 1 elem
-      H.modify_ _ { autoscrollTimer = Just timerId }
-
-increaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-increaseAutoscrollSpeed = do
-  state <- H.get
+increaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
+increaseAutoscrollSpeed state = do
   case succ state.autoscrollSpeed of
     Nothing -> pure unit
     Just speed -> H.modify_ _ { autoscrollSpeed = speed }
 
-decreaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-decreaseAutoscrollSpeed = do
-  state <- H.get
+decreaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
+decreaseAutoscrollSpeed state = do
   case pred state.autoscrollSpeed of
     Nothing -> pure unit
     Just speed -> H.modify_ _ { autoscrollSpeed = speed }

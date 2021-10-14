@@ -42,6 +42,10 @@ instance enumAutoscrollSpeed :: Enum AutoscrollSpeed where
   succ = genericSucc
   pred = genericPred
 
+speedToIntervalMs :: AutoscrollSpeed -> Int
+speedToIntervalMs Speed1 = 100
+speedToIntervalMs Speed2 = 50
+
 type State =
   { mode :: Mode
   , loading :: Boolean
