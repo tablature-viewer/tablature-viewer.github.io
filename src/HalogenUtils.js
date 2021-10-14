@@ -7,7 +7,7 @@ exports.scrollBy = function (x) {
         elt.scrollBy({
           top: y,
           left: x,
-          behavior: 'smooth'
+          behavior: 'instant'
         });
       };
     };
