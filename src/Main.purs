@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), speedToIntervalMs)
+import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), speedToIntervalMs, speedToIntervalPixelDelta)
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -270,7 +270,7 @@ _initialState =
   , scrollTop: 0.0
   , autoscroll: false
   , autoscrollTimer: Nothing
-  , autoscrollSpeed: Speed1
+  , autoscrollSpeed: Normal
   , tabNormalizationEnabled: true
   , tabDozenalizationEnabled: false
   , chordDozenalizationEnabled: false
@@ -409,7 +409,7 @@ updateAutoscroll state =
     case maybeTablatureContainerElem of
       Nothing -> pure unit
       Just elem -> do
-        timerId <- H.liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 1 elem
+        timerId <- H.liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta state.autoscrollSpeed) elem
         H.modify_ _ { autoscrollTimer = Just timerId }
 
 increaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit

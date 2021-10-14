@@ -28,12 +28,16 @@ instance showMode :: Show Mode where
 data Mode = ViewMode | EditMode
 
 data AutoscrollSpeed
-  = Speed1
-  | Speed2
+  = Slowest
+  | Slow
+  | Normal
+  | Fast
 
 instance showAutoscrollSpeed :: Show AutoscrollSpeed where
-  show Speed1 = "(x1)"
-  show Speed2 = "(x2)"
+  show Slowest = "(0.1)"
+  show Slow = "(0.5)"
+  show Normal = "(1.0)"
+  show Fast = "(2.0)"
 
 derive instance eqAutoscrollSpeed :: Eq AutoscrollSpeed
 derive instance ordAutoscrollSpeed :: Ord AutoscrollSpeed
@@ -43,8 +47,16 @@ instance enumAutoscrollSpeed :: Enum AutoscrollSpeed where
   pred = genericPred
 
 speedToIntervalMs :: AutoscrollSpeed -> Int
-speedToIntervalMs Speed1 = 100
-speedToIntervalMs Speed2 = 50
+speedToIntervalMs Slowest = 400
+speedToIntervalMs Slow = 80
+speedToIntervalMs Normal = 40
+speedToIntervalMs Fast = 40
+
+speedToIntervalPixelDelta :: AutoscrollSpeed -> Int
+speedToIntervalPixelDelta Slowest = 1
+speedToIntervalPixelDelta Slow = 1
+speedToIntervalPixelDelta Normal = 1
+speedToIntervalPixelDelta Fast = 2
 
 type State =
   { mode :: Mode
