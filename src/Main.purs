@@ -6,6 +6,7 @@ import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, St
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
+import Data.Enum (pred, succ)
 import Data.List (List, findIndex, (!!))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.Regex (test)
@@ -274,12 +275,14 @@ _initialState =
   , chordDozenalizationEnabled: false
   , ignoreDozenalization: false }
 
+-- TODO: should we make the app reactive to changes in the app state?
+
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action = do
   H.modify_ _ { loading = true }
   state <- H.get
   stopAutoscroll
-  -- H.liftAff $ delay $ Milliseconds 1.0 -- TODO: this shouldn't be necessary to force rerender
+  H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
   case action of
     Initialize -> do
       maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
@@ -389,10 +392,18 @@ startAutoscroll = do
   H.modify_ _ { autoscroll = true }
 
 increaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-increaseAutoscrollSpeed = pure unit
+increaseAutoscrollSpeed = do
+  state <- H.get
+  case succ state.autoscrollSpeed of
+    Nothing -> pure unit
+    Just speed -> H.modify_ _ { autoscrollSpeed = speed }
 
 decreaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-decreaseAutoscrollSpeed = pure unit
+decreaseAutoscrollSpeed = do
+  state <- H.get
+  case pred state.autoscrollSpeed of
+    Nothing -> pure unit
+    Just speed -> H.modify_ _ { autoscrollSpeed = speed }
 
 focusTablatureContainer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 focusTablatureContainer = do
