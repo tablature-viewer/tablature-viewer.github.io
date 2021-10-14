@@ -58,8 +58,8 @@ This will turn off dozenalization for that tab, regardless of your settings.
 
 ## Feature roadmap
 - [Dynamic bookmarks support](https://github.com/DaniloNovakovic/chrome-dynamic-bookmarks/issues/63)
-- Autoscroll
 - Chord and tab notation normalization
+- Keyboard shortcuts
 - Improve parsing
 - Improve normalization
 - Chord and tab transposition

@@ -4,6 +4,11 @@ import Prelude
 
 import Data.List (List)
 import Data.Maybe (Maybe)
+import Effect.Timer (IntervalId)
+
+import Data.Enum (class Enum)
+import Data.Enum.Generic (genericPred, genericSucc)
+import Data.Generic.Rep (class Generic)
 
 data Action
   = Initialize 
@@ -12,12 +17,46 @@ data Action
   | ToggleTabDozenalization 
   | ToggleChordDozenalization 
   | CopyShortUrl
+  | ToggleAutoscroll
+  | IncreaseAutoscrollSpeed
+  | DecreaseAutoscrollSpeed
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"
   show EditMode = "Edit Mode"
 
 data Mode = ViewMode | EditMode
+
+data AutoscrollSpeed
+  = Slowest
+  | Slow
+  | Normal
+  | Fast
+
+instance showAutoscrollSpeed :: Show AutoscrollSpeed where
+  show Slowest = "(0.1)"
+  show Slow = "(0.5)"
+  show Normal = "(1.0)"
+  show Fast = "(2.0)"
+
+derive instance eqAutoscrollSpeed :: Eq AutoscrollSpeed
+derive instance ordAutoscrollSpeed :: Ord AutoscrollSpeed
+derive instance genericAutoscrollSpeed :: Generic AutoscrollSpeed _
+instance enumAutoscrollSpeed :: Enum AutoscrollSpeed where
+  succ = genericSucc
+  pred = genericPred
+
+speedToIntervalMs :: AutoscrollSpeed -> Int
+speedToIntervalMs Slowest = 400
+speedToIntervalMs Slow = 80
+speedToIntervalMs Normal = 40
+speedToIntervalMs Fast = 40
+
+speedToIntervalPixelDelta :: AutoscrollSpeed -> Int
+speedToIntervalPixelDelta Slowest = 1
+speedToIntervalPixelDelta Slow = 1
+speedToIntervalPixelDelta Normal = 1
+speedToIntervalPixelDelta Fast = 2
 
 type State =
   { mode :: Mode
@@ -27,6 +66,9 @@ type State =
   , tablatureDocument :: Maybe TablatureDocument
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
+  , autoscrollTimer :: Maybe IntervalId
+  , autoscrollSpeed :: AutoscrollSpeed
+  , autoscroll :: Boolean
   , tabNormalizationEnabled :: Boolean
   , tabDozenalizationEnabled :: Boolean
   , chordDozenalizationEnabled :: Boolean
