@@ -3,8 +3,10 @@ module HalogenUtils where
 import Prelude
 
 import Data.String (Pattern(..), split)
+import Effect (Effect)
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
+import Web.HTML (HTMLElement)
 
 classString :: forall t228 t229.  String -> HH.IProp ( class :: String | t228) t229
 classString string = HP.classes $ split (Pattern " ") string <#> \s -> HH.ClassName s
@@ -26,3 +28,5 @@ alternativeHtml longHtml shortAlt =
 
 renderLineEnding :: forall w i. HH.HTML w i
 renderLineEnding = HH.text "\n"
+
+foreign import scrollBy :: Int -> Int -> HTMLElement -> Effect Unit

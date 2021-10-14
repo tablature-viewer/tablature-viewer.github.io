@@ -17,13 +17,14 @@ import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect)
 import Effect.Console as Console
+import Effect.Timer (clearInterval, setInterval)
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
-import HalogenUtils (classString, fontAwesome, optionalText)
+import HalogenUtils (classString, fontAwesome, optionalText, scrollBy)
 import LocalStorage (getLocalStorageBoolean, setLocalStorage)
 import LocationString (getLocationString, getQueryParam)
 import TablatureParser (tryParseTablature)
@@ -386,10 +387,23 @@ loadScrollTop = do
 stopAutoscroll :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 stopAutoscroll = do
   H.modify_ _ { autoscroll = false }
+  state <- H.get
+  case state.autoscrollTimer of
+    Nothing -> pure unit
+    Just timerId -> do
+      H.liftEffect $ clearInterval timerId
+      H.modify_ _ { autoscrollTimer = Nothing }
 
 startAutoscroll :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 startAutoscroll = do
+  stopAutoscroll
   H.modify_ _ { autoscroll = true }
+  maybeTablatureContainerElem <- getTablatureContainerElement
+  case maybeTablatureContainerElem of
+    Nothing -> pure unit
+    Just elem -> do
+      timerId <- H.liftEffect $ setInterval 100 $ scrollBy 0 1 elem
+      H.modify_ _ { autoscrollTimer = Just timerId }
 
 increaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 increaseAutoscrollSpeed = do

@@ -57,3 +57,4 @@ This will turn off dozenalization for that tab, regardless of your settings.
 - Autoscroll
 - Chord dozenalization (i.e. CM13 rendered as CM11)
 - Chord and tab notation normalization
+- Keyboard shortcuts
