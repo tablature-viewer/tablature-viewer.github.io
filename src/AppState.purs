@@ -18,6 +18,8 @@ data Action
   | ToggleChordDozenalization 
   | CopyShortUrl
   | ToggleAutoscroll
+  | IncreaseAutoscrollSpeed
+  | DecreaseAutoscrollSpeed
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"
@@ -30,8 +32,8 @@ data AutoscrollSpeed
   | Speed2
 
 instance showAutoscrollSpeed :: Show AutoscrollSpeed where
-  show Speed1 = "Speed1"
-  show Speed2 = "Speed2"
+  show Speed1 = "(x1)"
+  show Speed2 = "(x2)"
 
 derive instance eqAutoscrollSpeed :: Eq AutoscrollSpeed
 derive instance ordAutoscrollSpeed :: Ord AutoscrollSpeed

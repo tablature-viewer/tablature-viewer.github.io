@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), Mode(..), RenderingOptions, AutoscrollSpeed(..), State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
+import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..))
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -160,13 +160,15 @@ render state = HH.div_
     [ HH.div
       [ classString "dropdown-container" ]
       [ HH.button
-        [ HP.title "Settings" ]
+        [ HP.title "Settings"
+        , classString "dropdown-header" ]
         [ fontAwesome "fa-wrench"
         , optionalText " Settings"
         ]
       , HH.div [ classString "dropdown-menu" ]
         [ HH.button
           [ HP.title "Toggle normalization for tabs on or off"
+          , classString "dropdown-item"
           , HE.onClick \_ -> ToggleTabNormalization
           ]
           [ if state.tabNormalizationEnabled
@@ -176,6 +178,7 @@ render state = HH.div_
           ]
         , HH.button
           [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
+          , classString "dropdown-item"
           , HE.onClick \_ -> ToggleTabDozenalization
           , classString $ if state.ignoreDozenalization then "disabled" else ""
           ]
@@ -187,12 +190,29 @@ render state = HH.div_
         , HH.button
           [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
           , HE.onClick \_ -> ToggleChordDozenalization
+          , classString "dropdown-item"
           , classString $ if state.ignoreDozenalization then "disabled" else ""
           ]
           [ if state.chordDozenalizationEnabled && not state.ignoreDozenalization
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
           , HH.text " Dozenalize chords"
+          ]
+        , HH.div
+          [ HP.title "Change the autoscroll speed"
+          , classString "dropdown-item"
+          ]
+          [ HH.button
+            [ HP.title "Decrease the autoscroll speed"
+            , HE.onClick \_ -> DecreaseAutoscrollSpeed
+            ]
+            [ fontAwesome "fa-caret-left" ]
+          , HH.button
+            [ HP.title "Increase the autoscroll speed"
+            , HE.onClick \_ -> IncreaseAutoscrollSpeed
+            ]
+            [ fontAwesome "fa-caret-right" ]
+          , HH.span_ [ HH.text $ " Autoscroll speed " <> show state.autoscrollSpeed ]
           ]
         ]
       ]
@@ -257,10 +277,11 @@ _initialState =
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action = do
   H.modify_ _ { loading = true }
-  H.liftAff $ delay $ Milliseconds 1.0 -- TODO: this shouldn't be necessary to force rerender
+  state <- H.get
+  stopAutoscroll
+  -- H.liftAff $ delay $ Milliseconds 1.0 -- TODO: this shouldn't be necessary to force rerender
   case action of
     Initialize -> do
-      state <- H.get
       maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
       tabNormalizationEnabled <- pure $ fromMaybe state.tabNormalizationEnabled maybeTabNormalizationEnabled
       maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
@@ -284,7 +305,6 @@ handleAction action = do
       focusTablatureContainer
     ToggleEditMode -> do
       saveScrollTop
-      state <- H.get
       case state.mode of
         EditMode -> do
           saveTablature
@@ -296,7 +316,6 @@ handleAction action = do
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
     ToggleTabNormalization -> do
-      state <- H.get
       H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not state.tabNormalizationEnabled)
       H.modify_ _ { tabNormalizationEnabled = not state.tabNormalizationEnabled }
       -- Normalization affects the TablatureDocument, so we need to re-read it now
@@ -304,7 +323,6 @@ handleAction action = do
         ViewMode -> readTablatureAndSaveToState state.tablatureText
         _ -> pure unit
     ToggleTabDozenalization -> do
-      state <- H.get
       if state.ignoreDozenalization
       then pure unit
       else do
@@ -315,7 +333,6 @@ handleAction action = do
           ViewMode -> readTablatureAndSaveToState state.tablatureText
           _ -> pure unit
     ToggleChordDozenalization -> do
-      state <- H.get
       if state.ignoreDozenalization
       then pure unit
       else do
@@ -332,12 +349,11 @@ handleAction action = do
         Just shortUrl -> copyToClipboard shortUrl
         Nothing -> pure unit
       focusTablatureContainer
-    ToggleAutoscroll -> do
-      state <- H.get
-      H.modify_ _ { autoscroll = not state.autoscroll }
+    ToggleAutoscroll -> if state.autoscroll then stopAutoscroll else startAutoscroll
+    IncreaseAutoscrollSpeed -> increaseAutoscrollSpeed
+    DecreaseAutoscrollSpeed -> decreaseAutoscrollSpeed
 
   H.modify_ _ { loading = false }
-  pure unit
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
@@ -363,6 +379,20 @@ loadScrollTop = do
     Nothing -> H.liftEffect $ Console.error "Could not find tablatureContainer"
     Just tablatureContainerElem -> do
       H.liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
+
+stopAutoscroll :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+stopAutoscroll = do
+  H.modify_ _ { autoscroll = false }
+
+startAutoscroll :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+startAutoscroll = do
+  H.modify_ _ { autoscroll = true }
+
+increaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+increaseAutoscrollSpeed = pure unit
+
+decreaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+decreaseAutoscrollSpeed = pure unit
 
 focusTablatureContainer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 focusTablatureContainer = do
