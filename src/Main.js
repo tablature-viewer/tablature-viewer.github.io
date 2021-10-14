@@ -18,6 +18,7 @@ exports.executeJavascriptHacks = function () {
     return Math.max(document.documentElement.clientHeight, window.innerHeight || 0) - 1;
   }
 
+  // Set browser color for mobile devices
   const styles = getComputedStyle(document.documentElement);
   const bgColor = styles.getPropertyValue('--header-bg');
   var m = document.createElement('meta');

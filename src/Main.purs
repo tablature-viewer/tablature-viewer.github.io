@@ -405,13 +405,15 @@ updateAutoscroll state =
     H.liftEffect $ clearInterval timerId
     H.modify_ _ { autoscrollTimer = Nothing }
   startAutoscroll = do
-    maybeTablatureContainerElem <- getTablatureContainerElement
+    maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
     case maybeTablatureContainerElem of
       Nothing -> pure unit
       Just elem -> do
+        -- TODO: compensate scrollspeed for fontsize differences between media
         timerId <- H.liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta state.autoscrollSpeed) elem
         H.modify_ _ { autoscrollTimer = Just timerId }
 
+-- TODO: store scrollspeed in url parameter
 increaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
 increaseAutoscrollSpeed state = do
   case succ state.autoscrollSpeed of
