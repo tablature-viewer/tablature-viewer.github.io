@@ -208,12 +208,12 @@ render state = HH.div_
             [ HP.title "Decrease the autoscroll speed"
             , HE.onClick \_ -> DecreaseAutoscrollSpeed
             ]
-            [ fontAwesome "fa-caret-left" ]
+            [ fontAwesome "fa-backward" ]
           , HH.button
             [ HP.title "Increase the autoscroll speed"
             , HE.onClick \_ -> IncreaseAutoscrollSpeed
             ]
-            [ fontAwesome "fa-caret-right" ]
+            [ fontAwesome "fa-forward" ]
           , HH.span_ [ HH.text $ " Autoscroll speed " <> show state.autoscrollSpeed ]
           ]
         ]
