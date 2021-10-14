@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), speedToIntervalMs, speedToIntervalPixelDelta)
+import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), Transposition(..), predTransposition, speedToIntervalMs, speedToIntervalPixelDelta, succTransposition)
 import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -201,6 +201,22 @@ render state = HH.div_
           , HH.text " Dozenalize chords"
           ]
         , HH.div
+          [ HP.title "Transpose the tablature"
+          , classString "dropdown-item"
+          ]
+          [ HH.button
+            [ HP.title "Transpose down"
+            , HE.onClick \_ -> DecreaseTransposition
+            ]
+            [ fontAwesome "fa-caret-down" ]
+          , HH.button
+            [ HP.title "Transpose up"
+            , HE.onClick \_ -> IncreaseTransposition
+            ]
+            [ fontAwesome "fa-caret-up" ]
+          , HH.span_ [ HH.text $ " Transpose " <> show state.transposition ]
+          ]
+        , HH.div
           [ HP.title "Change the autoscroll speed"
           , classString "dropdown-item"
           ]
@@ -274,7 +290,8 @@ _initialState =
   , tabNormalizationEnabled: true
   , tabDozenalizationEnabled: false
   , chordDozenalizationEnabled: false
-  , ignoreDozenalization: false }
+  , ignoreDozenalization: false
+  , transposition: Transposition 0 }
 
 handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action = do
@@ -359,6 +376,8 @@ handleAction action = do
     DecreaseAutoscrollSpeed -> do
       decreaseAutoscrollSpeed originalState
       H.modify_ _ { autoscroll = originalState.autoscroll }
+    IncreaseTransposition -> H.modify_ _ { transposition = succTransposition originalState.transposition }
+    DecreaseTransposition -> H.modify_ _ { transposition = predTransposition originalState.transposition }
 
   newState <- H.get
   updateAutoscroll newState

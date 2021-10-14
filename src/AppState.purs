@@ -2,13 +2,12 @@ module AppState where
 
 import Prelude
 
-import Data.List (List)
-import Data.Maybe (Maybe)
-import Effect.Timer (IntervalId)
-
 import Data.Enum (class Enum)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Generic.Rep (class Generic)
+import Data.List (List)
+import Data.Maybe (Maybe)
+import Effect.Timer (IntervalId)
 
 data Action
   = Initialize 
@@ -20,6 +19,8 @@ data Action
   | ToggleAutoscroll
   | IncreaseAutoscrollSpeed
   | DecreaseAutoscrollSpeed
+  | IncreaseTransposition
+  | DecreaseTransposition
 
 instance showMode :: Show Mode where
   show ViewMode = "View Mode"
@@ -66,6 +67,16 @@ speedToIntervalPixelDelta Normal = 1
 speedToIntervalPixelDelta Fast = 1
 speedToIntervalPixelDelta Fastest = 2
 
+newtype Transposition = Transposition Int
+
+instance transpositionShow :: Show Transposition where
+  show (Transposition i) = if i >= 0 then "+" <> show i else show i
+
+succTransposition :: Transposition -> Transposition
+succTransposition (Transposition i) = Transposition $ i+1
+predTransposition :: Transposition -> Transposition
+predTransposition (Transposition i) = Transposition $ i-1
+
 type State =
   { mode :: Mode
   , loading :: Boolean
@@ -82,6 +93,7 @@ type State =
   , chordDozenalizationEnabled :: Boolean
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
   , ignoreDozenalization :: Boolean
+  , transposition :: Transposition
   }
 
 type RenderingOptions =
