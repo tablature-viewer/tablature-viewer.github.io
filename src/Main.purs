@@ -3,7 +3,7 @@ module Main where
 import Prelude
 
 import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), Transposition(..), predTransposition, speedToIntervalMs, speedToIntervalPixelDelta, succTransposition)
-import AppUrl (getTablatureTextFromUrl, redirectToUrlInFragment, saveTablatureToUrl)
+import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, redirectToUrlInFragment, saveTablatureToUrl, setAppQueryString)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.Enum (pred, succ)
@@ -309,7 +309,9 @@ handleAction action = do
       tabDozenalizationEnabled <- pure $ fromMaybe originalState.tabDozenalizationEnabled maybeTabDozenalizationEnabled
       maybeChordDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyChordDozenalizationEnabled
       chordDozenalizationEnabled <- pure $ fromMaybe originalState.chordDozenalizationEnabled maybeChordDozenalizationEnabled
-      H.put $ _initialState { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled }
+      maybeTransposition <- H.liftEffect $ getTranspositionFromUrl
+      transposition <- pure $ fromMaybe originalState.transposition maybeTransposition
+      H.put $ _initialState { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled, transposition = transposition}
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       case maybeTablatureText of
         Just tablatureText -> do
@@ -374,10 +376,14 @@ handleAction action = do
       H.modify_ _ { autoscroll = originalState.autoscroll }
     IncreaseTransposition -> do
       H.modify_ _ { transposition = succTransposition originalState.transposition }
-      refreshTablatureState originalState
+      state <- H.get
+      refreshTablatureState state
+      updateQueryString state
     DecreaseTransposition -> do
       H.modify_ _ { transposition = predTransposition originalState.transposition }
-      refreshTablatureState originalState
+      state <- H.get
+      refreshTablatureState state
+      updateQueryString state
 
   newState <- H.get
   updateAutoscroll newState
@@ -388,6 +394,9 @@ refreshTablatureState state =
   case state.mode of
     ViewMode -> readTablatureAndSaveToState state.tablatureText
     _ -> pure unit
+
+updateQueryString :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
+updateQueryString state = H.liftEffect $ setAppQueryString state
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
