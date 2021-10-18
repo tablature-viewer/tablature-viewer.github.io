@@ -3,13 +3,15 @@ module TablatureRewriter where
 import Prelude
 
 import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..))
-import Data.Ord (abs)
+import Data.Char (fromCharCode, toCharCode)
 import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Ord (abs)
 import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
-import Data.String.CodeUnits (charAt, length)
+import Data.String.CodePoints (stripPrefix)
+import Data.String.CodeUnits (charAt, length, singleton)
 import Data.String.Utils (repeat, filter)
 import Data.Tuple (Tuple(..))
 import Utils (foreach)
@@ -28,6 +30,7 @@ rewriteTablatureDocument renderingOptions =
 
 type ChordMapping = Chord -> Chord
 
+-- TODO: compensate for negative and positive space
 applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
 applyChordMapping chordMapping doc = map rewriteLine doc
   where
@@ -47,19 +50,33 @@ applyChordMapping chordMapping doc = map rewriteLine doc
 transposeChords :: TablatureDocumentRewriter
 transposeChords renderingOptions = applyChordMapping $ getChordMapping renderingOptions.transposition
   where
-  getChordMapping transposition = \chord -> chord { root { mod = chord.root.mod <> suffix } }
+  getChordMapping transposition = 
+    case transposition of
+      Transposition 0 -> identity
+      Transposition t | t > 0 -> (replaceSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeRoot
+      Transposition t ->  (replaceSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeRoot
     where
-    suffix = fromMaybe "" $ case transposition of
-      Transposition 0 -> Just ""
-      Transposition t | t > 0 -> repeat t "#"
-      Transposition t -> repeat (abs t) "b"
+    replaceSuffix suffix = \chord -> chord { root { mod = chord.root.mod <> suffix } }
+    canonicalizeRoot = \chord -> chord { root = canonicalizeNote chord.root }
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
-canonicalizeNote note = note { mod = canon note.mod }
+canonicalizeNote note = note { mod = rewriteMod note.mod } # rewriteNote
   where
-  -- TODO: combine with letter
-  canon = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
+  -- TODO: repeat until no changes anymore
+  rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
+  rewriteNote note@{ letter, mod } = 
+  -- TODO: support down as well
+    case stripPrefix (Pattern "##") mod of
+      Nothing -> note
+      Just newMod -> note { letter = increaseLetter letter, mod = newMod }
+  increaseLetter :: String -> String
+  increaseLetter letter = fromMaybe "" $ do
+    c <- charAt 0 letter
+    i <- Just $ toCharCode c
+    -- TODO: wrap around the alphabet
+    newC <- fromCharCode (i+1)
+    Just $ singleton newC
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
