@@ -72,6 +72,14 @@ newtype Transposition = Transposition Int
 instance transpositionShow :: Show Transposition where
   show (Transposition i) = if i >= 0 then "+" <> show i else show i
 
+instance transpositionEq :: Eq Transposition where
+  eq (Transposition i) (Transposition j) = eq i j
+
+instance transpositionOrd :: Ord Transposition where
+  compare (Transposition i) (Transposition j) = compare i j
+
+identityTransposition :: Transposition
+identityTransposition = Transposition 0
 succTransposition :: Transposition -> Transposition
 succTransposition (Transposition i) = Transposition $ i+1
 predTransposition :: Transposition -> Transposition
@@ -100,6 +108,7 @@ type RenderingOptions =
   { dozenalizeTabs :: Boolean
   , dozenalizeChords :: Boolean
   , normalizeTabs :: Boolean
+  , transposition :: Transposition
   }
 
 type TablatureDocument = List TablatureDocumentLine

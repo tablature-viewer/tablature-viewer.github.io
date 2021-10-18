@@ -2,12 +2,13 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), ChordMod(..))
+import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..))
+import Data.Ord (abs)
 import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String (Pattern(..), Replacement(..), replaceAll)
+import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat, filter)
 import Data.Tuple (Tuple(..))
@@ -22,7 +23,43 @@ rewriteTablatureDocument renderingOptions =
   fixEmDashes renderingOptions >>>
   addMissingClosingPipe renderingOptions >>>
   dozenalizeChords renderingOptions >>>
-  dozenalizeFrets renderingOptions
+  dozenalizeFrets renderingOptions >>>
+  transposeChords renderingOptions
+
+type ChordMapping = Chord -> Chord
+
+applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
+applyChordMapping chordMapping doc = map rewriteLine doc
+  where
+  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
+  rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
+  rewriteLine x = x
+
+  rewriteChordLineElem :: ChordLineElem -> ChordLineElem
+  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ chordMapping chord
+  rewriteChordLineElem x = x
+
+  rewriteTextLineElem :: TextLineElem -> TextLineElem
+  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ chordMapping chord
+  rewriteTextLineElem x = x
+
+transposeChords :: TablatureDocumentRewriter
+transposeChords renderingOptions = applyChordMapping $ getChordMapping renderingOptions.transposition
+  where
+  getChordMapping transposition = \chord -> chord { root { mod = chord.root.mod <> suffix } }
+    where
+    suffix = fromMaybe "" $ case transposition of
+      Transposition 0 -> Just ""
+      Transposition t | t > 0 -> repeat t "#"
+      Transposition t -> repeat (abs t) "b"
+
+-- Rewrite the notes such that there is at most one # or b
+canonicalizeNote :: Note -> Note
+canonicalizeNote note = note { mod = canon note.mod }
+  where
+  -- TODO: combine with letter
+  canon = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
@@ -54,21 +91,8 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTa
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
 
 dozenalizeChords :: TablatureDocumentRewriter
-dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else map rewriteLine doc
+dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else applyChordMapping rewriteChord doc
   where
-  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
-  rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
-  rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
-  rewriteLine x = x
-
-  rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ rewriteChord chord
-  rewriteChordLineElem x = x
-
-  rewriteTextLineElem :: TextLineElem -> TextLineElem
-  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ rewriteChord chord
-  rewriteTextLineElem x = x
-
   rewriteChord :: Chord -> Chord
   rewriteChord chord = chord { type = newType, mods = newMods, bass = newBass }
     where

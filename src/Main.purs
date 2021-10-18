@@ -87,7 +87,8 @@ getRenderingOptions :: State -> RenderingOptions
 getRenderingOptions state =
   { dozenalizeTabs: state.tabDozenalizationEnabled && not state.ignoreDozenalization
   , dozenalizeChords: state.chordDozenalizationEnabled && not state.ignoreDozenalization
-  , normalizeTabs: state.tabNormalizationEnabled }
+  , normalizeTabs: state.tabNormalizationEnabled
+  , transposition: state.transposition }
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -312,7 +313,8 @@ handleAction action = do
       maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
       case maybeTablatureText of
         Just tablatureText -> do
-          case readTablature tablatureText { dozenalizeTabs: tabDozenalizationEnabled, dozenalizeChords: chordDozenalizationEnabled, normalizeTabs: tabNormalizationEnabled } of
+          state <- H.get
+          case readTablature tablatureText $ getRenderingOptions state of
             Just tablatureDocument -> do
               H.modify_ _ { mode = ViewMode, tablatureText = tablatureText, tablatureTitle = tablatureTitle, tablatureDocument = Just tablatureDocument, ignoreDozenalization = ignoreDozenalization }
               H.liftEffect $ setDocumentTitle tablatureTitle
@@ -339,9 +341,7 @@ handleAction action = do
       H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not originalState.tabNormalizationEnabled)
       H.modify_ _ { tabNormalizationEnabled = not originalState.tabNormalizationEnabled }
       -- Normalization affects the TablatureDocument, so we need to re-read it now
-      case originalState.mode of
-        ViewMode -> readTablatureAndSaveToState originalState.tablatureText
-        _ -> pure unit
+      refreshTablatureState originalState
     ToggleTabDozenalization -> do
       if originalState.ignoreDozenalization
       then pure unit
@@ -349,9 +349,7 @@ handleAction action = do
         H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not originalState.tabDozenalizationEnabled)
         H.modify_ _ { tabDozenalizationEnabled = not originalState.tabDozenalizationEnabled }
         -- Dozenalization affects the TablatureDocument, so we need to re-read it now
-        case originalState.mode of
-          ViewMode -> readTablatureAndSaveToState originalState.tablatureText
-          _ -> pure unit
+        refreshTablatureState originalState
     ToggleChordDozenalization -> do
       if originalState.ignoreDozenalization
       then pure unit
@@ -359,9 +357,7 @@ handleAction action = do
         H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not originalState.chordDozenalizationEnabled)
         H.modify_ _ { chordDozenalizationEnabled = not originalState.chordDozenalizationEnabled }
         -- Dozenalization affects the TablatureDocument, so we need to re-read it now
-        case originalState.mode of
-          ViewMode -> readTablatureAndSaveToState originalState.tablatureText
-          _ -> pure unit
+        refreshTablatureState originalState
     CopyShortUrl -> do
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
@@ -376,12 +372,22 @@ handleAction action = do
     DecreaseAutoscrollSpeed -> do
       decreaseAutoscrollSpeed originalState
       H.modify_ _ { autoscroll = originalState.autoscroll }
-    IncreaseTransposition -> H.modify_ _ { transposition = succTransposition originalState.transposition }
-    DecreaseTransposition -> H.modify_ _ { transposition = predTransposition originalState.transposition }
+    IncreaseTransposition -> do
+      H.modify_ _ { transposition = succTransposition originalState.transposition }
+      refreshTablatureState originalState
+    DecreaseTransposition -> do
+      H.modify_ _ { transposition = predTransposition originalState.transposition }
+      refreshTablatureState originalState
 
   newState <- H.get
   updateAutoscroll newState
   H.modify_ _ { loading = false }
+
+refreshTablatureState :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
+refreshTablatureState state =
+  case state.mode of
+    ViewMode -> readTablatureAndSaveToState state.tablatureText
+    _ -> pure unit
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
