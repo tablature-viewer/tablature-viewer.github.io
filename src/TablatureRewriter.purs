@@ -107,13 +107,16 @@ dozenalizeChords :: TablatureDocumentRewriter
 dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else applyChordMapping rewriteChord doc
   where
   rewriteChord :: Chord -> Chord
-  rewriteChord chord = chord { type = newType, mods = newMods, bass = newBass }
+  rewriteChord chord = chord { type = newType, mods = newMods, spaceSuffix = chord.spaceSuffix + shrunkChars }
     where
     -- compensate for each 11 converted to ↋ by adding spaces after the bass mod
+    -- TODO: clean up
     newType = dozenalize chord.type
     newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods
-    shrunkChars = (newType <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) newMods)) # filter (_ == "↋") # length
-    newBass = chord.bass <#> \bass -> bass { mod = dozenalize bass.mod <> fromMaybe "" (repeat shrunkChars " ") }
+    shrunkChars = (newStringWithAllTheNumbers # countShrunkChars) - (oldStringWithAllTheNumbers # countShrunkChars)
+    oldStringWithAllTheNumbers = (chord.type <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) chord.mods))
+    newStringWithAllTheNumbers = (newType <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) newMods))
+    countShrunkChars s = s # filter (\c -> c == "↋" || c == "↊") # length
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 

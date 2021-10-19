@@ -60,6 +60,7 @@ renderTablatureDocument doc _ = map renderLine doc
         , Just $ HH.sup_ [ HH.text chordMods ]
         , chord.bass <#> \{ letter } -> HH.text $ "/" <> show letter
         , chord.bass <#> \{ mod } -> HH.sub_ [ HH.text mod ]
+        , Just $ HH.text $ fromMaybe "" $ repeat chord.spaceSuffix " "
         , Just $ HH.sub_ [ createFontSizeCompensation chord.root.mod ]
         , Just $ HH.sup_ [ createFontSizeCompensation chordMods ]
         , chord.bass <#> \{ mod } -> HH.sub_ [ createFontSizeCompensation mod ]

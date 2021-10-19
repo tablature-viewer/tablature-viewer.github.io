@@ -139,6 +139,8 @@ type Chord =
   , type :: String
   , mods :: List ChordMod
   , bass :: Maybe Note
+  -- The number of spaces after a chord. This is part of the chord so that it can be expanded and shrunk easily when rewriting chords
+  , spaceSuffix :: Int
   }
 
 newtype ChordMod = ChordMod

@@ -303,6 +303,7 @@ handleAction action = do
   H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
   case action of
     Initialize -> do
+      -- TODO refactor this
       maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
       tabNormalizationEnabled <- pure $ fromMaybe originalState.tabNormalizationEnabled maybeTabNormalizationEnabled
       maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
@@ -383,7 +384,7 @@ handleAction action = do
       H.modify_ _ { transposition = predTransposition originalState.transposition }
       state <- H.get
       refreshTablatureState state
-      updateQueryString state
+      updateQueryString state -- TODO: this should be done generically
 
   newState <- H.get
   updateAutoscroll newState

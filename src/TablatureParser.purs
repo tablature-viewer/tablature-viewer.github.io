@@ -8,7 +8,7 @@ import Data.Array (elem)
 import Data.Either (Either(..))
 import Data.List (List(..), fromFoldable, (:))
 import Data.Maybe (Maybe(..), fromJust)
-import Data.String (drop, singleton)
+import Data.String (drop, length, singleton)
 import Data.String.CodePoints (toCodePointArray)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
@@ -68,11 +68,13 @@ parseChord = do
   mods <- parseChordMods
   maybeBass <- optionMaybe parseChordBass
   assertWordBoundary
+  spaceSuffix <- parseSpaces
   pure $
     { root: { letter: unsafePartial (fromJust rootLetter), mod: rootMod }
     , type: chordType
     , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
     , bass: maybeBass
+    , spaceSuffix: length spaceSuffix
     }
   where
   parseRootLetter = regex """(?<!\S)[A-G]""" <#> fromString
@@ -95,11 +97,14 @@ parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+| +)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = safeManyTill (parseSpaces <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
+parseTextLine = safeManyTill (parseTextLineSpace <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
   <#> \result -> TextLine result
 
-parseSpaces :: Parser TextLineElem
-parseSpaces = regex """[^\S\n\r]+""" <#> \result -> Spaces result
+parseTextLineSpace :: Parser TextLineElem
+parseTextLineSpace = regex """[^\S\n\r]+""" <#> \result -> Spaces result
+
+parseSpaces :: Parser String
+parseSpaces = regex """[ ]*"""
 
 parseWord :: Parser TextLineElem
 parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
