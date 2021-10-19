@@ -2,7 +2,7 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), getPlainChordString)
+import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), getPlainChordString, Spaced)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -28,18 +28,19 @@ rewriteTablatureDocument renderingOptions =
   transposeChords renderingOptions
 
 type ChordMapping = Chord -> Chord
+type SpacedChordMapping = (Spaced Chord) -> (Spaced Chord)
 
-adjustSpaceSuffix :: ChordMapping -> ChordMapping
-adjustSpaceSuffix mapping chord = newChord { spaceSuffix = newSuffix }
+mapSpaceSuffix :: ChordMapping -> SpacedChordMapping
+mapSpaceSuffix mapping spacedChord = { elem: newChord, spaceSuffix: newSuffix }
   where
-  newChord = mapping chord
-  newSuffix = chord.spaceSuffix + length (getPlainChordString chord) - length (getPlainChordString newChord)
+  newChord = mapping spacedChord.elem
+  newSuffix = spacedChord.spaceSuffix + length (getPlainChordString spacedChord.elem) - length (getPlainChordString newChord)
 
 -- compensates for negative and positive space
 applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
 applyChordMapping chordMapping doc = map rewriteLine doc
   where
-  mapping = adjustSpaceSuffix chordMapping
+  mapping = mapSpaceSuffix chordMapping
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
   rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)

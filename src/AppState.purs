@@ -117,15 +117,16 @@ data HeaderLineElem
 
 data TablatureLineElem
   = Prefix String
-  | Suffix String
+  | Tuning (Spaced Note)
   | Timeline String
   | Fret String
   | Special String
+  | Suffix String
 
 data TextLineElem
   = Text String
   | Spaces String
-  | TextLineChord Chord
+  | TextLineChord (Spaced Chord)
   | ChordLegend (List ChordLegendElem)
 
 data ChordLegendElem
@@ -133,17 +134,18 @@ data ChordLegendElem
   | ChordSpecial String
 
 data ChordLineElem
-  = ChordLineChord Chord
+  = ChordLineChord (Spaced Chord)
   | ChordComment String
+
+-- The number of spaces after an expression.
+-- E.g. this is part of a chord so that it can be expanded and shrunk easily when rewriting chords without losing the original alignment
+type Spaced a = { elem :: a, spaceSuffix :: Int }
 
 type Chord =
   { root :: Note
   , type :: String
   , mods :: List ChordMod
   , bass :: Maybe Note
-  -- The number of spaces after a chord. This is part of the chord so that it can be expanded and shrunk easily when rewriting chords
-  -- TODO: lift this member into a wrapper type
-  , spaceSuffix :: Int
   }
 
 getPlainChordString :: Chord -> String
@@ -160,11 +162,6 @@ newtype ChordMod = ChordMod
   { pre :: String
   , interval :: String
   , post :: String
-  }
-
-type Foo =
-  { a :: String
-  , b :: String
   }
 
 type Note =
@@ -251,10 +248,11 @@ instance showLine :: Show TablatureDocumentLine where
 
 instance showTablatureLineElem :: Show TablatureLineElem where
   show (Prefix string) = string
-  show (Suffix string) = string
+  show (Tuning spacedNote) = show spacedNote
   show (Timeline string) = string
   show (Fret string) = string
   show (Special string) = string
+  show (Suffix string) = string
 
 instance showTextLineElem :: Show TextLineElem where
   show (Text string) = string

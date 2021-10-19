@@ -2,7 +2,7 @@ module TablatureRenderer where
 
 import Prelude
 
-import AppState (ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), Chord)
+import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), RenderingOptions, Spaced, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), Note)
 import Data.Array (fromFoldable)
 import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
@@ -39,6 +39,7 @@ renderTablatureDocument doc _ = map renderLine doc
   renderTextLineElem (TextLineChord chord) = renderChord chord
   renderTextLineElem (ChordLegend legend) = HH.span_ $ fromFoldable $ map renderChordLegendElem legend
   renderTablatureLineElem (Prefix string) = renderWithClass string "tabPrefix"
+  renderTablatureLineElem (Tuning note) = renderTuning note
   renderTablatureLineElem (Suffix string) = renderWithClass string "tabSuffix"
   renderTablatureLineElem (Special string) = renderWithClass string "tabSpecial"
   renderTablatureLineElem (Timeline string) = renderWithClass string "tabTimeline"
@@ -50,23 +51,26 @@ renderTablatureDocument doc _ = map renderLine doc
   renderChordLegendElem :: ChordLegendElem -> HH.HTML w i
   renderChordLegendElem (ChordFret string) = renderWithClass string "tabFret"
   renderChordLegendElem (ChordSpecial string) = renderWithClass string "tabSpecial"
-  renderChord :: Chord -> HH.HTML w i
+  renderTuning :: (Spaced Note) -> HH.HTML w i
+  renderTuning note =
+    HH.span [ classString "tabChord" ] [ HH.text "Hello world" ]
+  renderChord :: (Spaced Chord) -> HH.HTML w i
   renderChord chord =
     HH.span [ classString "tabChord" ] $
       filterMap identity
-        [ Just $ HH.text $ show chord.root.letter
-        , Just $ HH.sub_ [ HH.text chord.root.mod ]
-        , Just $ HH.text chord.type
+        [ Just $ HH.text $ show chord.elem.root.letter
+        , Just $ HH.sub_ [ HH.text chord.elem.root.mod ]
+        , Just $ HH.text chord.elem.type
         , Just $ HH.sup_ [ HH.text chordMods ]
-        , chord.bass <#> \{ letter } -> HH.text $ "/" <> show letter
-        , chord.bass <#> \{ mod } -> HH.sub_ [ HH.text mod ]
+        , chord.elem.bass <#> \{ letter } -> HH.text $ "/" <> show letter
+        , chord.elem.bass <#> \{ mod } -> HH.sub_ [ HH.text mod ]
         , Just $ HH.text $ fromMaybe "" $ repeat (max 1 chord.spaceSuffix) " "
-        , Just $ HH.sub_ [ createFontSizeCompensation chord.root.mod ]
+        , Just $ HH.sub_ [ createFontSizeCompensation chord.elem.root.mod ]
         , Just $ HH.sup_ [ createFontSizeCompensation chordMods ]
-        , chord.bass <#> \{ mod } -> HH.sub_ [ createFontSizeCompensation mod ]
+        , chord.elem.bass <#> \{ mod } -> HH.sub_ [ createFontSizeCompensation mod ]
         ]
     where
     createFontSizeCompensation string = HH.span [ classString "fontsize-compensation" ] [ HH.text $ fromMaybe "" $ repeat (length string) " " ]
-    chordMods = foldr (<>) "" $ map show chord.mods
+    chordMods = foldr (<>) "" $ map show chord.elem.mods
 
   renderWithClass string klass = HH.span [ classString klass ] [ HH.text string ]

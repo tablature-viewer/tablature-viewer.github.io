@@ -2,7 +2,7 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note, NoteLetter(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
+import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note, NoteLetter(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString, Spaced)
 import Control.Alt ((<|>))
 import Data.Array (elem)
 import Data.Either (Either(..))
@@ -60,7 +60,7 @@ parseChordLine = (safeMany parseChordComment <> (parseChordLineChord <#> \c -> c
 parseChordLineChord :: Parser ChordLineElem
 parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
 
-parseChord :: Parser Chord
+parseChord :: Parser (Spaced Chord)
 parseChord = do
   root <- parseNote
   chordType <- parseChordType
@@ -69,10 +69,12 @@ parseChord = do
   assertEndWordBoundary
   spaceSuffix <- parseSpaces
   pure $
-    { root: root
-    , type: chordType
-    , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
-    , bass: maybeBass
+    { elem:
+      { root: root
+      , type: chordType
+      , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
+      , bass: maybeBass
+      }
     , spaceSuffix: length spaceSuffix
     }
   where
