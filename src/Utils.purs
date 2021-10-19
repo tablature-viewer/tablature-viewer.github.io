@@ -12,6 +12,10 @@ import Data.Either (Either(..))
 import Text.Parsing.StringParser (Parser(..), unParser)
 import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
 
+-- Show is for debugging, Print has to give a string that is actually how it is supposed to be presented to the user.
+class Print a where
+  print :: a -> String
+
 class Enum a <= CyclicEnum a where
   succ' :: a -> a
   pred' :: a -> a

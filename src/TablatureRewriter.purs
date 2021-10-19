@@ -2,8 +2,9 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), getPlainChordString, Spaced)
+import AppState (Chord(..), ChordLineElem(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
+import Data.Lens (over)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
@@ -12,12 +13,13 @@ import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import Utils (applyUntilIdempotent, foreach, pred', succ')
+import Utils (applyUntilIdempotent, foreach, pred', succ', print)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
 -- TODO: recognize false positives for chords in text and revert them to regular text.
 -- TODO: dozenalize chord legends
+-- TODO: rewrite every operation with lenses
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
@@ -31,10 +33,10 @@ type ChordMapping = Chord -> Chord
 type SpacedChordMapping = (Spaced Chord) -> (Spaced Chord)
 
 mapSpaceSuffix :: ChordMapping -> SpacedChordMapping
-mapSpaceSuffix mapping spacedChord = { elem: newChord, spaceSuffix: newSuffix }
+mapSpaceSuffix mapping (Spaced spacedChord) = Spaced { elem: newChord, spaceSuffix: newSuffix }
   where
   newChord = mapping spacedChord.elem
-  newSuffix = spacedChord.spaceSuffix + length (getPlainChordString spacedChord.elem) - length (getPlainChordString newChord)
+  newSuffix = spacedChord.spaceSuffix + length (print spacedChord.elem) - length (print newChord)
 
 -- compensates for negative and positive space
 applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
@@ -60,26 +62,27 @@ transposeChords renderingOptions = applyChordMapping $ getChordMapping rendering
   getChordMapping transposition = 
     case transposition of
       Transposition 0 -> identity
-      Transposition t | t > 0 -> (replaceSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeRoot
-      Transposition t ->  (replaceSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeRoot
+      Transposition t | t > 0 -> (appendSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeRoot
+      Transposition t -> (appendSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeRoot
     where
-    replaceSuffix suffix = \chord -> chord { root { mod = chord.root.mod <> suffix } }
-    canonicalizeRoot = \chord -> chord { root = canonicalizeNote chord.root }
+    -- appendSuffix suffix = \(Chord chord) -> Chord chord { root { mod = ChordMod $ chord.root.mod <> suffix } }
+    appendSuffix suffix = over (_root <<< _mod) (_ <> suffix)
+    canonicalizeRoot = \(Chord chord) -> Chord chord { root = canonicalizeNote chord.root }
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
 canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>>  applyUntilIdempotent rewrite3
   where
-  rewrite1 note = note { mod = rewriteMod note.mod }
+  rewrite1 (Note note) = Note note { mod = rewriteMod note.mod }
     where rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
-  rewrite2 note@{ letter, mod } = 
+  rewrite2 (Note note@{ letter, mod }) = 
     case stripPrefix (Pattern "##") mod of
-      Nothing -> note
-      Just newMod -> note { letter = succ' letter, mod = newMod }
-  rewrite3 note@{ letter, mod } = 
+      Nothing -> Note note
+      Just newMod -> Note note { letter = succ' letter, mod = newMod }
+  rewrite3 (Note note@{ letter, mod }) = 
     case stripPrefix (Pattern "bb") mod of
-      Nothing -> note
-      Just newMod -> note { letter = pred' letter, mod = newMod }
+      Nothing -> Note note
+      Just newMod -> Note note { letter = pred' letter, mod = newMod }
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
@@ -114,7 +117,7 @@ dozenalizeChords :: TablatureDocumentRewriter
 dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else applyChordMapping rewriteChord doc
   where
   rewriteChord :: Chord -> Chord
-  rewriteChord chord = chord { type = newType, mods = newMods }
+  rewriteChord (Chord chord) = Chord chord { type = newType, mods = newMods }
     where
     newType = dozenalize chord.type
     newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods

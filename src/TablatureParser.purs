@@ -2,10 +2,11 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note, NoteLetter(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString, Spaced)
+import AppState (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 import Control.Alt ((<|>))
 import Data.Array (elem)
 import Data.Either (Either(..))
+import Data.Foldable (foldr)
 import Data.List (List(..), fromFoldable, (:))
 import Data.Maybe (Maybe(..), fromJust)
 import Data.String (drop, length, singleton, toLower, toUpper)
@@ -36,7 +37,8 @@ parseTitleLine = do
 
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
-  prefix <- regex """[^|\n\r]*""" <#> \result -> Prefix result
+  prefix <- safeManyTill (regex """[^|\n\r]""") (lookAhead (parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
+  tuning <- parseSpacedNote <#> \result -> Tuning result
   tabLine <- try $ lookAhead (regex """\|\|?""") *> safeMany
     (
       -- We allow normal dashes - and em dashes —
@@ -46,7 +48,7 @@ parseTablatureLine = do
     )
   tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
   suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
-  pure $ TablatureLine (prefix:Nil <> tabLine <> tabLineClose:Nil <> suffix:Nil)
+  pure $ TablatureLine (prefix:Nil <> tuning:Nil <> tabLine <> tabLineClose:Nil <> suffix:Nil)
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
@@ -68,8 +70,8 @@ parseChord = do
   maybeBass <- optionMaybe (string "/" *> parseNote)
   assertEndWordBoundary
   spaceSuffix <- parseSpaces
-  pure $
-    { elem:
+  pure $ Spaced
+    { elem: Chord
       { root: root
       , type: chordType
       , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
@@ -85,10 +87,16 @@ parseNote :: Parser Note
 parseNote = do
   rootLetter <- regex """[A-Ga-g]"""
   rootMod <- regex """[#b]*"""
-  pure { letter: NoteLetter $ { primitive: getPrimitive rootLetter, lowercase: lowercase rootLetter }, mod: rootMod }
+  pure $ Note { letter: NoteLetter $ { primitive: getPrimitive rootLetter, lowercase: lowercase rootLetter }, mod: rootMod }
   where
   getPrimitive rootLetter = unsafePartial (fromJust (fromString (toUpper rootLetter)))
   lowercase letter = toLower letter == letter
+
+parseSpacedNote :: Parser (Spaced Note)
+parseSpacedNote = do
+  note <- parseNote
+  spaceSuffix <- parseSpaces
+  pure $ Spaced { elem: note, spaceSuffix: length spaceSuffix }
 
 -- A chord comment is a non chord string that is either a series of dots or a series of spaces or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
