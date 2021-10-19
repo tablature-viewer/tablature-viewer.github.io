@@ -2,7 +2,7 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..))
+import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), getPlainChordString)
 import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
@@ -29,21 +29,28 @@ rewriteTablatureDocument renderingOptions =
 
 type ChordMapping = Chord -> Chord
 
--- TODO: compensate for negative and positive space
+adjustSpaceSuffix :: ChordMapping -> ChordMapping
+adjustSpaceSuffix mapping chord = newChord { spaceSuffix = newSuffix }
+  where
+  newChord = mapping chord
+  newSuffix = chord.spaceSuffix + length (getPlainChordString chord) - length (getPlainChordString newChord)
+
+-- compensates for negative and positive space
 applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
 applyChordMapping chordMapping doc = map rewriteLine doc
   where
+  mapping = adjustSpaceSuffix chordMapping
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
   rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
   rewriteLine x = x
 
   rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ chordMapping chord
+  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ mapping chord
   rewriteChordLineElem x = x
 
   rewriteTextLineElem :: TextLineElem -> TextLineElem
-  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ chordMapping chord
+  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ mapping chord
   rewriteTextLineElem x = x
 
 transposeChords :: TablatureDocumentRewriter
@@ -107,16 +114,10 @@ dozenalizeChords :: TablatureDocumentRewriter
 dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else applyChordMapping rewriteChord doc
   where
   rewriteChord :: Chord -> Chord
-  rewriteChord chord = chord { type = newType, mods = newMods, spaceSuffix = chord.spaceSuffix + shrunkChars }
+  rewriteChord chord = chord { type = newType, mods = newMods }
     where
-    -- compensate for each 11 converted to ↋ by adding spaces after the bass mod
-    -- TODO: clean up
     newType = dozenalize chord.type
     newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods
-    shrunkChars = (newStringWithAllTheNumbers # countShrunkChars) - (oldStringWithAllTheNumbers # countShrunkChars)
-    oldStringWithAllTheNumbers = (chord.type <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) chord.mods))
-    newStringWithAllTheNumbers = (newType <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) newMods))
-    countShrunkChars s = s # filter (\c -> c == "↋" || c == "↊") # length
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 

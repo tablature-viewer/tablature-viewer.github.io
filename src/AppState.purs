@@ -5,8 +5,9 @@ import Prelude
 import Data.Enum (class Enum, pred, succ)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Generic.Rep (class Generic)
+import Data.Foldable (foldr)
 import Data.List (List)
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Show.Generic (genericShow)
 import Effect.Timer (IntervalId)
 import Partial.Unsafe (unsafePartial)
@@ -140,8 +141,19 @@ type Chord =
   , mods :: List ChordMod
   , bass :: Maybe Note
   -- The number of spaces after a chord. This is part of the chord so that it can be expanded and shrunk easily when rewriting chords
+  -- TODO: lift this member into a wrapper type
   , spaceSuffix :: Int
   }
+
+getPlainChordString :: Chord -> String
+getPlainChordString chord =
+   (chord.root # getPlainNoteString)
+   <> chord.type
+   <> (foldr (<>) "" (map (\(ChordMod mod) -> mod.pre <> mod.interval <> mod.post) chord.mods))
+   <> (fromMaybe "" $ chord.bass <#> getPlainNoteString)
+
+getPlainNoteString :: Note -> String
+getPlainNoteString note = show note.letter <> note.mod
 
 newtype ChordMod = ChordMod
   { pre :: String
