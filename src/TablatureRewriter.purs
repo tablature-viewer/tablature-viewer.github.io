@@ -17,7 +17,6 @@ import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
--- TODO: transpose tunings
 -- TODO: recognize false positives for chords in text and revert them to regular text.
 -- TODO: dozenalize chord legends
 -- TODO: rewrite every operation with lenses
