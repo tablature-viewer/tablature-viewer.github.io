@@ -10,6 +10,7 @@ import Data.Maybe (Maybe(..), fromJust)
 import Data.Show.Generic (genericShow)
 import Effect.Timer (IntervalId)
 import Partial.Unsafe (unsafePartial)
+import Utils (class CyclicEnum)
 
 data Action
   = Initialize 
@@ -146,12 +147,29 @@ newtype ChordMod = ChordMod
   , post :: String
   }
 
+type Foo =
+  { a :: String
+  , b :: String
+  }
+
 type Note =
   { letter :: NoteLetter
   , mod :: String
   }
 
 data NoteLetter = A | B | C | D | E | F | G
+
+derive instance eqNoteLetter :: Eq NoteLetter
+
+derive instance ordNoteLetter :: Ord NoteLetter
+derive instance genericNoteLetter :: Generic NoteLetter _
+instance noteLetterShow :: Show NoteLetter where
+  show = genericShow
+instance enumNoteLetter :: Enum NoteLetter where
+  succ G = Just A
+  succ x = genericSucc x
+  pred A = Just G
+  pred x = genericPred x
 
 fromString :: String -> Maybe NoteLetter
 fromString "A" = Just A
@@ -163,24 +181,11 @@ fromString "F" = Just F
 fromString "G" = Just G
 fromString _ = Nothing
 
-derive instance eqNoteLetter :: Eq NoteLetter
-derive instance ordNoteLetter :: Ord NoteLetter
-derive instance genericNoteLetter :: Generic NoteLetter _
-instance noteLetterShow :: Show NoteLetter where
-  show = genericShow
-instance enumNoteLetter :: Enum NoteLetter where
-  succ G = Just A
-  succ x = genericSucc x
-  pred A = Just G
-  pred x = genericPred x
-
-class Enum a <= CyclicEnum a where
-  succ' :: a -> a
-  pred' :: a -> a
-
 instance cyclicEnumNoteLetter :: CyclicEnum NoteLetter where
   succ' x = unsafePartial $ fromJust $ succ x
   pred' x = unsafePartial $ fromJust $ pred x
+
+-- derive instance genericNote :: Generic Note
 
 newtype Transposition = Transposition Int
 

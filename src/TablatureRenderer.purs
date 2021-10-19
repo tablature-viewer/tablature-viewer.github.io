@@ -3,7 +3,7 @@ module TablatureRenderer where
 import Prelude
 
 import AppState (ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), Chord)
-import Data.Array (fromFoldable, mapMaybe)
+import Data.Array (fromFoldable)
 import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
 import Data.List (List(..), (:))

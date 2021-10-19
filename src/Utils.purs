@@ -3,6 +3,7 @@ module Utils where
 import Prelude
 
 import Data.List (List(..), (:))
+import Data.Enum (class Enum)
 import Data.Tuple (Tuple, fst, snd)
 import Effect.Console (log)
 import Effect.Unsafe (unsafePerformEffect)
@@ -10,6 +11,10 @@ import Data.List.NonEmpty (NonEmptyList)
 import Data.Either (Either(..))
 import Text.Parsing.StringParser (Parser(..), unParser)
 import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
+
+class Enum a <= CyclicEnum a where
+  succ' :: a -> a
+  pred' :: a -> a
 
 debug :: forall a. String -> a -> a
 debug msg = snd $ unsafePerformEffect $ log msg
@@ -20,6 +25,9 @@ foreach _ Nil _ = Nil
 foreach state (x : xs) loop = snd next : (foreach (fst next) xs loop)
   where next = loop state x
 
+applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
+applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
+  where result = f x
 
 -- NOTES
 -- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds

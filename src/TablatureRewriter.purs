@@ -2,21 +2,18 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), pred', succ')
-import Data.Char (fromCharCode, toCharCode)
-import Data.Enum (succ)
+import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..))
 import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
-import Data.Maybe (Maybe(..), fromMaybe, fromJust)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
 import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
 import Data.String.CodePoints (stripPrefix)
-import Data.String.CodeUnits (charAt, length, singleton)
+import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat, filter)
 import Data.Tuple (Tuple(..))
-import Partial.Unsafe (unsafePartial)
-import Utils (foreach)
+import Utils (applyUntilIdempotent, foreach, pred', succ')
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
@@ -63,7 +60,7 @@ transposeChords renderingOptions = applyChordMapping $ getChordMapping rendering
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
-canonicalizeNote = rewrite1 >>> rewrite2 >>> rewrite3
+canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>>  applyUntilIdempotent rewrite3
   where
   -- TODO: repeat until no changes anymore
   rewrite1 note = note { mod = rewriteMod note.mod }
