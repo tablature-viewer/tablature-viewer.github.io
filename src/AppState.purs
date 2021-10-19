@@ -4,14 +4,15 @@ import Prelude
 
 import Data.Enum (class Enum, pred, succ)
 import Data.Enum.Generic (genericPred, genericSucc)
-import Data.Generic.Rep (class Generic)
 import Data.Foldable (foldr)
+import Data.Generic.Rep (class Generic)
 import Data.List (List)
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Show.Generic (genericShow)
+import Data.String (toLower)
 import Effect.Timer (IntervalId)
 import Partial.Unsafe (unsafePartial)
-import Utils (class CyclicEnum)
+import Utils (class CyclicEnum, pred', succ')
 
 data Action
   = Initialize 
@@ -171,21 +172,30 @@ type Note =
   , mod :: String
   }
 
-data NoteLetter = A | B | C | D | E | F | G
+newtype NoteLetter = NoteLetter
+  { primitive :: NoteLetterPrimitive
+  , lowercase :: Boolean
+  }
 
-derive instance eqNoteLetter :: Eq NoteLetter
+data NoteLetterPrimitive = A | B | C | D | E | F | G
 
-derive instance ordNoteLetter :: Ord NoteLetter
-derive instance genericNoteLetter :: Generic NoteLetter _
-instance noteLetterShow :: Show NoteLetter where
-  show = genericShow
-instance enumNoteLetter :: Enum NoteLetter where
+derive instance eqNoteLetterPrimitive :: Eq NoteLetterPrimitive
+derive instance ordNoteLetterPrimitive :: Ord NoteLetterPrimitive
+derive instance genericNoteLetterPrimitive :: Generic NoteLetterPrimitive _
+instance enumNoteLetterPrimitive :: Enum NoteLetterPrimitive where
   succ G = Just A
   succ x = genericSucc x
   pred A = Just G
   pred x = genericPred x
 
-fromString :: String -> Maybe NoteLetter
+instance cyclicEnumNoteLetterPrimitive :: CyclicEnum NoteLetterPrimitive where
+  succ' x = unsafePartial $ fromJust $ succ x
+  pred' x = unsafePartial $ fromJust $ pred x
+
+instance noteLetterPrimitiveShow :: Show NoteLetterPrimitive where
+  show = genericShow
+
+fromString :: String -> Maybe NoteLetterPrimitive
 fromString "A" = Just A
 fromString "B" = Just B
 fromString "C" = Just C
@@ -196,10 +206,23 @@ fromString "G" = Just G
 fromString _ = Nothing
 
 instance cyclicEnumNoteLetter :: CyclicEnum NoteLetter where
-  succ' x = unsafePartial $ fromJust $ succ x
-  pred' x = unsafePartial $ fromJust $ pred x
+  succ' (NoteLetter n) = NoteLetter n { primitive = succ' n.primitive }
+  pred' (NoteLetter n) = NoteLetter n { primitive = pred' n.primitive }
 
--- derive instance genericNote :: Generic Note
+instance enumNoteLetter :: Enum NoteLetter where
+  succ n = Just $ succ' n
+  pred n = Just $ pred' n
+
+derive instance eqNoteLetter :: Eq NoteLetter
+instance ordNoteLetter :: Ord NoteLetter where
+  compare (NoteLetter n) (NoteLetter m) = compare n.primitive m.primitive
+
+instance noteLetterShow :: Show NoteLetter where
+  show (NoteLetter letter) =
+    if letter.lowercase
+    then toLower uppercase
+    else uppercase
+    where uppercase = show letter.primitive
 
 newtype Transposition = Transposition Int
 
