@@ -2,19 +2,20 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), ChordMod(..))
+import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), Note, fromString)
 import Control.Alt ((<|>))
 import Data.Array (elem)
 import Data.Either (Either(..))
 import Data.List (List(..), fromFoldable, (:))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromJust)
 import Data.String (drop, singleton)
 import Data.String.CodePoints (toCodePointArray)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
+import Partial.Unsafe (unsafePartial)
 import Text.Parsing.StringParser (Parser, try, unParser)
-import Text.Parsing.StringParser.CodePoints (eof, regex)
-import Text.Parsing.StringParser.Combinators (lookAhead, option)
+import Text.Parsing.StringParser.CodePoints (eof, regex, string)
+import Text.Parsing.StringParser.Combinators (lookAhead, option, optionMaybe)
 import Utils (safeMany, safeManyTill)
 
 -- TODO: Improve the parser code
@@ -61,25 +62,33 @@ parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
 
 parseChord :: Parser Chord
 parseChord = do
-  rootLetter <- parseChordRoot
-  rootMod <- parseChordRootMod
+  rootLetter <- parseRootLetter
+  rootMod <- parseRootMod
   chordType <- parseChordType
   mods <- parseChordMods
-  bassLetter <- parseChordBass
-  bassMod <- parseBassMod
+  maybeBass <- optionMaybe parseChordBass
+  assertWordBoundary
   pure $
-    { root: { letter: rootLetter, mod: rootMod }
+    { root: { letter: unsafePartial (fromJust rootLetter), mod: rootMod }
     , type: chordType
     , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
-    , bass: { letter: bassLetter, mod: bassMod }
+    , bass: maybeBass
     }
   where
-  parseChordRoot = regex """(?<!\S)[A-G]"""
-  parseChordRootMod = regex """[#b]*"""
+  parseRootLetter = regex """(?<!\S)[A-G]""" <#> fromString
+  parseRootMod = regex """[#b]*"""
   parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|[+]|o)?"""
   parseChordMods = regex """((sus[24]?)|\(?(o|no|add|dim|dom|augm(?![a-zA-Z])|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?(b|#|[+]|[-])?\)?)*"""
-  parseChordBass = regex """(/[A-G])?"""
-  parseBassMod = regex """[#b]*(?!\S)"""
+
+parseChordBass :: Parser Note
+parseChordBass = do
+  _ <- string "/"
+  bassLetter <- parseChordBassLetter
+  bassMod <- parseBassMod
+  pure $ { letter: unsafePartial (fromJust bassLetter), mod: bassMod }
+  where
+  parseChordBassLetter = regex """([A-G])""" <#> fromString
+  parseBassMod = regex """[#b]*"""
 
 -- A chord comment is a non chord string that is either a series of dots or a series of spaces or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
@@ -94,6 +103,9 @@ parseSpaces = regex """[^\S\n\r]+""" <#> \result -> Spaces result
 
 parseWord :: Parser TextLineElem
 parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
+
+assertWordBoundary :: Parser Unit
+assertWordBoundary = eof <|> lookAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
 parseChordLegend = regex """(?<!\S)[\dxX]{6}(?!\S)""" <#> \result -> ChordLegend $ fromFoldable $ map

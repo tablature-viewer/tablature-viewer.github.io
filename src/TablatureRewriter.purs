@@ -2,18 +2,20 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..))
+import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), pred', succ')
 import Data.Char (fromCharCode, toCharCode)
+import Data.Enum (succ)
 import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, fromJust)
 import Data.Ord (abs)
 import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
 import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length, singleton)
 import Data.String.Utils (repeat, filter)
 import Data.Tuple (Tuple(..))
+import Partial.Unsafe (unsafePartial)
 import Utils (foreach)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
@@ -61,22 +63,19 @@ transposeChords renderingOptions = applyChordMapping $ getChordMapping rendering
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
-canonicalizeNote note = note { mod = rewriteMod note.mod } # rewriteNote
+canonicalizeNote = rewrite1 >>> rewrite2 >>> rewrite3
   where
   -- TODO: repeat until no changes anymore
-  rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
-  rewriteNote note@{ letter, mod } = 
-  -- TODO: support down as well
+  rewrite1 note = note { mod = rewriteMod note.mod }
+    where rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
+  rewrite2 note@{ letter, mod } = 
     case stripPrefix (Pattern "##") mod of
       Nothing -> note
-      Just newMod -> note { letter = increaseLetter letter, mod = newMod }
-  increaseLetter :: String -> String
-  increaseLetter letter = fromMaybe "" $ do
-    c <- charAt 0 letter
-    i <- Just $ toCharCode c
-    -- TODO: wrap around the alphabet
-    newC <- fromCharCode (i+1)
-    Just $ singleton newC
+      Just newMod -> note { letter = succ' letter, mod = newMod }
+  rewrite3 note@{ letter, mod } = 
+    case stripPrefix (Pattern "bb") mod of
+      Nothing -> note
+      Just newMod -> note { letter = pred' letter, mod = newMod }
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
@@ -117,7 +116,7 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords
     newType = dozenalize chord.type
     newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods
     shrunkChars = (newType <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) newMods)) # filter (_ == "↋") # length
-    newBass = chord.bass { mod = dozenalize chord.bass.mod <> fromMaybe "" (repeat shrunkChars " ") }
+    newBass = chord.bass <#> \bass -> bass { mod = dozenalize bass.mod <> fromMaybe "" (repeat shrunkChars " ") }
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 

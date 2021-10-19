@@ -3,7 +3,8 @@ module TablatureRenderer where
 import Prelude
 
 import AppState (ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), Chord)
-import Data.Array (fromFoldable)
+import Data.Array (fromFoldable, mapMaybe)
+import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -51,16 +52,18 @@ renderTablatureDocument doc _ = map renderLine doc
   renderChordLegendElem (ChordSpecial string) = renderWithClass string "tabSpecial"
   renderChord :: Chord -> HH.HTML w i
   renderChord chord =
-    HH.span [ classString "tabChord" ] [HH.text chord.root.letter
-    , HH.sub_ [ HH.text chord.root.mod ]
-    , HH.text chord.type
-    , HH.sup_ [ HH.text chordMods ]
-    , HH.text chord.bass.letter
-    , HH.sub_ [ HH.text chord.bass.mod ]
-    , HH.sub_ [ createFontSizeCompensation chord.root.mod ]
-    , HH.sup_ [ createFontSizeCompensation chordMods ]
-    , HH.sub_ [ createFontSizeCompensation chord.bass.mod ]
-    ]
+    HH.span [ classString "tabChord" ] $
+      filterMap identity
+        [ Just $ HH.text $ show chord.root.letter
+        , Just $ HH.sub_ [ HH.text chord.root.mod ]
+        , Just $ HH.text chord.type
+        , Just $ HH.sup_ [ HH.text chordMods ]
+        , chord.bass <#> \{ letter } -> HH.text $ "/" <> show letter
+        , chord.bass <#> \{ mod } -> HH.sub_ [ HH.text mod ]
+        , Just $ HH.sub_ [ createFontSizeCompensation chord.root.mod ]
+        , Just $ HH.sup_ [ createFontSizeCompensation chordMods ]
+        , chord.bass <#> \{ mod } -> HH.sub_ [ createFontSizeCompensation mod ]
+        ]
     where
     createFontSizeCompensation string = HH.span [ classString "fontsize-compensation" ] [ HH.text $ fromMaybe "" $ repeat (length string) " " ]
     chordMods = foldr (<>) "" $ map show chord.mods

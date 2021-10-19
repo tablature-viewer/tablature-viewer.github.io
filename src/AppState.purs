@@ -2,12 +2,14 @@ module AppState where
 
 import Prelude
 
-import Data.Enum (class Enum)
+import Data.Enum (class Enum, pred, succ)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Generic.Rep (class Generic)
 import Data.List (List)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..), fromJust)
+import Data.Show.Generic (genericShow)
 import Effect.Timer (IntervalId)
+import Partial.Unsafe (unsafePartial)
 
 data Action
   = Initialize 
@@ -66,24 +68,6 @@ speedToIntervalPixelDelta Slow = 1
 speedToIntervalPixelDelta Normal = 1
 speedToIntervalPixelDelta Fast = 1
 speedToIntervalPixelDelta Fastest = 2
-
-newtype Transposition = Transposition Int
-
-instance transpositionShow :: Show Transposition where
-  show (Transposition i) = if i >= 0 then "+" <> show i else show i
-
-instance transpositionEq :: Eq Transposition where
-  eq (Transposition i) (Transposition j) = eq i j
-
-instance transpositionOrd :: Ord Transposition where
-  compare (Transposition i) (Transposition j) = compare i j
-
-identityTransposition :: Transposition
-identityTransposition = Transposition 0
-succTransposition :: Transposition -> Transposition
-succTransposition (Transposition i) = Transposition $ i+1
-predTransposition :: Transposition -> Transposition
-predTransposition (Transposition i) = Transposition $ i-1
 
 type State =
   { mode :: Mode
@@ -153,7 +137,7 @@ type Chord =
   { root :: Note
   , type :: String
   , mods :: List ChordMod
-  , bass :: Note
+  , bass :: Maybe Note
   }
 
 newtype ChordMod = ChordMod
@@ -163,9 +147,58 @@ newtype ChordMod = ChordMod
   }
 
 type Note =
-  { letter :: String
+  { letter :: NoteLetter
   , mod :: String
   }
+
+data NoteLetter = A | B | C | D | E | F | G
+
+fromString :: String -> Maybe NoteLetter
+fromString "A" = Just A
+fromString "B" = Just B
+fromString "C" = Just C
+fromString "D" = Just D
+fromString "E" = Just E
+fromString "F" = Just F
+fromString "G" = Just G
+fromString _ = Nothing
+
+derive instance eqNoteLetter :: Eq NoteLetter
+derive instance ordNoteLetter :: Ord NoteLetter
+derive instance genericNoteLetter :: Generic NoteLetter _
+instance noteLetterShow :: Show NoteLetter where
+  show = genericShow
+instance enumNoteLetter :: Enum NoteLetter where
+  succ G = Just A
+  succ x = genericSucc x
+  pred A = Just G
+  pred x = genericPred x
+
+class Enum a <= CyclicEnum a where
+  succ' :: a -> a
+  pred' :: a -> a
+
+instance cyclicEnumNoteLetter :: CyclicEnum NoteLetter where
+  succ' x = unsafePartial $ fromJust $ succ x
+  pred' x = unsafePartial $ fromJust $ pred x
+
+newtype Transposition = Transposition Int
+
+instance transpositionShow :: Show Transposition where
+  show (Transposition i) = if i >= 0 then "+" <> show i else show i
+
+instance transpositionEq :: Eq Transposition where
+  eq (Transposition i) (Transposition j) = eq i j
+
+instance transpositionOrd :: Ord Transposition where
+  compare (Transposition i) (Transposition j) = compare i j
+
+identityTransposition :: Transposition
+identityTransposition = Transposition 0
+succTransposition :: Transposition -> Transposition
+succTransposition (Transposition i) = Transposition $ i+1
+predTransposition :: Transposition -> Transposition
+predTransposition (Transposition i) = Transposition $ i-1
 
 instance showLine :: Show TablatureDocumentLine where
   show (TitleLine elems) = "Title: " <> show elems
