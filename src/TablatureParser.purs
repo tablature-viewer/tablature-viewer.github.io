@@ -109,7 +109,7 @@ assertEndWordBoundary :: Parser Unit
 assertEndWordBoundary = eof <|> lookAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
-parseChordLegend = regex """(?<!\S)([\dxX↊↋]-*){6}(?!\S)""" <#> \result -> ChordLegend $ fromFoldable $ map
+parseChordLegend = regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""" <#> \result -> ChordLegend $ fromFoldable $ map
   (\c -> if elem c (toCodePointArray "1234567890↊↋") then ChordFret $ singleton c else ChordSpecial $ singleton c) $ toCodePointArray result
 
 -- This is a backup in case the other parsers fail

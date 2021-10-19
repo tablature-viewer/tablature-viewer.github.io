@@ -3,7 +3,6 @@ module TablatureRewriter where
 import Prelude
 
 import AppState (Chord, ChordLineElem(..), ChordMod(..), Note, RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), getPlainChordString)
-import Data.Foldable (foldr)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
@@ -11,13 +10,14 @@ import Data.Ord (abs)
 import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
 import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
-import Data.String.Utils (repeat, filter)
+import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
 import Utils (applyUntilIdempotent, foreach, pred', succ')
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
 -- TODO: recognize false positives for chords in text and revert them to regular text.
+-- TODO: dozenalize chord legends
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
@@ -69,7 +69,6 @@ transposeChords renderingOptions = applyChordMapping $ getChordMapping rendering
 canonicalizeNote :: Note -> Note
 canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>>  applyUntilIdempotent rewrite3
   where
-  -- TODO: repeat until no changes anymore
   rewrite1 note = note { mod = rewriteMod note.mod }
     where rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
   rewrite2 note@{ letter, mod } = 
