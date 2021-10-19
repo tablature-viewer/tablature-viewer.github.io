@@ -2,9 +2,9 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord(..), ChordLineElem(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _mod, _root)
+import AppState (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TextLine, _TextLineChord, _mod, _root, _TablatureLine, _Tuning)
 import Data.Int (decimal, fromString, radix, toStringAs)
-import Data.Lens (over)
+import Data.Lens (over, traversed)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
@@ -13,10 +13,11 @@ import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import Utils (applyUntilIdempotent, foreach, pred', succ', print)
+import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
+-- TODO: transpose tunings
 -- TODO: recognize false positives for chords in text and revert them to regular text.
 -- TODO: dozenalize chord legends
 -- TODO: rewrite every operation with lenses
@@ -27,47 +28,50 @@ rewriteTablatureDocument renderingOptions =
   addMissingClosingPipe renderingOptions >>>
   dozenalizeChords renderingOptions >>>
   dozenalizeFrets renderingOptions >>>
-  transposeChords renderingOptions
+  transposeChords renderingOptions >>>
+  transposeTuning renderingOptions
 
 type ChordMapping = Chord -> Chord
 type SpacedChordMapping = (Spaced Chord) -> (Spaced Chord)
 
-mapSpaceSuffix :: ChordMapping -> SpacedChordMapping
-mapSpaceSuffix mapping (Spaced spacedChord) = Spaced { elem: newChord, spaceSuffix: newSuffix }
+liftMappingSpaced :: forall a. (Print a) => (a -> a) -> ((Spaced a) -> (Spaced a))
+liftMappingSpaced mapping (Spaced spaced) = Spaced { elem: newElem, spaceSuffix: newSuffix }
   where
-  newChord = mapping spacedChord.elem
-  newSuffix = spacedChord.spaceSuffix + length (print spacedChord.elem) - length (print newChord)
+  newElem = mapping spaced.elem
+  newSuffix = spaced.spaceSuffix + length (print spaced.elem) - length (print newElem)
 
 -- compensates for negative and positive space
 applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
-applyChordMapping chordMapping doc = map rewriteLine doc
+applyChordMapping chordMapping = map (rewriteChordsInTextLine >>> rewriteChordsInChordLine)
   where
-  mapping = mapSpaceSuffix chordMapping
-  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
-  rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
-  rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
-  rewriteLine x = x
+  mapping = liftMappingSpaced chordMapping
 
-  rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ mapping chord
-  rewriteChordLineElem x = x
+  rewriteChordsInTextLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteChordsInTextLine = over (_ChordLine <<< traversed <<< _ChordLineChord) mapping
 
-  rewriteTextLineElem :: TextLineElem -> TextLineElem
-  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ mapping chord
-  rewriteTextLineElem x = x
+  rewriteChordsInChordLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteChordsInChordLine = over (_TextLine <<< traversed <<< _TextLineChord) mapping
 
 transposeChords :: TablatureDocumentRewriter
-transposeChords renderingOptions = applyChordMapping $ getChordMapping renderingOptions.transposition
+transposeChords renderingOptions = applyChordMapping $ chordMapping
   where
-  getChordMapping transposition = 
-    case transposition of
-      Transposition 0 -> identity
-      Transposition t | t > 0 -> (appendSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeRoot
-      Transposition t -> (appendSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeRoot
-    where
-    -- appendSuffix suffix = \(Chord chord) -> Chord chord { root { mod = ChordMod $ chord.root.mod <> suffix } }
-    appendSuffix suffix = over (_root <<< _mod) (_ <> suffix)
-    canonicalizeRoot = \(Chord chord) -> Chord chord { root = canonicalizeNote chord.root }
+  chordMapping = over _root noteMapping
+  noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
+
+transposeTuning :: TablatureDocumentRewriter
+transposeTuning renderingOptions = map rewriteLine
+  where
+  rewriteLine = over (_TablatureLine <<< traversed <<< _Tuning) (liftMappingSpaced noteMapping)
+  noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
+
+transposeNote :: Transposition -> Note -> Note
+transposeNote transposition =
+  case transposition of
+    Transposition 0 -> identity
+    Transposition t | t > 0 -> (appendSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeNote
+    Transposition t -> (appendSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeNote
+  where
+  appendSuffix suffix = over _mod (_ <> suffix)
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note

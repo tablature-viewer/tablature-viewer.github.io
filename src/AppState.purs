@@ -6,7 +6,7 @@ import Data.Enum (class Enum, pred, succ)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Foldable (foldr)
 import Data.Generic.Rep (class Generic)
-import Data.Lens (Lens')
+import Data.Lens (Lens', Prism', Traversal', over, prism', traversed)
 import Data.Lens.Common (simple)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
@@ -115,6 +115,21 @@ data TablatureDocumentLine
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
 
+_TablatureLine :: Prism' TablatureDocumentLine (List TablatureLineElem)
+_TablatureLine = prism' TablatureLine case _ of
+  TablatureLine l -> Just l
+  _ -> Nothing
+
+_ChordLine :: Prism' TablatureDocumentLine (List ChordLineElem)
+_ChordLine = prism' ChordLine case _ of
+  ChordLine l -> Just l
+  _ -> Nothing
+
+_TextLine :: Prism' TablatureDocumentLine (List TextLineElem)
+_TextLine = prism' TextLine case _ of
+  TextLine l -> Just l
+  _ -> Nothing
+
 data TitleLineElem
   = Title String
   | TitleOther String
@@ -131,11 +146,21 @@ data TablatureLineElem
   | Special String
   | Suffix String
 
+_Tuning :: Prism' TablatureLineElem (Spaced Note)
+_Tuning = prism' Tuning case _ of
+  Tuning l -> Just l
+  _ -> Nothing
+
 data TextLineElem
   = Text String
   | Spaces String
   | TextLineChord (Spaced Chord)
   | ChordLegend (List ChordLegendElem)
+
+_TextLineChord :: Prism' TextLineElem (Spaced Chord)
+_TextLineChord = prism' TextLineChord case _ of
+  TextLineChord l -> Just l
+  _ -> Nothing
 
 data ChordLegendElem
   = ChordFret String
@@ -144,6 +169,11 @@ data ChordLegendElem
 data ChordLineElem
   = ChordLineChord (Spaced Chord)
   | ChordComment String
+
+_ChordLineChord :: Prism' ChordLineElem (Spaced Chord)
+_ChordLineChord = prism' ChordLineChord case _ of
+  ChordLineChord l -> Just l
+  _ -> Nothing
 
 -- The number of spaces after an expression.
 -- E.g. this is part of a chord so that it can be expanded and shrunk easily when rewriting chords without losing the original alignment

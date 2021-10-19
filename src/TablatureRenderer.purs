@@ -2,12 +2,11 @@ module TablatureRenderer where
 
 import Prelude
 
-import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), ChordMod, HeaderLineElem(..), Note(..), RenderingOptions, Spaced, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), _bass, _elem, _letter, _mod, _mods, _root, _spaceSuffix, _type)
+import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), Note(..), RenderingOptions, Spaced, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), _bass, _elem, _letter, _mod, _mods, _root, _spaceSuffix, _type)
 import Data.Array (fromFoldable)
 import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
-import Data.Lens (Lens', view)
-import Data.Lens.Iso.Newtype (_Newtype)
+import Data.Lens (view)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (length)
