@@ -196,12 +196,12 @@ newtype Chord = Chord
 derive instance newtypeChord :: Newtype Chord _
 
 -- _root :: forall n a r. Lens' (Newtype n { root :: a | r }) a
-_root = _Newtype <<< prop (SProxy :: SProxy "root")
-_type = _Newtype <<< prop (SProxy :: SProxy "type")
+_root = simple _Newtype <<< prop (SProxy :: SProxy "root")
+_type = simple _Newtype <<< prop (SProxy :: SProxy "type")
 -- _bass :: forall a r. Lens' { bass :: a | r } a
-_bass = _Newtype <<< prop (SProxy :: SProxy "bass")
+_bass = simple _Newtype <<< prop (SProxy :: SProxy "bass")
 -- _mods :: forall a r. Lens' { mods :: a | r } a
-_mods = _Newtype <<< prop (SProxy :: SProxy "mods")
+_mods = simple _Newtype <<< prop (SProxy :: SProxy "mods")
 
 derive instance eqChord :: Eq Chord
 
@@ -232,9 +232,9 @@ newtype Note = Note
 derive instance newtypeNote :: Newtype Note _
 
 -- _letter :: forall a r. Lens' { letter :: a | r } a
-_letter = _Newtype <<< prop (SProxy :: SProxy "letter")
+_letter = simple _Newtype <<< prop (SProxy :: SProxy "letter")
 -- _mod :: forall a r. Lens' { mod :: a | r } a
-_mod = _Newtype <<< prop (SProxy :: SProxy "mod")
+_mod = simple _Newtype <<< prop (SProxy :: SProxy "mod")
 
 derive instance eqNote :: Eq Note
 

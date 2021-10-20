@@ -2,9 +2,9 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TextLine, _TextLineChord, _mod, _root, _TablatureLine, _Tuning)
+import AppState (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
-import Data.Lens (over, traversed)
+import Data.Lens (_Just, over, traversed)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
@@ -17,7 +17,6 @@ import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
--- TODO: transpose bass notes
 -- TODO: recognize false positives for chords in text and revert them to regular text.
 -- TODO: dozenalize chord legends
 -- TODO: rewrite every operation with lenses
@@ -53,7 +52,7 @@ applyChordMapping chordMapping = map (rewriteChordsInTextLine >>> rewriteChordsI
 transposeChords :: TablatureDocumentRewriter
 transposeChords renderingOptions = applyChordMapping $ chordMapping
   where
-  chordMapping = over _root noteMapping
+  chordMapping = over _root noteMapping >>> over (_bass <<< _Just) noteMapping
   noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
 
 transposeTuning :: TablatureDocumentRewriter
