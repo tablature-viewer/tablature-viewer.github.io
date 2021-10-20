@@ -2,7 +2,7 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
+import AppState (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.Lens (_Just, over, traversed)
 import Data.List (List, reverse)
@@ -17,18 +17,30 @@ import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
--- TODO: recognize false positives for chords in text and revert them to regular text.
 -- TODO: dozenalize chord legends
 -- TODO: rewrite every operation with lenses
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
+  revertFalsePositiveChords >>>
   fixEmDashes renderingOptions >>>
   addMissingClosingPipe renderingOptions >>>
   dozenalizeChords renderingOptions >>>
   dozenalizeFrets renderingOptions >>>
   transposeChords renderingOptions >>>
   transposeTuning renderingOptions
+
+revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
+revertFalsePositiveChords = map rewriteLine
+  where
+  rewriteLine = over (_TextLine <<< traversed) fix
+  fix = case _ of
+    x@(TextLineChord spacedChord@(Spaced ({ elem: chord }))) ->
+      if chordString == "a" || chordString == "am" || chordString == "A" || chordString == "Am"
+      then Text $ print spacedChord
+      else x
+      where chordString = print chord
+    x -> x
 
 -- Map the Spaced version of some element and compensate the space suffix for the change in printed length
 liftMappingSpaced :: forall a. (Print a) => (a -> a) -> ((Spaced a) -> (Spaced a))
