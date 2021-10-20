@@ -4,13 +4,11 @@ import Prelude hiding (between)
 
 import AppState (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 import Control.Alt ((<|>))
-import Data.Array (elem)
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
-import Data.List (List(..), fromFoldable, (:))
+import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromJust)
-import Data.String (drop, length, singleton, toLower, toUpper)
-import Data.String.CodePoints (toCodePointArray)
+import Data.String (drop, length, toLower, toUpper)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
@@ -20,6 +18,7 @@ import Text.Parsing.StringParser.Combinators (lookAhead, option, optionMaybe)
 import Utils (safeMany, safeManyTill)
 
 -- TODO: Improve the parser code
+-- TODO: Improve parser performance
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
@@ -37,8 +36,8 @@ parseTitleLine = do
 
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
-  prefix <- safeManyTill (regex """[^|\n\r]""") (lookAhead (parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
-  tuning <- parseSpacedNote <#> \result -> Tuning result
+  prefix <- safeManyTill (regex """[^|\n\r]""") (lookAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
+  maybeTuning <- optionMaybe $ parseSpacedNote <#> \result -> Tuning result
   tabLine <- try $ lookAhead (regex """\|\|?""") *> safeMany
     (
       -- We allow normal dashes - and em dashes —
@@ -48,7 +47,11 @@ parseTablatureLine = do
     )
   tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
   suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
-  pure $ TablatureLine (prefix:Nil <> tuning:Nil <> tabLine <> tabLineClose:Nil <> suffix:Nil)
+  pure $ TablatureLine (prefix:Nil <> (getTuning maybeTuning) <> tabLine <> tabLineClose:Nil <> suffix:Nil)
+  where
+  getTuning = case _ of
+    Nothing -> Nil
+    Just t -> t:Nil
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
@@ -119,8 +122,8 @@ assertEndWordBoundary :: Parser Unit
 assertEndWordBoundary = eof <|> lookAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
-parseChordLegend = regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""" <#> \result -> ChordLegend $ fromFoldable $ map
-  (\c -> if elem c (toCodePointArray "1234567890↊↋") then ChordFret $ singleton c else ChordSpecial $ singleton c) $ toCodePointArray result
+parseChordLegend = lookAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
+  *> safeMany ((regex """[1234567890↊↋]""" <#> ChordFret) <|> (regex """[xX-]""" <#> ChordSpecial)) <#> ChordLegend 
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine

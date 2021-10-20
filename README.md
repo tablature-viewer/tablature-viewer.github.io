@@ -61,5 +61,4 @@ This will turn off dozenalization for that tab, regardless of your settings.
 - Chord and tab notation normalization
 - Keyboard shortcuts
 - Improve parsing
-- Improve normalization
-- Chord and tab transposition
+- Tab transposition

@@ -17,6 +17,7 @@ import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
 type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
 
+-- TODO: transpose bass notes
 -- TODO: recognize false positives for chords in text and revert them to regular text.
 -- TODO: dozenalize chord legends
 -- TODO: rewrite every operation with lenses
@@ -30,9 +31,7 @@ rewriteTablatureDocument renderingOptions =
   transposeChords renderingOptions >>>
   transposeTuning renderingOptions
 
-type ChordMapping = Chord -> Chord
-type SpacedChordMapping = (Spaced Chord) -> (Spaced Chord)
-
+-- Map the Spaced version of some element and compensate the space suffix for the change in printed length
 liftMappingSpaced :: forall a. (Print a) => (a -> a) -> ((Spaced a) -> (Spaced a))
 liftMappingSpaced mapping (Spaced spaced) = Spaced { elem: newElem, spaceSuffix: newSuffix }
   where
@@ -40,7 +39,7 @@ liftMappingSpaced mapping (Spaced spaced) = Spaced { elem: newElem, spaceSuffix:
   newSuffix = spaced.spaceSuffix + length (print spaced.elem) - length (print newElem)
 
 -- compensates for negative and positive space
-applyChordMapping :: ChordMapping -> TablatureDocument -> TablatureDocument
+applyChordMapping :: (Chord -> Chord) -> TablatureDocument -> TablatureDocument
 applyChordMapping chordMapping = map (rewriteChordsInTextLine >>> rewriteChordsInChordLine)
   where
   mapping = liftMappingSpaced chordMapping
