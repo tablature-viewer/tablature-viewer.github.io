@@ -2,7 +2,7 @@ module TablatureRenderer where
 
 import Prelude
 
-import AppState (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), Note(..), RenderingOptions, Spaced, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), _bass, _elem, _letter, _mod, _mods, _root, _spaceSuffix, _type)
+import TablatureDocument (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), Note(..), RenderingOptions, Spaced, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), _bass, _elem, _letter, _mod, _mods, _root, _spaceSuffix, _type)
 import Data.Array (fromFoldable)
 import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
@@ -14,11 +14,6 @@ import Data.String.Utils (repeat)
 import Halogen.HTML as HH
 import HalogenUtils (classString, renderLineEnding)
 import Utils (print)
-
-renderTablature :: forall w i. Maybe TablatureDocument -> String -> RenderingOptions -> List (HH.HTML w i)
-renderTablature maybeTablatureDoc tablatureText renderingOptions = case maybeTablatureDoc of
-  Nothing -> HH.text tablatureText : Nil
-  Just tablatureDoc -> renderTablatureDocument tablatureDoc renderingOptions
 
 renderTablatureDocument :: forall w i. TablatureDocument -> RenderingOptions -> List (HH.HTML w i)
 renderTablatureDocument doc _ = map renderLine doc

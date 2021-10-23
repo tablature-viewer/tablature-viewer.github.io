@@ -2,7 +2,7 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
+import TablatureDocument (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.Lens (_Just, over, traversed)
 import Data.List (List, reverse)

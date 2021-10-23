@@ -2,12 +2,12 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), AutoscrollSpeed(..), Mode(..), RenderingOptions, State, TablatureDocument, TablatureDocumentLine(..), TitleLineElem(..), Transposition(..), predTransposition, speedToIntervalMs, speedToIntervalPixelDelta, succTransposition)
+import AppState (Action(..), AutoscrollSpeed(..), Cached(..), Mode(..), State, cacheState, getRenderingOptions, getTablatureText, getTablatureTitle, setTablatureText, speedToIntervalMs, speedToIntervalPixelDelta)
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, redirectToUrlInFragment, saveTablatureToUrl, setAppQueryString)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.Enum (pred, succ)
-import Data.List (List, findIndex, (!!))
+import Data.List (List(..), findIndex, (!!), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
@@ -27,8 +27,9 @@ import Halogen.VDom.Driver (runUI)
 import HalogenUtils (classString, fontAwesome, optionalText, scrollBy)
 import LocalStorage (getLocalStorageBoolean, setLocalStorage)
 import LocationString (getLocationString, getQueryParam)
-import TablatureParser (tryParseTablature)
-import TablatureRenderer (renderTablature)
+import TablatureDocument (RenderingOptions, TablatureDocument, Transposition(..), defaultTitle, predTransposition, succTransposition)
+import TablatureParser (parseTablature)
+import TablatureRenderer (renderTablatureDocument)
 import TablatureRewriter (rewriteTablatureDocument)
 import UrlShortener (createShortUrl)
 import Web.DOM.Element (scrollTop, setScrollTop)
@@ -53,42 +54,10 @@ main = do
         body <- HA.awaitBody
         runUI component unit body
 
-defaultTitle :: String
-defaultTitle = "Tab Viewer"
-
-findElement :: forall a. (a -> Boolean) -> List a -> Maybe a
-findElement p l =
-  case findIndex p l of
-    Nothing -> Nothing
-    Just index -> case l !! index of
-      Nothing -> Nothing
-      Just elem -> Just elem
-
-getTitle :: TablatureDocument -> String
-getTitle tablatureDocument = 
-  case findElement isTitleLine tablatureDocument of
-    Nothing -> defaultTitle
-    Just (TitleLine line) ->
-      case findElement isTitle line of
-        Nothing -> defaultTitle
-        Just (Title title) -> title
-        Just _ -> defaultTitle
-    Just _ -> defaultTitle
-  where
-  isTitleLine (TitleLine _) = true
-  isTitleLine _ = false
-  isTitle (Title _) = true
-  isTitle _ = false
-
-getIgnoreDozenalization :: TablatureDocument -> Boolean
-getIgnoreDozenalization tablatureDocument = test (unsafeRegex "dozenal" ignoreCase) (getTitle tablatureDocument)
-
-getRenderingOptions :: State -> RenderingOptions
-getRenderingOptions state =
-  { dozenalizeTabs: state.tabDozenalizationEnabled && not state.ignoreDozenalization
-  , dozenalizeChords: state.chordDozenalizationEnabled && not state.ignoreDozenalization
-  , normalizeTabs: state.tabNormalizationEnabled
-  , transposition: state.transposition }
+getIgnoreDozenalization :: forall output m . MonadEffect m => H.HalogenM State Action () output m Boolean
+getIgnoreDozenalization = do
+  title <- getTablatureTitle
+  pure $ test (unsafeRegex "dozenal" ignoreCase) title
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -121,20 +90,20 @@ render state = HH.div_
   [ HH.div 
     [ classString "app" ]
     [ renderHeader
-    , renderTablature
+    , renderBody
     ]
   , HH.div
     [ classString "tablaturePrinter tablature" ]
-    [ HH.pre_ $ renderTablatureText state ]
+    [ HH.pre_ $ renderTablature state ]
   ]
   where
-  renderTablature = case state.mode of
+  renderBody = case state.mode of
     ViewMode -> HH.div 
       [ classString "tablatureViewer tablature"
       , HP.ref refTablatureViewer
       , HP.tabIndex 0
       ]
-      [ HH.pre_ $ renderTablatureText state ]
+      [ HH.pre_ $ renderTablature state ]
     EditMode -> HH.textarea
       [ HP.ref refTablatureEditor
       , classString "tablatureEditor" 
@@ -271,8 +240,16 @@ render state = HH.div_
       else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
 
 
-renderTablatureText :: forall w i. State -> Array (HH.HTML w i)
-renderTablatureText state = fromFoldable $ renderTablature state.tablatureDocument state.tablatureText $ getRenderingOptions state
+renderTablature :: forall w i. State -> Array (HH.HTML w i)
+renderTablature state = fromFoldable $ renderTablature' state.rewriteResult state.tablatureText $ getRenderingOptions state
+  where
+  renderTablature' :: Cached TablatureDocument -> Cached String -> RenderingOptions -> List (HH.HTML w i)
+  renderTablature' cachedTablatureDoc tablatureText renderingOptions = case cachedTablatureDoc of
+    NoValue -> case tablatureText of
+      NoValue -> HH.text "" : Nil
+      Cached text -> HH.text text : Nil
+    Cached tablatureDoc -> renderTablatureDocument tablatureDoc renderingOptions
+
 
 initialState :: forall input. input -> State
 initialState _ = _initialState
@@ -281,9 +258,10 @@ _initialState :: State
 _initialState =
   { mode: EditMode
   , loading: false
-  , tablatureText: ""
-  , tablatureTitle: defaultTitle
-  , tablatureDocument: Nothing
+  , tablatureText: Cached ""
+  , tablatureTitle: Cached defaultTitle
+  , parseResult: NoValue
+  , rewriteResult: NoValue
   , scrollTop: 0.0
   , autoscroll: false
   , autoscrollTimer: Nothing
@@ -304,6 +282,9 @@ handleAction action = do
   case action of
     Initialize -> do
       -- TODO refactor this
+      -- Every property should have a dedicated getter and setter function over the halogen monad.
+      -- The setter should update both the backing storage and purge the affected values in the State.
+      -- The getter should return from State if present, otherwise fetch from backing store.
       maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
       tabNormalizationEnabled <- pure $ fromMaybe originalState.tabNormalizationEnabled maybeTabNormalizationEnabled
       maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
@@ -313,54 +294,46 @@ handleAction action = do
       maybeTransposition <- H.liftEffect $ getTranspositionFromUrl
       transposition <- pure $ fromMaybe originalState.transposition maybeTransposition
       H.put $ _initialState { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled, transposition = transposition}
-      maybeTablatureText <- H.liftEffect getTablatureTextFromUrl
-      case maybeTablatureText of
-        Just tablatureText -> do
-          state <- H.get
-          case readTablature tablatureText $ getRenderingOptions state of
-            Just tablatureDocument -> do
-              H.modify_ _ { mode = ViewMode, tablatureText = tablatureText, tablatureTitle = tablatureTitle, tablatureDocument = Just tablatureDocument, ignoreDozenalization = ignoreDozenalization }
-              H.liftEffect $ setDocumentTitle tablatureTitle
-              where
-                tablatureTitle = getTitle tablatureDocument
-                ignoreDozenalization = getIgnoreDozenalization tablatureDocument
-            Nothing ->
-              H.modify_ _ { tablatureText = tablatureText }
-        Nothing -> pure unit
+      tablatureText <- getTablatureText
+      if tablatureText == ""
+      then H.modify_ _ { mode = ViewMode }
+      else pure unit
       focusTablatureContainer
     ToggleEditMode -> do
       saveScrollTop
       case originalState.mode of
         EditMode -> do
-          saveTablature
+          tablatureText <- getTablatureEditorText
+          setTablatureText tablatureText
           H.modify_ _ { mode = ViewMode }
           focusTablatureContainer
         ViewMode -> do
-          H.modify_ _ { mode = EditMode, tablatureDocument = Nothing }
-          setTablatureEditorText originalState.tablatureText
+          H.modify_ _ { mode = EditMode }
+          tablatureText <- getTablatureText
+          setTablatureEditorText tablatureText
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
     ToggleTabNormalization -> do
+      -- TODO make proper setter
       H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not originalState.tabNormalizationEnabled)
       H.modify_ _ { tabNormalizationEnabled = not originalState.tabNormalizationEnabled }
-      -- Normalization affects the TablatureDocument, so we need to re-read it now
-      refreshTablatureState originalState
+      -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
     ToggleTabDozenalization -> do
+      -- TODO make proper setter
       if originalState.ignoreDozenalization
       then pure unit
       else do
         H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not originalState.tabDozenalizationEnabled)
         H.modify_ _ { tabDozenalizationEnabled = not originalState.tabDozenalizationEnabled }
-        -- Dozenalization affects the TablatureDocument, so we need to re-read it now
-        refreshTablatureState originalState
+        -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
     ToggleChordDozenalization -> do
+      -- TODO make proper setter
       if originalState.ignoreDozenalization
       then pure unit
       else do
         H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not originalState.chordDozenalizationEnabled)
         H.modify_ _ { chordDozenalizationEnabled = not originalState.chordDozenalizationEnabled }
-        -- Dozenalization affects the TablatureDocument, so we need to re-read it now
-        refreshTablatureState originalState
+        -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
     CopyShortUrl -> do
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
@@ -376,28 +349,36 @@ handleAction action = do
       decreaseAutoscrollSpeed originalState
       H.modify_ _ { autoscroll = originalState.autoscroll }
     IncreaseTransposition -> do
+      -- TODO make proper setter
       H.modify_ _ { transposition = succTransposition originalState.transposition }
       state <- H.get
-      refreshTablatureState state
       updateQueryString state
     DecreaseTransposition -> do
+      -- TODO make proper setter
       H.modify_ _ { transposition = predTransposition originalState.transposition }
       state <- H.get
-      refreshTablatureState state
       updateQueryString state -- TODO: this should be done generically
 
   newState <- H.get
   updateAutoscroll newState
+  cacheState
   H.modify_ _ { loading = false }
 
-refreshTablatureState :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
-refreshTablatureState state =
-  case state.mode of
-    ViewMode -> readTablatureAndSaveToState state.tablatureText
-    _ -> pure unit
+getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
+getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
+  \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
 
+getTablatureEditorText :: forall output m . MonadEffect m => H.HalogenM State Action () output m String
+getTablatureEditorText = do
+  maybeTextArea <- getTablatureEditorElement
+  case maybeTextArea of
+    Nothing -> H.liftEffect $ Console.error "Could not find textareaTablature" *> pure ""
+    Just textArea -> H.liftEffect $ WH.HTMLTextAreaElement.value textArea 
+
+
+-- TODO: FIX
 updateQueryString :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
-updateQueryString state = H.liftEffect $ setAppQueryString state
+updateQueryString state = pure unit
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
@@ -448,7 +429,7 @@ updateAutoscroll state =
         timerId <- H.liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta state.autoscrollSpeed) elem
         H.modify_ _ { autoscrollTimer = Just timerId }
 
--- TODO: store scrollspeed in url parameter
+-- TODO: store scrollspeed somewhere
 increaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
 increaseAutoscrollSpeed state = do
   case succ state.autoscrollSpeed of
@@ -468,40 +449,6 @@ focusTablatureContainer = do
     Nothing -> H.liftEffect $ Console.error "Could not find tablatureContainer"
     Just tablatureContainerElem -> H.liftEffect $ focus tablatureContainerElem
 
-
-getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
-getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
-  \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
-
-getTablatureEditorText :: forall output m . MonadEffect m => H.HalogenM State Action () output m String
-getTablatureEditorText = do
-  maybeTextArea <- getTablatureEditorElement
-  case maybeTextArea of
-    Nothing -> H.liftEffect $ Console.error "Could not find textareaTablature" *> pure ""
-    Just textArea -> H.liftEffect $ WH.HTMLTextAreaElement.value textArea 
-
-saveTablature :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
-saveTablature = do
-  tablatureText <- getTablatureEditorText
-  readTablatureAndSaveToState tablatureText
-  state <- H.get
-  H.liftEffect $ setDocumentTitle state.tablatureTitle
-  saveTablatureToUrl
-
-readTablature :: String -> RenderingOptions -> Maybe TablatureDocument
-readTablature tablatureText renderingOptions = do
-  case tryParseTablature tablatureText of
-    Just parseResult -> Just $ rewriteTablatureDocument renderingOptions parseResult
-    Nothing -> Nothing
-
-readTablatureAndSaveToState :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
-readTablatureAndSaveToState tablatureText = do
-  state <- H.get
-  case readTablature tablatureText (getRenderingOptions state) of
-    Just tablatureDocument ->
-      H.modify_ _ { tablatureText = tablatureText, tablatureTitle = getTitle tablatureDocument, tablatureDocument = Just tablatureDocument, ignoreDozenalization = getIgnoreDozenalization tablatureDocument }
-    Nothing ->
-      H.modify_ _ { tablatureText = tablatureText, tablatureTitle = defaultTitle, tablatureDocument = Nothing }
 
 setTablatureEditorText :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
 setTablatureEditorText text = do

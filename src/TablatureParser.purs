@@ -2,12 +2,12 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import AppState (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
+import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
 import Data.List (List(..), (:))
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.String (drop, length, toLower, toUpper)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
@@ -137,8 +137,11 @@ parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n\r?|\r"""
 
-tryParseTablature :: String -> Maybe (List TablatureDocumentLine)
+tryParseTablature :: String -> Maybe TablatureDocument
 tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
+
+parseTablature :: String -> TablatureDocument
+parseTablature text = tryParseTablature text # fromMaybe Nil
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString = 
