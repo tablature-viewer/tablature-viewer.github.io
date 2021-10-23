@@ -29,20 +29,15 @@ data TablatureDocumentLine
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
 
-defaultTitle :: String
-defaultTitle = "Tab Viewer"
-
 -- TOD: change to lens
-getTitle :: TablatureDocument -> String
+getTitle :: TablatureDocument -> Maybe String
 getTitle tablatureDocument = 
   case findElement isTitleLine tablatureDocument of
-    Nothing -> defaultTitle
     Just (TitleLine line) ->
       case findElement isTitle line of
-        Nothing -> defaultTitle
-        Just (Title title) -> title
-        Just _ -> defaultTitle
-    Just _ -> defaultTitle
+        Just (Title title) -> Just title
+        _ -> Nothing
+    _ -> Nothing
   where
   isTitleLine (TitleLine _) = true
   isTitleLine _ = false
