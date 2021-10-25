@@ -2,13 +2,13 @@ module Utils where
 
 import Prelude
 
-import Data.List (List(..), (:))
+import Data.Either (Either(..))
 import Data.Enum (class Enum)
+import Data.List (List(..), (:))
+import Data.List.NonEmpty (NonEmptyList)
 import Data.Tuple (Tuple, fst, snd)
 import Effect.Console (log)
 import Effect.Unsafe (unsafePerformEffect)
-import Data.List.NonEmpty (NonEmptyList)
-import Data.Either (Either(..))
 import Text.Parsing.StringParser (Parser(..), unParser)
 import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
 

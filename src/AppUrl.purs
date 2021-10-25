@@ -11,9 +11,8 @@ import Halogen as H
 import LZString (compressToEncodedURIComponent, decompressFromEncodedURIComponent)
 import LocationString (getFragmentString, getQueryParam, setFragmentString, setLocationString, setQueryString)
 
-type UrlState =
-  { tablatureText :: String
-  , transposition :: Transposition}
+type QueryParams =
+  { transposition :: Transposition }
 
 saveTablatureToUrl :: String -> Effect Unit
 saveTablatureToUrl tablatureText = do
@@ -47,7 +46,7 @@ getTranspositionFromUrl  = do
         Just n -> pure $ Just $ Transposition n
         _ -> Console.error("Could not load decompressed shortlink URL") *> pure Nothing
 
-setAppQueryString :: UrlState -> Effect Unit
+setAppQueryString :: QueryParams -> Effect Unit
 setAppQueryString state =
   case state.transposition of
     Transposition 0 -> setQueryString ""

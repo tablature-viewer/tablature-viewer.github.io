@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), Mode(..), State, cacheState, peekRenderingOptions, getTablatureText, getTablatureTitle, initialState, peekRewriteResult, peekTransposition, setTablatureText, speedToIntervalMs, speedToIntervalPixelDelta)
+import AppState (Action(..), Mode(..), State, cacheState, getTablatureText, getTablatureTitle, initialState, peekChordDozenalizationEnabled, peekIgnoreDozenalization, peekRenderingOptions, peekRewriteResult, peekTabDozenalizationEnabled, peekTabNormalizationEnabled, peekTransposition, setTablatureText, speedToIntervalMs, speedToIntervalPixelDelta)
 import AppUrl (getTranspositionFromUrl, redirectToUrlInFragment)
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -56,15 +56,6 @@ refTablatureEditor = H.RefLabel "tablatureEditor"
 
 refTablatureViewer :: H.RefLabel
 refTablatureViewer = H.RefLabel "tablatureViewer"
-
-localStorageKeyTabNormalizationEnabled :: String
-localStorageKeyTabNormalizationEnabled = "tabNormalizationEnabled"
-
-localStorageKeyTabDozenalizationEnabled :: String
-localStorageKeyTabDozenalizationEnabled = "tabDozenalizationEnabled"
-
-localStorageKeyChordDozenalizationEnabled :: String
-localStorageKeyChordDozenalizationEnabled = "ChordDozenalizationEnabled"
 
 component :: forall query input output m. MonadAff m => H.Component query input output m
 component =
@@ -135,7 +126,7 @@ render state = HH.div_
           , classString "dropdown-item"
           , HE.onClick \_ -> ToggleTabNormalization
           ]
-          [ if state.tabNormalizationEnabled
+          [ if peekTabNormalizationEnabled state
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
           , HH.text " Normalize tabs"
@@ -144,9 +135,9 @@ render state = HH.div_
           [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
           , classString "dropdown-item"
           , HE.onClick \_ -> ToggleTabDozenalization
-          , classString $ if state.ignoreDozenalization then "disabled" else ""
+          , classString $ if peekIgnoreDozenalization state then "disabled" else ""
           ]
-          [ if state.tabDozenalizationEnabled && not state.ignoreDozenalization
+          [ if peekTabDozenalizationEnabled state && not peekIgnoreDozenalization state
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
           , HH.text " Dozenalize tabs"
@@ -155,9 +146,9 @@ render state = HH.div_
           [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
           , HE.onClick \_ -> ToggleChordDozenalization
           , classString "dropdown-item"
-          , classString $ if state.ignoreDozenalization then "disabled" else ""
+          , classString $ if peekIgnoreDozenalization state then "disabled" else ""
           ]
-          [ if state.chordDozenalizationEnabled && not state.ignoreDozenalization
+          [ if peekChordDozenalizationEnabled state && not peekIgnoreDozenalization state
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
           , HH.text " Dozenalize chords"
@@ -245,19 +236,6 @@ handleAction action = do
   H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
   case action of
     Initialize -> do
-      -- TODO refactor this
-      -- Every property should have a dedicated getter and setter function over the halogen monad.
-      -- The setter should update both the backing storage and purge the affected values in the State.
-      -- The getter should return from State if present, otherwise fetch from backing store.
-      maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
-      tabNormalizationEnabled <- pure $ fromMaybe originalState.tabNormalizationEnabled maybeTabNormalizationEnabled
-      maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
-      tabDozenalizationEnabled <- pure $ fromMaybe originalState.tabDozenalizationEnabled maybeTabDozenalizationEnabled
-      maybeChordDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyChordDozenalizationEnabled
-      chordDozenalizationEnabled <- pure $ fromMaybe originalState.chordDozenalizationEnabled maybeChordDozenalizationEnabled
-      maybeTransposition <- H.liftEffect $ getTranspositionFromUrl
-      transposition <- pure $ fromMaybe originalState.transposition maybeTransposition
-      H.modify_ _ { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled, transposition = transposition}
       tablatureText <- getTablatureText
       if tablatureText == ""
       then H.modify_ _ { mode = ViewMode }
@@ -307,10 +285,10 @@ handleAction action = do
       focusTablatureContainer
     ToggleAutoscroll -> H.modify_ _ { autoscroll = not originalState.autoscroll }
     IncreaseAutoscrollSpeed -> do
-      increaseAutoscrollSpeed originalState
+      increaseAutoscrollSpeed
       H.modify_ _ { autoscroll = originalState.autoscroll }
     DecreaseAutoscrollSpeed -> do
-      decreaseAutoscrollSpeed originalState
+      decreaseAutoscrollSpeed
       H.modify_ _ { autoscroll = originalState.autoscroll }
     IncreaseTransposition -> do
       -- TODO make proper setter
@@ -394,14 +372,16 @@ updateAutoscroll state =
         H.modify_ _ { autoscrollTimer = Just timerId }
 
 -- TODO: store scrollspeed somewhere
-increaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
-increaseAutoscrollSpeed state = do
+increaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+increaseAutoscrollSpeed = do
+  state <- H.get
   case succ state.autoscrollSpeed of
     Nothing -> pure unit
     Just speed -> H.modify_ _ { autoscrollSpeed = speed }
 
-decreaseAutoscrollSpeed :: forall output m . MonadEffect m => State -> H.HalogenM State Action () output m Unit
-decreaseAutoscrollSpeed state = do
+decreaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+decreaseAutoscrollSpeed = do
+  state <- H.get
   case pred state.autoscrollSpeed of
     Nothing -> pure unit
     Just speed -> H.modify_ _ { autoscrollSpeed = speed }

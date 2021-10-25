@@ -15,3 +15,10 @@ getLocalStorageBoolean key = do
     "true" -> Just true
     "false" -> Just false
     _ -> Nothing
+
+getLocalStorageBooleanWithDefault :: String -> Boolean -> Effect Boolean
+getLocalStorageBooleanWithDefault key default = do
+  result <- getLocalStorageBoolean key
+  case result of
+    Nothing -> pure default
+    Just bool -> pure bool

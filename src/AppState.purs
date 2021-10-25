@@ -1,26 +1,29 @@
 module AppState where
 
-import Data.Lens.Barlow
--- import Data.Lens.Barlow.Helpers
 import Prelude
 
-import AppUrl (getTablatureTextFromUrl, saveTablatureToUrl)
+import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
+import Cache (Cache(..), CacheValue(..))
+import Control.Monad.State (class MonadState)
 import Data.Enum (class Enum)
 import Data.Enum.Generic (genericPred, genericSucc)
+import Data.Functor.App (App(..))
 import Data.Generic.Rep (class Generic)
-import Data.Lens (view)
+import Data.Lens.Barlow (barlow, key)
+import Data.Lens.Barlow.Helpers (view, over)
 import Data.List (List(..))
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Newtype (class Newtype)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Class (class MonadEffect)
 import Effect.Timer (IntervalId)
 import Halogen as H
+import LocalStorage (getLocalStorageBoolean, getLocalStorageBooleanWithDefault)
 import TablatureDocument (RenderingOptions, TablatureDocument, Transposition(..), getTitle)
 import TablatureParser (parseTablature)
 import TablatureRewriter (rewriteTablatureDocument)
-import Data.Newtype (class Newtype)
 
 -- TODO: rename to AppAction?
 data Action
@@ -35,87 +38,6 @@ data Action
   | DecreaseAutoscrollSpeed
   | IncreaseTransposition
   | DecreaseTransposition
-
-data Cache a = NoValue | Cached a
-
-peekOrDefault :: forall a. Cache a -> a -> a
-peekOrDefault cache default = case cache of
-  NoValue -> default
-  Cached result -> result
-
--- class Cache a where
---   get :: forall output m . MonadEffect m => H.HalogenM State Action () output m a
---   set :: forall output m . MonadEffect m => a -> H.HalogenM State Action () output m Unit
---   peek :: a -> State -> a
-
-class AppStateCache s where
-  getTransposition :: forall output m . MonadEffect m => H.HalogenM s Action () output m Transposition
-  setTransposition :: forall output m . MonadEffect m => Transposition -> H.HalogenM s Action () output m Unit
-  peekTransposition :: s -> Transposition
-
-  getRewriteResult :: forall output m . MonadEffect m => H.HalogenM s Action () output m TablatureDocument
-  setRewriteResult :: forall output m . MonadEffect m => TablatureDocument -> H.HalogenM s Action () output m Unit
-  peekRewriteResult :: s -> TablatureDocument
-
-  getParseResult :: forall output m . MonadEffect m => H.HalogenM s Action () output m TablatureDocument
-  setParseResult :: forall output m . MonadEffect m => TablatureDocument -> H.HalogenM s Action () output m Unit
-  peekParseResult :: s -> TablatureDocument
-
-  getTablatureText :: forall output m . MonadEffect m => H.HalogenM s Action () output m String
-  setTablatureText :: forall output m . MonadEffect m => String -> H.HalogenM s Action () output m Unit
-  peekTablatureText :: s -> String
-
-  getTablatureTitle :: forall output m . MonadEffect m => H.HalogenM s Action () output m String
-  peekTablatureTitle :: s -> String
-
-  getTabNormalizationEnabled :: forall output m . MonadEffect m => H.HalogenM s Action () output m Boolean
-  peekTabNormalizationEnabled :: s -> Boolean
-  toggleTabNormalizationEnabled :: forall output m . MonadEffect m => H.HalogenM s Action () output m Unit
-  getTabDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM s Action () output m Boolean
-  peekTabDozenalizationEnabled :: s -> Boolean
-  toggleTabDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM s Action () output m Unit
-  getChordDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM s Action () output m Boolean
-  peekChordDozenalizationEnabled :: s -> Boolean
-  toggleChordDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM s Action () output m Unit
-
-  getAutoscrollTimer :: forall output m . MonadEffect m => H.HalogenM s Action () output m (Maybe IntervalId)
-  getAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM s Action () output m AutoscrollSpeed
-  getAutoscroll :: forall output m . MonadEffect m => H.HalogenM s Action () output m Boolean
-  getIgnoreDozenalization :: forall output m . MonadEffect m => H.HalogenM s Action () output m Boolean
-  peekIgnoreDozenalization :: s -> Boolean
-
-  -- TODO: move these out of the newtype?
-  getScrollTop :: forall output m . MonadEffect m => H.HalogenM s Action () output m Number
-  setScrollTop :: forall output m . MonadEffect m => Number -> H.HalogenM s Action () output m Unit
-  getLoading :: forall output m . MonadEffect m => H.HalogenM s Action () output m Boolean
-  setLoading :: forall output m . MonadEffect m => Boolean -> H.HalogenM s Action () output m Unit
-  getMode :: forall output m . MonadEffect m => H.HalogenM s Action () output m Mode
-  setMode :: forall output m . MonadEffect m => Mode -> H.HalogenM s Action () output m Unit
-
-  cacheState :: forall output m . MonadEffect m => H.HalogenM s Action () output m Unit
-
-
-type StateRecord = 
-  { mode :: Mode
-  , tablatureText :: Cache String
-  , tablatureTitle :: Cache String
-  , parseResult :: Cache TablatureDocument
-  , rewriteResult :: Cache TablatureDocument
-  , tabNormalizationEnabled :: Boolean
-  , tabDozenalizationEnabled :: Boolean
-  , chordDozenalizationEnabled :: Boolean
-  , transposition :: Transposition
-  , autoscrollTimer :: Maybe IntervalId
-  , autoscrollSpeed :: AutoscrollSpeed
-  , autoscroll :: Boolean
-  -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
-  , ignoreDozenalization :: Boolean
-  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
-  , scrollTop :: Number
-  , loading :: Boolean
-  }
-newtype State = State StateRecord
-derive instance newtypeState :: Newtype State _
 
 data Mode = ViewMode | EditMode
 
@@ -159,114 +81,199 @@ speedToIntervalPixelDelta Fast = 1
 speedToIntervalPixelDelta Fastest = 2
 
 
+newtype State m = State
+  { mode :: Mode
+  , autoscrollTimer :: Maybe IntervalId
+  , autoscrollSpeed :: AutoscrollSpeed
+  , autoscroll :: Boolean
+  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
+  , scrollTop :: Number
+  , loading :: Boolean
+  -- , tablatureText :: Cache (State m) m String
+  -- , tablatureTitle :: Cache (State m) m String
+  -- , parseResult :: Cache (State m) m TablatureDocument
+  -- , rewriteResult :: Cache (State m) m TablatureDocument
+  -- , tabNormalizationEnabled :: Cache (State m) m Boolean
+  -- , tabDozenalizationEnabled :: Cache (State m) m Boolean
+  -- , chordDozenalizationEnabled :: Cache (State m) m Boolean
+  , transposition :: Cache (State m) m Transposition
+  -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
+  -- , ignoreDozenalization :: Cache (State m) m Boolean
+  }
+
 -- TODO
--- Every AppStateCache property should have a dedicated getter and setter function over the halogen monad.
+-- Every AppCache property should have a dedicated getter and setter function over the halogen monad.
 -- The setter should update both the backing storage and purge the affected values in the State.
 -- The getter should return from State if present, otherwise fetch from backing store and call the setter.
 
-modify :: forall output m . MonadEffect m => (StateRecord -> StateRecord) -> H.HalogenM State Action () output m Unit
-modify f = H.modify_ (\(State s) -> State (f s))
 
-instance appState :: AppStateCache State where
-  getTransposition = do
-    state <- H.get
-    pure $ view (barlow (key :: _ "!.transposition")) state
-  setTransposition transposition = modify _ { transposition = transposition, rewriteResult = NoValue }
-  peekTransposition state = view (barlow (key :: _ "!.transposition")) state
+-- modify :: forall output m c. MonadEffect m => AppCache c => (State c -> State c) -> H.HalogenM (State c) Action () output m Unit
+-- modify f = H.modify_ (\s -> f s)
+-- modifyCache :: forall output m. MonadEffect m => (AppCacheStateRecord -> AppCacheStateRecord) -> H.HalogenM (State AppCacheState) Action () output m Unit
+-- modifyCache f = H.modify_ (\state@{ cache: (AppCacheState s) } -> state { cache = (AppCacheState $ f s) })
+-- modifyCache f = H.modify_ (over (key :: _ "cache!") f)
 
-  getRewriteResult = do
-    state <- H.get
-    case view (barlow (key :: _ "!.rewriteResult")) state of
-      Cached result -> pure result
-      NoValue -> do
-        parseResult <- getParseResult
-        result <- pure $ rewriteTablatureDocument (peekRenderingOptions state) parseResult
-        setRewriteResult result
-        pure result
-  setRewriteResult rewriteResult =
-    modify _ { rewriteResult = Cached rewriteResult }
-  peekRewriteResult state = peekOrDefault (view (barlow (key :: _ "!.rewriteResult")) state) Nil
+-- getParseResult :: forall output m . MonadEffect m => H.HalogenM State Action () output m TablatureDocument
+-- initialTransposition :: forall output m . MonadEffect m => Cache (State (H.HalogenM (State m) Action () output m)) (H.HalogenM (State m) Action () output m) Transposition
+-- initialTransposition =
+--   { fetch: H.liftEffect getTranspositionFromUrl
+--   , flush: \value -> H.liftEffect $ setAppQueryString { transposition: value }
+--   , invalidate: pure unit 
+--   , cacheValue: \_ -> NoValue
+--   , default: \_ -> Transposition 0
+--   }
 
-  getParseResult = do
-    state <- H.get
-    case view (barlow (key :: _ "!.parseResult")) state of
-      Cached result -> pure result
-      NoValue -> do
-        tablatureText <- getTablatureText
-        result <- pure $ parseTablature tablatureText
-        setParseResult result
-        pure result
-  setParseResult parseResult =
-    modify _ { parseResult = Cached parseResult }
-  peekParseResult state = peekOrDefault (view (barlow (key :: _ "!.parseResult")) state) Nil
+initialState :: forall input output m . MonadEffect m => input -> State (H.HalogenM (State m) Action () output m)
+initialState _ = State
+  { mode: EditMode
+  , loading: false
+  , scrollTop: 0.0
+  , autoscroll: false
+  , autoscrollTimer: Nothing
+  , autoscrollSpeed: Normal
+  -- , tablatureText: Cached ""
+  -- , tablatureTitle: Cached defaultTablatureTitle
+  -- , tablatureTitle: NoValue
+  -- , parseResult: NoValue
+  -- , rewriteResult: NoValue
+  -- , tabNormalizationEnabled: NoValue
+  -- , tabDozenalizationEnabled: NoValue
+  -- , chordDozenalizationEnabled: NoValue
+  -- , ignoreDozenalization: NoValue
+  , transposition:
+    { fetch: H.liftEffect getTranspositionFromUrl
+    , flush: \value -> H.liftEffect $ setAppQueryString { transposition: value }
+    , invalidate: pure unit 
+    , cacheValue: NoValue
+    , default: Transposition 0
+    }
+  }
 
-  getTablatureText = do
-    state <- H.get
-    case view (barlow (key :: _ "!.tablatureText")) state of
-      Cached result -> pure result
-      NoValue -> do
-        tablatureText <- H.liftEffect getTablatureTextFromUrl
-        setTablatureText tablatureText
-        pure tablatureText
-  setTablatureText text = do
-    H.liftEffect $ saveTablatureToUrl text
-    modify _ { tablatureText = Cached text, parseResult = NoValue, rewriteResult = NoValue, tablatureTitle = NoValue }
-  peekTablatureText state = peekOrDefault (view (barlow (key :: _ "!.tablatureText")) state) ""
+-- instance appState :: AppCache AppCacheState where
+-- getTransposition = do
+--   state <- H.get
+--   pure $ view (key :: _ "cache!.transposition") state
+-- setTransposition transposition = modify _ { transposition = transposition, rewriteResult = NoValue }
+-- peekTransposition state = peekOrDefault defaultTransposition $ view (key :: _ "cache!.transposition") state
+-- defaultTransposition = 
 
-  getTablatureTitle = do
-    state <- H.get
-    case view (barlow (key :: _ "!.tablatureTitle")) state of
-      Cached result -> pure result
-      NoValue -> do
-        tablatureDocument <- getRewriteResult
-        title <- pure $ fromMaybe defaultTablatureTitle $ getTitle tablatureDocument
-        modify _ { tablatureTitle = Cached title }
-        pure title
-  peekTablatureTitle state = peekOrDefault (view (barlow (key :: _ "!.tablatureTitle")) state) defaultTablatureTitle
+{-}
+getRewriteResult = do
+  state <- H.get
+  case view (key :: _ "cache!.rewriteResult") state of
+    Cached result -> pure result
+    NoValue -> do
+      parseResult <- getParseResult
+      result <- pure $ rewriteTablatureDocument (peekRenderingOptions state) parseResult
+      setRewriteResult result
+      pure result
+setRewriteResult rewriteResult =
+  modifyCache _ { rewriteResult = Cached rewriteResult }
+peekRewriteResult state = peekOrDefault Nil $ view (key :: _ "cache!.rewriteResult") state
 
-  getTabNormalizationEnabled = H.get >>= \state -> pure $ view (barlow (key :: _ "!.tabNormalizationEnabled")) state
-  peekTabNormalizationEnabled = view (barlow (key :: _ "!.tabNormalizationEnabled"))
-  toggleTabNormalizationEnabled = do
-    state <- H.get
-    modify _ { tabNormalizationEnabled = not view (barlow (key :: _ "!.tabNormalizationEnabled")) state, rewriteResult = NoValue }
+getParseResult :: forall output m . MonadEffect m => H.HalogenM State Action () output m TablatureDocument
+getParseResult = do
+  state <- H.get
+  case view (key :: _ "cache!.parseResult") state of
+    Cached result -> pure result
+    NoValue -> do
+      tablatureText <- getTablatureText
+      result <- pure $ parseTablature tablatureText
+      setParseResult result
+      pure result
+setParseResult parseResult =
+  modifyCache _ { parseResult = Cached parseResult }
+peekParseResult state = peekOrDefault Nil $ view (key :: _ "cache!.parseResult") state
 
-  getTabDozenalizationEnabled = H.get >>= \state -> pure $ view (barlow (key :: _ "!.tabDozenalizationEnabled")) state
-  peekTabDozenalizationEnabled = view (barlow (key :: _ "!.tabDozenalizationEnabled"))
-  toggleTabDozenalizationEnabled = do
-    state <- H.get
-    modify _ { tabDozenalizationEnabled = not view (barlow (key :: _ "!.tabDozenalizationEnabled")) state, rewriteResult = NoValue }
+getTablatureText = do
+  state <- H.get
+  case view (key :: _ "cache!.tablatureText") state of
+    Cached result -> pure result
+    NoValue -> do
+      tablatureText <- H.liftEffect getTablatureTextFromUrl
+      setTablatureText tablatureText
+      pure tablatureText
+setTablatureText text = do
+  H.liftEffect $ saveTablatureToUrl text
+  modifyCache _ { tablatureText = Cached text, parseResult = NoValue, rewriteResult = NoValue, tablatureTitle = NoValue }
+peekTablatureText state = peekOrDefault "" $ view (key :: _ "cache!.tablatureText") state
 
-  getChordDozenalizationEnabled = H.get >>= \state -> pure $ view (barlow (key :: _ "!.chordDozenalizationEnabled")) state
-  peekChordDozenalizationEnabled = view (barlow (key :: _ "!.chordDozenalizationEnabled"))
-  toggleChordDozenalizationEnabled = do
-    state <- H.get
-    modify _ { chordDozenalizationEnabled = not view (barlow (key :: _ "!.chordDozenalizationEnabled")) state, rewriteResult = NoValue }
+getTablatureTitle = do
+  state <- H.get
+  case view (key :: _ "cache!.tablatureTitle") state of
+    Cached result -> pure result
+    NoValue -> do
+      tablatureDocument <- getRewriteResult
+      title <- pure $ fromMaybe defaultTablatureTitle $ getTitle tablatureDocument
+      modifyCache _ { tablatureTitle = Cached title }
+      pure title
+peekTablatureTitle state = peekOrDefault defaultTablatureTitle $ view (key :: _ "cache!.tablatureTitle") state
 
-  getScrollTop = H.get >>= \state -> pure $ view (barlow (key :: _ "!.scrollTop")) state
-  setScrollTop x = modify _ { scrollTop = x }
-  getLoading = H.get >>= \state -> pure $ view (barlow (key :: _ "!.loading")) state
-  setLoading x = modify _ { loading = x }
-  getMode = H.get >>= \state -> pure $ view (barlow (key :: _ "!.mode")) state
-  setMode x = modify _ { mode = x }
+getTabNormalizationEnabled :: forall output m . MonadEffect m => H.HalogenM State Action () output m Boolean
+getTabNormalizationEnabled = H.get >>= \state -> pure $ view (key :: _ "cache!.tabNormalizationEnabled") state
+peekTabNormalizationEnabled :: State -> Boolean
+peekTabNormalizationEnabled state = peekOrDefault defaultTabNormalizationEnabled $ view (key :: _ "cache!.tabNormalizationEnabled") state
+toggleTabNormalizationEnabled :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+toggleTabNormalizationEnabled = do
+  state <- H.get
+  modifyCache _ { tabNormalizationEnabled = Cached $ not (peekTabNormalizationEnabled state), rewriteResult = NoValue }
+defaultTabNormalizationEnabled = true
 
-  getAutoscrollTimer = H.get >>= \state -> pure $ view (barlow (key :: _ "!.autoscrollTimer")) state
-  getAutoscrollSpeed = H.get >>= \state -> pure $ view (barlow (key :: _ "!.autoscrollSpeed")) state
-  getAutoscroll = H.get >>= \state -> pure $ view (barlow (key :: _ "!.autoscroll")) state
+getTabDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM State Action () output m Boolean
+getTabDozenalizationEnabled = H.get >>= \state -> pure $ view (key :: _ "cache!.tabDozenalizationEnabled") state
+peekTabDozenalizationEnabled :: State -> Boolean
+peekTabDozenalizationEnabled state = peekOrDefault defaultTabDozenalizationEnabled $ view (key :: _ "cache!.tabDozenalizationEnabled") state
+toggleTabDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+toggleTabDozenalizationEnabled = do
+  state <- H.get
+  modifyCache _ { tabDozenalizationEnabled = Cached $ not (peekTabNormalizationEnabled state), rewriteResult = NoValue }
+defaultTabDozenalizationEnabled = false
 
-  -- TODO also check if tablature contains ↊ or ↋ and cache this value
-  getIgnoreDozenalization = do
-    title <- getTablatureTitle
-    pure $ test (unsafeRegex "dozenal" ignoreCase) title
-  peekIgnoreDozenalization = view (barlow (key :: _ "!.ignoreDozenalization"))
+-- TODO: abstract over boiler plate: the only variables are the lens, the default value and the storage getter
+viewChordDozenalizationEnabled = view (key :: _ "cache!.chordDozenalizationEnabled")
+_chordDozenalizationEnabled = barlow (key :: _ "cache!.chordDozenalizationEnabled")
+getChordDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM State Action () output m Boolean
+getChordDozenalizationEnabled = do
+  state <- H.get
+  case viewChordDozenalizationEnabled state of
+    Cached result -> pure result
+    NoValue -> do
+      value <- H.liftEffect $ getLocalStorageBooleanWithDefault defaultChordDozenalizationEnabled localStorageKeyChordDozenalizationEnabled
+      if value /= peekChordDozenalizationEnabled state
+      then modifyCache _ { chordDozenalizationEnabled = Cached value, rewriteResult = NoValue }
+      else pure unit
+      pure value
+peekChordDozenalizationEnabled state = peekOrDefault defaultChordDozenalizationEnabled $ viewChordDozenalizationEnabled state
+toggleChordDozenalizationEnabled :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+toggleChordDozenalizationEnabled = do
+  state <- H.get
+  modifyCache _ { chordDozenalizationEnabled = not (peekChordDozenalizationEnabled state), rewriteResult = NoValue }
+defaultChordDozenalizationEnabled = false
 
-  cacheState = do
-    _ <- getTablatureTitle
-    pure unit
+-- TODO also check if tablature contains ↊ or ↋
+getIgnoreDozenalization = do
+  title <- getTablatureTitle
+  pure $ test (unsafeRegex "dozenal" ignoreCase) title
+peekIgnoreDozenalization state = peekOrDefault defaultIgnoreDozenalization $ view (key :: _ "cache!.ignoreDozenalization") state
+defaultIgnoreDozenalization = false
+
+      -- maybeTabNormalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
+      -- tabNormalizationEnabled <- pure $ fromMaybe originalState.tabNormalizationEnabled maybeTabNormalizationEnabled
+      -- maybeTabDozenalizationEnabled <- H.liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
+      -- tabDozenalizationEnabled <- pure $ fromMaybe originalState.tabDozenalizationEnabled maybeTabDozenalizationEnabled
+
+      -- maybeTransposition <- H.liftEffect $ getTranspositionFromUrl
+      -- transposition <- pure $ fromMaybe originalState.transposition maybeTransposition
+      -- H.modify_ _ { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled, transposition = transposition}
+
+cacheState = do
+  _ <- getTablatureTitle
+  pure unit
 
 defaultTablatureTitle :: String
 defaultTablatureTitle = "Tab viewer"
 
-getRenderingOptions  :: forall output m . MonadEffect m => H.HalogenM State Action () output m RenderingOptions
+-- getRenderingOptions  :: forall output m . MonadEffect m => H.HalogenM State Action () output m RenderingOptions
 getRenderingOptions = do
   tabNormalizationEnabled <- getTabNormalizationEnabled
   tabDozenalizationEnabled <- getTabDozenalizationEnabled
@@ -278,34 +285,27 @@ getRenderingOptions = do
   , normalizeTabs: tabNormalizationEnabled
   , transposition: transposition }
 
-peekRenderingOptions :: State -> RenderingOptions
+peekRenderingOptions :: forall c . State -> RenderingOptions
 peekRenderingOptions state =
   { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
   , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
   , normalizeTabs: tabNormalizationEnabled
   , transposition: transposition }
   where
-  tabNormalizationEnabled = peekTabNormalizationEnabled state 
-  tabDozenalizationEnabled = peekTabDozenalizationEnabled state 
-  chordDozenalizationEnabled = peekChordDozenalizationEnabled state 
-  ignoreDozenalization = peekIgnoreDozenalization state 
-  transposition = peekTransposition state 
+  tabNormalizationEnabled = peekTabNormalizationEnabled state
+  tabDozenalizationEnabled = peekTabDozenalizationEnabled state
+  chordDozenalizationEnabled = peekChordDozenalizationEnabled state
+  ignoreDozenalization = peekIgnoreDozenalization state
+  transposition = peekTransposition state
 
 
-initialState :: forall input. input -> State
-initialState _ = State
-  { mode: EditMode
-  , loading: false
-  , tablatureText: Cached ""
-  , tablatureTitle: Cached defaultTablatureTitle
-  , parseResult: NoValue
-  , rewriteResult: NoValue
-  , scrollTop: 0.0
-  , autoscroll: false
-  , autoscrollTimer: Nothing
-  , autoscrollSpeed: Normal
-  , tabNormalizationEnabled: true
-  , tabDozenalizationEnabled: false
-  , chordDozenalizationEnabled: false
-  , ignoreDozenalization: false
-  , transposition: Transposition 0 }
+localStorageKeyTabNormalizationEnabled :: String
+localStorageKeyTabNormalizationEnabled = "tabNormalizationEnabled"
+
+localStorageKeyTabDozenalizationEnabled :: String
+localStorageKeyTabDozenalizationEnabled = "tabDozenalizationEnabled"
+
+localStorageKeyChordDozenalizationEnabled :: String
+localStorageKeyChordDozenalizationEnabled = "ChordDozenalizationEnabled"
+
+-}

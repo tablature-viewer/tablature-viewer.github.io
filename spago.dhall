@@ -16,6 +16,7 @@ to generate this file without the comments in this block.
   , "affjax"
   , "arrays"
   , "assert"
+  , "barlow-lens"
   , "console"
   , "control"
   , "debug"
