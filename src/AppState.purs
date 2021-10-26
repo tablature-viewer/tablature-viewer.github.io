@@ -3,12 +3,13 @@ module AppState where
 import Prelude
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
-import Cache (Cache(..), CacheValue(..))
+import Cache (class Cache, CacheRecord(..), CacheValue(..), create, get)
 import Control.Monad.State (class MonadState)
 import Data.Enum (class Enum)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Functor.App (App(..))
 import Data.Generic.Rep (class Generic)
+import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
 import Data.Lens.Barlow.Helpers (view, over)
 import Data.List (List(..))
@@ -22,7 +23,7 @@ import Effect.Timer (IntervalId)
 import Halogen as H
 import LocalStorage (getLocalStorageBoolean, getLocalStorageBooleanWithDefault)
 import TablatureDocument (RenderingOptions, TablatureDocument, Transposition(..), getTitle)
-import TablatureParser (parseTablature)
+import TablatureParser (parseTablature, tryParseTablature)
 import TablatureRewriter (rewriteTablatureDocument)
 
 -- TODO: rename to AppAction?
@@ -89,17 +90,21 @@ newtype State m = State
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
   , loading :: Boolean
-  -- , tablatureText :: Cache (State m) m String
-  -- , tablatureTitle :: Cache (State m) m String
-  -- , parseResult :: Cache (State m) m TablatureDocument
-  -- , rewriteResult :: Cache (State m) m TablatureDocument
-  -- , tabNormalizationEnabled :: Cache (State m) m Boolean
-  -- , tabDozenalizationEnabled :: Cache (State m) m Boolean
-  -- , chordDozenalizationEnabled :: Cache (State m) m Boolean
-  , transposition :: Cache (State m) m Transposition
+  , tablatureText :: CacheRecord m String
+  , parseResult :: CacheRecord m TablatureDocument
+  -- , rewriteResult :: CacheRecord (State m) m TablatureDocument
+  -- , tablatureTitle :: CacheRecord (State m) m String
+  -- , tabNormalizationEnabled :: CacheRecord (State m) m Boolean
+  -- , tabDozenalizationEnabled :: CacheRecord (State m) m Boolean
+  -- , chordDozenalizationEnabled :: CacheRecord (State m) m Boolean
+  , transposition :: CacheRecord m Transposition
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
   -- , ignoreDozenalization :: Cache (State m) m Boolean
   }
+derive instance Newtype (State m) _
+
+-- newtype Test m = Test ((MonadEffect m) => { foo :: m Int })
+-- derive instance Newtype (Test m) _
 
 -- TODO
 -- Every AppCache property should have a dedicated getter and setter function over the halogen monad.
@@ -123,6 +128,19 @@ newtype State m = State
 --   , default: \_ -> Transposition 0
 --   }
 
+-- newtype TestState m = TestState { test :: Boolean }
+-- derive instance Newtype (TestState m) _
+
+-- _text :: forall m . Lens' (TestState m) (Boolean)
+-- _text = barlow (key :: _ "!.test")
+
+_loading :: forall m . Lens' (State m) (Boolean)
+_loading = barlow (key :: _ "!.loading")
+
+-- _tablatureText :: forall m . Lens' (State m) (Cache m String)
+_tablatureText :: forall output m . Lens' (State (H.HalogenM (State m) Action () output m)) (CacheRecord (H.HalogenM (State m) Action () output m) String)
+_tablatureText = barlow (key :: _ "!.tablatureText")
+
 initialState :: forall input output m . MonadEffect m => input -> State (H.HalogenM (State m) Action () output m)
 initialState _ = State
   { mode: EditMode
@@ -131,23 +149,39 @@ initialState _ = State
   , autoscroll: false
   , autoscrollTimer: Nothing
   , autoscrollSpeed: Normal
-  -- , tablatureText: Cached ""
-  -- , tablatureTitle: Cached defaultTablatureTitle
-  -- , tablatureTitle: NoValue
-  -- , parseResult: NoValue
+  , tablatureText: create 
+    { fetch: H.liftEffect (getTablatureTextFromUrl <#> Just)
+    , flush: \value -> H.liftEffect $ saveTablatureToUrl value
+    , invalidate: pure unit 
+    , default: ""
+    }
+  , parseResult: create
+    { fetch: do
+        -- tablatureText <- get $ _tablatureText
+        -- pure $ tryParseTablature tablatureText
+        pure Nothing
+    , flush: \_ -> pure unit
+    , invalidate: pure unit 
+    , default: Nil
+    }
   -- , rewriteResult: NoValue
+  -- , tablatureTitle: Cached defaultTablatureTitle
   -- , tabNormalizationEnabled: NoValue
   -- , tabDozenalizationEnabled: NoValue
   -- , chordDozenalizationEnabled: NoValue
   -- , ignoreDozenalization: NoValue
-  , transposition:
+  , transposition: create
     { fetch: H.liftEffect getTranspositionFromUrl
     , flush: \value -> H.liftEffect $ setAppQueryString { transposition: value }
     , invalidate: pure unit 
-    , cacheValue: NoValue
     , default: Transposition 0
     }
   }
+
+cacheState = do
+  -- _ <- getTablatureTitle
+  pure unit
+
 
 -- instance appState :: AppCache AppCacheState where
 -- getTransposition = do
@@ -265,10 +299,6 @@ defaultIgnoreDozenalization = false
       -- maybeTransposition <- H.liftEffect $ getTranspositionFromUrl
       -- transposition <- pure $ fromMaybe originalState.transposition maybeTransposition
       -- H.modify_ _ { scrollTop = originalState.scrollTop, tabNormalizationEnabled = tabNormalizationEnabled, tabDozenalizationEnabled = tabDozenalizationEnabled, chordDozenalizationEnabled = chordDozenalizationEnabled, transposition = transposition}
-
-cacheState = do
-  _ <- getTablatureTitle
-  pure unit
 
 defaultTablatureTitle :: String
 defaultTablatureTitle = "Tab viewer"

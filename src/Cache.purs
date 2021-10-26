@@ -105,7 +105,50 @@ get (Cache cache) = cache.fetch
 -}
 
 
-type Cache s m a = MonadState s m =>
+class Cache c where
+  fetch :: forall m a . c m a -> m (Maybe a)
+  flush :: forall m a . c m a -> a -> m Unit
+  invalidate :: forall m a . c m a -> m Unit
+  getCacheValue :: forall m a . c m a -> CacheValue a
+  setCacheValue :: forall m a . c m a -> CacheValue a -> c m a
+  default :: forall m a . c m a -> a
+
+
+peekOrDefault :: forall a. a -> CacheValue a -> a
+peekOrDefault default cacheValue = case cacheValue of
+  NoValue -> default
+  Cached result -> result
+
+peek :: forall c s m a. Cache c => Lens' s (c m a) -> s -> a
+peek _key state = peekOrDefault (default cache) (getCacheValue cache)
+  where
+  cache = view _key state
+
+purge :: forall c s m a. Cache c => MonadState s m => Lens' s (c m a) -> m Unit
+purge _key = do
+  cache <- MonadState.get <#> view _key
+  MonadState.modify_ (\state -> over _key (\c -> setCacheValue c NoValue) state)
+  invalidate cache
+
+set :: forall c s m a. Cache c => MonadState s m => Lens' s (c m a) -> a -> m Unit
+set _key value = do
+  cache <- MonadState.get <#> view _key
+  MonadState.modify_ (\state -> over _key (\c -> setCacheValue c (Cached value)) state)
+  flush cache value
+  invalidate cache
+
+get :: forall c s m a. Cache c => MonadState s m => Lens' s (c m a) -> m a
+get _key = do
+  cache <- MonadState.get <#> view _key
+  case getCacheValue cache of
+    Cached value -> pure value
+    NoValue -> do
+      value <- fetch cache <#> fromMaybe (default cache)
+      MonadState.modify_ (\state -> over _key (\c -> setCacheValue c (Cached value)) state)
+      pure value
+
+
+newtype CacheRecord m a = CacheRecord
   { fetch :: m (Maybe a)
   , flush :: a -> m Unit
   , invalidate :: m Unit
@@ -113,30 +156,26 @@ type Cache s m a = MonadState s m =>
   , default :: a
   }
 
-peekOrDefault :: forall a. a -> CacheValue a -> a
-peekOrDefault default cacheValue = case cacheValue of
-  NoValue -> default
-  Cached result -> result
+instance Cache CacheRecord where
+  fetch (CacheRecord c) = c.fetch
+  flush (CacheRecord c) = c.flush
+  invalidate (CacheRecord c) = c.invalidate
+  getCacheValue (CacheRecord c) = c.cacheValue
+  setCacheValue (CacheRecord c) newValue = CacheRecord c { cacheValue = newValue }
+  default (CacheRecord c) = c.default
 
-peek :: forall s m a. MonadState s m => Lens' s (Cache s m a) -> s -> a
-peek _key state = peekOrDefault default cacheValue
-  where
-  { cacheValue, default } = view _key state
+type CacheBuilder m a =
+  { fetch :: m (Maybe a)
+  , flush :: a -> m Unit
+  , invalidate :: m Unit
+  , default :: a
+  }
 
-set :: forall s m a. MonadState s m => Lens' s (Cache s m a) -> a -> m Unit
-set _key value = do
-  { flush, invalidate } <- MonadState.get <#> view _key
-  MonadState.modify_ (\state -> over _key (_ { cacheValue = Cached value }) state)
-  flush value
-  invalidate
-
-get :: forall s m a. MonadState s m => Lens' s (Cache s m a) -> m a
-get _key = do
-  { fetch, cacheValue, default } <- MonadState.get <#> view _key
-  case cacheValue of
-    Cached value -> pure value
-    NoValue -> do
-      value <- fetch <#> fromMaybe default
-      MonadState.modify_ (\state -> over _key (_ { cacheValue = Cached value }) state)
-      pure value
-
+create :: forall m a . CacheBuilder m a -> CacheRecord m a
+create builder = CacheRecord
+  { fetch: builder.fetch
+  , flush: builder.flush
+  , invalidate: builder.invalidate
+  , cacheValue: NoValue
+  , default: builder.default
+  }

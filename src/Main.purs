@@ -2,11 +2,15 @@ module Main where
 
 import Prelude
 
-import AppState (Action(..), Mode(..), State, cacheState, getTablatureText, getTablatureTitle, initialState, peekChordDozenalizationEnabled, peekIgnoreDozenalization, peekRenderingOptions, peekRewriteResult, peekTabDozenalizationEnabled, peekTabNormalizationEnabled, peekTransposition, setTablatureText, speedToIntervalMs, speedToIntervalPixelDelta)
+import AppState (Action(..), Mode(..), State(..), cacheState, initialState, speedToIntervalMs, speedToIntervalPixelDelta)
 import AppUrl (getTranspositionFromUrl, redirectToUrlInFragment)
+import Cache as Cache
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.Enum (pred, succ)
+import Data.Lens (Lens')
+import Data.Lens.Barlow (barlow, key)
+import Data.Lens.Barlow.Helpers (view)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
@@ -68,7 +72,7 @@ component =
       }
     }
 
-render :: forall m. State -> H.ComponentHTML Action () m
+render :: forall m1 m2. State m1 -> H.ComponentHTML Action () m2
 render state = HH.div_
   [ HH.div 
     [ classString "app" ]
@@ -80,7 +84,7 @@ render state = HH.div_
     [ HH.pre_ $ renderTablature state ]
   ]
   where
-  renderBody = case state.mode of
+  renderBody = case view (key :: _ "!.mode") state of
     ViewMode -> HH.div 
       [ classString "tablatureViewer tablature"
       , HP.ref refTablatureViewer
@@ -109,7 +113,7 @@ render state = HH.div_
     ]
   renderLoadingIcon = HH.div 
     [ classString "loadingIcon lds-ellipsis" ]
-    if state.loading then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
+    if view (key :: _ "!.loading") state then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
   renderControls = HH.div 
     [ classString "controls" ]
     [ HH.div
@@ -120,72 +124,72 @@ render state = HH.div_
         [ fontAwesome "fa-wrench"
         , optionalText " Settings"
         ]
-      , HH.div [ classString "dropdown-menu" ]
-        [ HH.button
-          [ HP.title "Toggle normalization for tabs on or off"
-          , classString "dropdown-item"
-          , HE.onClick \_ -> ToggleTabNormalization
-          ]
-          [ if peekTabNormalizationEnabled state
-              then fontAwesome "fa-toggle-on"
-              else fontAwesome "fa-toggle-off"
-          , HH.text " Normalize tabs"
-          ]
-        , HH.button
-          [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
-          , classString "dropdown-item"
-          , HE.onClick \_ -> ToggleTabDozenalization
-          , classString $ if peekIgnoreDozenalization state then "disabled" else ""
-          ]
-          [ if peekTabDozenalizationEnabled state && not peekIgnoreDozenalization state
-              then fontAwesome "fa-toggle-on"
-              else fontAwesome "fa-toggle-off"
-          , HH.text " Dozenalize tabs"
-          ]
-        , HH.button
-          [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
-          , HE.onClick \_ -> ToggleChordDozenalization
-          , classString "dropdown-item"
-          , classString $ if peekIgnoreDozenalization state then "disabled" else ""
-          ]
-          [ if peekChordDozenalizationEnabled state && not peekIgnoreDozenalization state
-              then fontAwesome "fa-toggle-on"
-              else fontAwesome "fa-toggle-off"
-          , HH.text " Dozenalize chords"
-          ]
-        , HH.div
-          [ HP.title "Transpose the tablature"
-          , classString "dropdown-item"
-          ]
-          [ HH.button
-            [ HP.title "Transpose down"
-            , HE.onClick \_ -> DecreaseTransposition
-            ]
-            [ fontAwesome "fa-caret-down" ]
-          , HH.button
-            [ HP.title "Transpose up"
-            , HE.onClick \_ -> IncreaseTransposition
-            ]
-            [ fontAwesome "fa-caret-up" ]
-          , HH.span_ [ HH.text $ " Transpose " <> show (peekTransposition state) ]
-          ]
-        , HH.div
-          [ HP.title "Change the autoscroll speed"
-          , classString "dropdown-item"
-          ]
-          [ HH.button
-            [ HP.title "Decrease the autoscroll speed"
-            , HE.onClick \_ -> DecreaseAutoscrollSpeed
-            ]
-            [ fontAwesome "fa-backward" ]
-          , HH.button
-            [ HP.title "Increase the autoscroll speed"
-            , HE.onClick \_ -> IncreaseAutoscrollSpeed
-            ]
-            [ fontAwesome "fa-forward" ]
-          , HH.span_ [ HH.text $ " Autoscroll speed " <> show state.autoscrollSpeed ]
-          ]
-        ]
+      -- , HH.div [ classString "dropdown-menu" ]
+      --   [ HH.button
+      --     [ HP.title "Toggle normalization for tabs on or off"
+      --     , classString "dropdown-item"
+      --     , HE.onClick \_ -> ToggleTabNormalization
+      --     ]
+      --     [ if peekTabNormalizationEnabled state
+      --         then fontAwesome "fa-toggle-on"
+      --         else fontAwesome "fa-toggle-off"
+      --     , HH.text " Normalize tabs"
+      --     ]
+      --   , HH.button
+      --     [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
+      --     , classString "dropdown-item"
+      --     , HE.onClick \_ -> ToggleTabDozenalization
+      --     , classString $ if peekIgnoreDozenalization state then "disabled" else ""
+      --     ]
+      --     [ if peekTabDozenalizationEnabled state && not peekIgnoreDozenalization state
+      --         then fontAwesome "fa-toggle-on"
+      --         else fontAwesome "fa-toggle-off"
+      --     , HH.text " Dozenalize tabs"
+      --     ]
+      --   , HH.button
+      --     [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
+      --     , HE.onClick \_ -> ToggleChordDozenalization
+      --     , classString "dropdown-item"
+      --     , classString $ if peekIgnoreDozenalization state then "disabled" else ""
+      --     ]
+      --     [ if peekChordDozenalizationEnabled state && not peekIgnoreDozenalization state
+      --         then fontAwesome "fa-toggle-on"
+      --         else fontAwesome "fa-toggle-off"
+      --     , HH.text " Dozenalize chords"
+      --     ]
+      --   , HH.div
+      --     [ HP.title "Transpose the tablature"
+      --     , classString "dropdown-item"
+      --     ]
+      --     [ HH.button
+      --       [ HP.title "Transpose down"
+      --       , HE.onClick \_ -> DecreaseTransposition
+      --       ]
+      --       [ fontAwesome "fa-caret-down" ]
+      --     , HH.button
+      --       [ HP.title "Transpose up"
+      --       , HE.onClick \_ -> IncreaseTransposition
+      --       ]
+      --       [ fontAwesome "fa-caret-up" ]
+      --     , HH.span_ [ HH.text $ " Transpose " <> show (peekTransposition state) ]
+      --     ]
+      --   , HH.div
+      --     [ HP.title "Change the autoscroll speed"
+      --     , classString "dropdown-item"
+      --     ]
+      --     [ HH.button
+      --       [ HP.title "Decrease the autoscroll speed"
+      --       , HE.onClick \_ -> DecreaseAutoscrollSpeed
+      --       ]
+      --       [ fontAwesome "fa-backward" ]
+      --     , HH.button
+      --       [ HP.title "Increase the autoscroll speed"
+      --       , HE.onClick \_ -> IncreaseAutoscrollSpeed
+      --       ]
+      --       [ fontAwesome "fa-forward" ]
+      --     , HH.span_ [ HH.text $ " Autoscroll speed " <> show state.autoscrollSpeed ]
+      --     ]
+      --   ]
       ]
     , HH.a
       [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
@@ -211,101 +215,105 @@ render state = HH.div_
       ] toggleAutoscrollContent
     ]
     where
-    toggleButtonContent = case state.mode of
+    toggleButtonContent = case view (key :: _ "!.mode") state of
       EditMode -> [ fontAwesome "fa-save", optionalText " Save" ]
       ViewMode  -> [ fontAwesome "fa-edit", optionalText " Edit" ]
-    toggleButtonTitle = case state.mode of
+    toggleButtonTitle = case view (key :: _ "!.mode") state of
       EditMode -> "Save tablature"
       ViewMode  -> "Edit tablature"
     toggleAutoscrollContent =
-      if state.autoscroll
+      if view (key :: _ "!.autoscroll") state
       then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
       else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
 
 
-renderTablature :: forall w i. State -> Array (HH.HTML w i)
-renderTablature state = fromFoldable $ renderTablatureDocument (peekRewriteResult state) $ peekRenderingOptions state
+renderTablature :: forall w i m. State m -> Array (HH.HTML w i)
+-- renderTablature state = fromFoldable $ renderTablatureDocument (peekRewriteResult state) $ peekRenderingOptions state
+renderTablature state = []
 
 
-handleAction :: forall output m. MonadAff m => Action -> H.HalogenM State Action () output m Unit
+handleAction :: forall output m m2. MonadAff m => Action -> H.HalogenM (State m2) Action () output m Unit
 handleAction action = do
   originalState <- H.get
-  H.modify_ _ { loading = true, autoscroll = false }
+  H.modify_ \(State s) -> State s { loading = true, autoscroll = false }
   intermediateState <- H.get
-  updateAutoscroll intermediateState
+  -- updateAutoscroll intermediateState
   H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
   case action of
     Initialize -> do
-      tablatureText <- getTablatureText
+      tablatureText <- Cache.get (barlow (key :: _ "!.tablatureText"))
       if tablatureText == ""
       then H.modify_ _ { mode = ViewMode }
       else pure unit
-      focusTablatureContainer
+      -- focusTablatureContainer
     ToggleEditMode -> do
-      saveScrollTop
-      case originalState.mode of
+      -- saveScrollTop
+      case view (key :: _ "!.mode") originalState of
         EditMode -> do
-          tablatureText <- getTablatureTextFromEditor
-          setTablatureText tablatureText
+          -- tablatureText <- getTablatureTextFromEditor
+          -- Cache.set (barlow (key :: _ "!.tablatureText")) tablatureText
+          Cache.set (barlow (key :: _ "!.tablatureText")) "saved!"
           H.modify_ _ { mode = ViewMode }
-          focusTablatureContainer
+          -- focusTablatureContainer
         ViewMode -> do
           H.modify_ _ { mode = EditMode }
-          tablatureText <- getTablatureText
-          setTablatureTextInEditor tablatureText
+          tablatureText <- Cache.get (barlow (key :: _ "!.tablatureText"))
+          -- setTablatureTextInEditor tablatureText
+          pure unit
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
-      loadScrollTop
-    ToggleTabNormalization -> do
-      -- TODO make proper setter
-      H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not originalState.tabNormalizationEnabled)
-      H.modify_ _ { tabNormalizationEnabled = not originalState.tabNormalizationEnabled }
-      -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
-    ToggleTabDozenalization -> do
-      -- TODO make proper setter
-      if originalState.ignoreDozenalization
-      then pure unit
-      else do
-        H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not originalState.tabDozenalizationEnabled)
-        H.modify_ _ { tabDozenalizationEnabled = not originalState.tabDozenalizationEnabled }
-        -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
-    ToggleChordDozenalization -> do
-      -- TODO make proper setter
-      if originalState.ignoreDozenalization
-      then pure unit
-      else do
-        H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not originalState.chordDozenalizationEnabled)
-        H.modify_ _ { chordDozenalizationEnabled = not originalState.chordDozenalizationEnabled }
-        -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
-    CopyShortUrl -> do
-      longUrl <- H.liftEffect getLocationString
-      maybeShortUrl <- H.liftAff $ createShortUrl longUrl
-      H.liftEffect $ case maybeShortUrl of
-        Just shortUrl -> copyToClipboard shortUrl
-        Nothing -> pure unit
-      focusTablatureContainer
-    ToggleAutoscroll -> H.modify_ _ { autoscroll = not originalState.autoscroll }
-    IncreaseAutoscrollSpeed -> do
-      increaseAutoscrollSpeed
-      H.modify_ _ { autoscroll = originalState.autoscroll }
-    DecreaseAutoscrollSpeed -> do
-      decreaseAutoscrollSpeed
-      H.modify_ _ { autoscroll = originalState.autoscroll }
-    IncreaseTransposition -> do
-      -- TODO make proper setter
-      H.modify_ _ { transposition = succTransposition originalState.transposition }
-      state <- H.get
-      updateQueryString state
-    DecreaseTransposition -> do
-      -- TODO make proper setter
-      H.modify_ _ { transposition = predTransposition originalState.transposition }
-      state <- H.get
-      updateQueryString state -- TODO: this should be done generically
+      -- loadScrollTop
+    -- ToggleTabNormalization -> do
+    --   -- TODO make proper setter
+    --   H.liftEffect $ setLocalStorage localStorageKeyTabNormalizationEnabled (show $ not originalState.tabNormalizationEnabled)
+    --   H.modify_ _ { tabNormalizationEnabled = not originalState.tabNormalizationEnabled }
+    --   -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
+    -- ToggleTabDozenalization -> do
+    --   -- TODO make proper setter
+    --   if originalState.ignoreDozenalization
+    --   then pure unit
+    --   else do
+    --     H.liftEffect $ setLocalStorage localStorageKeyTabDozenalizationEnabled (show $ not originalState.tabDozenalizationEnabled)
+    --     H.modify_ _ { tabDozenalizationEnabled = not originalState.tabDozenalizationEnabled }
+    --     -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
+    -- ToggleChordDozenalization -> do
+    --   -- TODO make proper setter
+    --   if originalState.ignoreDozenalization
+    --   then pure unit
+    --   else do
+    --     H.liftEffect $ setLocalStorage localStorageKeyChordDozenalizationEnabled (show $ not originalState.chordDozenalizationEnabled)
+    --     H.modify_ _ { chordDozenalizationEnabled = not originalState.chordDozenalizationEnabled }
+    --     -- TODO Dozenalization affects the TablatureDocument, so we need to re-read it now
+    -- CopyShortUrl -> do
+    --   longUrl <- H.liftEffect getLocationString
+    --   maybeShortUrl <- H.liftAff $ createShortUrl longUrl
+    --   H.liftEffect $ case maybeShortUrl of
+    --     Just shortUrl -> copyToClipboard shortUrl
+    --     Nothing -> pure unit
+    --   focusTablatureContainer
+    -- ToggleAutoscroll -> H.modify_ _ { autoscroll = not originalState.autoscroll }
+    -- IncreaseAutoscrollSpeed -> do
+    --   increaseAutoscrollSpeed
+    --   H.modify_ _ { autoscroll = originalState.autoscroll }
+    -- DecreaseAutoscrollSpeed -> do
+    --   decreaseAutoscrollSpeed
+    --   H.modify_ _ { autoscroll = originalState.autoscroll }
+    -- IncreaseTransposition -> do
+    --   -- TODO make proper setter
+    --   H.modify_ _ { transposition = succTransposition originalState.transposition }
+    --   state <- H.get
+    --   updateQueryString state
+    -- DecreaseTransposition -> do
+    --   -- TODO make proper setter
+    --   H.modify_ _ { transposition = predTransposition originalState.transposition }
+    --   state <- H.get
+    --   updateQueryString state -- TODO: this should be done generically
 
   newState <- H.get
-  updateAutoscroll newState
+  -- updateAutoscroll newState
   cacheState
   H.modify_ _ { loading = false }
 
+{-}
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
 getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
   \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
@@ -319,8 +327,8 @@ getTablatureTextFromEditor = do
 
 
 -- TODO: FIX
-updateQueryString :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
-updateQueryString state = pure unit
+-- updateQueryString :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
+-- updateQueryString state = pure unit
 
 getTablatureContainerElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
@@ -371,6 +379,7 @@ updateAutoscroll state =
         timerId <- H.liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta state.autoscrollSpeed) elem
         H.modify_ _ { autoscrollTimer = Just timerId }
 
+
 -- TODO: store scrollspeed somewhere
 increaseAutoscrollSpeed :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 increaseAutoscrollSpeed = do
@@ -400,6 +409,8 @@ setTablatureTextInEditor text = do
   case maybeTextArea of
     Nothing -> H.liftEffect $ Console.error "Could not find textareaTablature" *> pure unit
     Just textArea -> H.liftEffect $ WH.HTMLTextAreaElement.setValue text textArea 
+
+-}
 
 setDocumentTitle :: String -> Effect Unit
 setDocumentTitle title = do
