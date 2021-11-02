@@ -1,10 +1,12 @@
 module AppState where
 
+import Cache
 import Prelude
 
+import Type.Prelude (Proxy(..))
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
-import Cache (class Cache, CacheRecord(..), CacheValue(..), create, get)
 import Control.Monad.State (class MonadState)
+import Control.Monad.State as MonadState
 import Data.Enum (class Enum)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Functor.App (App(..))
@@ -18,7 +20,8 @@ import Data.Newtype (class Newtype)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
-import Effect.Class (class MonadEffect)
+import Effect (Effect)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
 import Halogen as H
 import LocalStorage (getLocalStorageBoolean, getLocalStorageBooleanWithDefault)
@@ -82,7 +85,7 @@ speedToIntervalPixelDelta Fast = 1
 speedToIntervalPixelDelta Fastest = 2
 
 
-newtype State m = State
+newtype State = State
   { mode :: Mode
   , autoscrollTimer :: Maybe IntervalId
   , autoscrollSpeed :: AutoscrollSpeed
@@ -90,58 +93,87 @@ newtype State m = State
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
   , loading :: Boolean
-  , tablatureText :: CacheRecord m String
-  , parseResult :: CacheRecord m TablatureDocument
+  , tablatureText :: CachedTablatureText
+  , parseResult :: CachedParseResult
   -- , rewriteResult :: CacheRecord (State m) m TablatureDocument
   -- , tablatureTitle :: CacheRecord (State m) m String
   -- , tabNormalizationEnabled :: CacheRecord (State m) m Boolean
   -- , tabDozenalizationEnabled :: CacheRecord (State m) m Boolean
   -- , chordDozenalizationEnabled :: CacheRecord (State m) m Boolean
-  , transposition :: CacheRecord m Transposition
+  , transposition :: CachedTransposition
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
   -- , ignoreDozenalization :: Cache (State m) m Boolean
   }
-derive instance Newtype (State m) _
+derive instance Newtype State _
 
--- newtype Test m = Test ((MonadEffect m) => { foo :: m Int })
--- derive instance Newtype (Test m) _
+newtype SimpleCacheEntry a = SimpleCacheEntry (Maybe a)
 
--- TODO
--- Every AppCache property should have a dedicated getter and setter function over the halogen monad.
--- The setter should update both the backing storage and purge the affected values in the State.
--- The getter should return from State if present, otherwise fetch from backing store and call the setter.
+instance CacheEntry a (SimpleCacheEntry a) where
+  getCacheValue (SimpleCacheEntry c) = c
+  setCacheValue _ newValue = SimpleCacheEntry newValue
 
 
--- modify :: forall output m c. MonadEffect m => AppCache c => (State c -> State c) -> H.HalogenM (State c) Action () output m Unit
--- modify f = H.modify_ (\s -> f s)
--- modifyCache :: forall output m. MonadEffect m => (AppCacheStateRecord -> AppCacheStateRecord) -> H.HalogenM (State AppCacheState) Action () output m Unit
--- modifyCache f = H.modify_ (\state@{ cache: (AppCacheState s) } -> state { cache = (AppCacheState $ f s) })
--- modifyCache f = H.modify_ (over (key :: _ "cache!") f)
+-- FIXME: why doesn't this work?
+-- class NoInvalidator c
+-- instance (NoInvalidator c) => CacheInvalidator State c where
+--   invalidate _ state = state
 
--- getParseResult :: forall output m . MonadEffect m => H.HalogenM State Action () output m TablatureDocument
--- initialTransposition :: forall output m . MonadEffect m => Cache (State (H.HalogenM (State m) Action () output m)) (H.HalogenM (State m) Action () output m) Transposition
--- initialTransposition =
---   { fetch: H.liftEffect getTranspositionFromUrl
---   , flush: \value -> H.liftEffect $ setAppQueryString { transposition: value }
---   , invalidate: pure unit 
---   , cacheValue: \_ -> NoValue
---   , default: \_ -> Transposition 0
---   }
 
--- newtype TestState m = TestState { test :: Boolean }
--- derive instance Newtype (TestState m) _
+type CachedTransposition = SimpleCacheEntry Transposition
 
--- _text :: forall m . Lens' (TestState m) (Boolean)
--- _text = barlow (key :: _ "!.test")
+instance CacheDefault Transposition CachedTransposition where
+  default _ = Transposition 0
 
-_loading :: forall m . Lens' (State m) (Boolean)
-_loading = barlow (key :: _ "!.loading")
+instance (MonadState State m, MonadEffect m) => CacheStore m Transposition CachedTransposition where
+  fetch _ = liftEffect $ getTranspositionFromUrl
+  flush _ value = liftEffect $ setAppQueryString { transposition: value }
 
--- _tablatureText :: forall m . Lens' (State m) (Cache m String)
-_tablatureText :: forall output m . Lens' (State (H.HalogenM (State m) Action () output m)) (CacheRecord (H.HalogenM (State m) Action () output m) String)
+instance CacheInvalidator State CachedTransposition where
+  invalidate = noInvalidate
+
+
+
+newtype CachedTablatureText = CachedTablatureText (SimpleCacheEntry String)
+
+-- This works because the newtype is the last typeparameter in the list
+derive newtype instance CacheEntry String CachedTablatureText
+
+instance CacheDefault String CachedTablatureText where
+  default _ = ""
+
+instance (MonadState State m, MonadEffect m) => CacheStore m String CachedTablatureText where
+  fetch _ = liftEffect $ getTablatureTextFromUrl <#> Just
+  flush _ value = liftEffect $ saveTablatureToUrl value
+
+instance CacheInvalidator State CachedTablatureText where
+  invalidate _ state = purge (Proxy :: Proxy ParseResult) _parseResult state
+
+
+_tablatureText :: Lens' State CachedTablatureText
 _tablatureText = barlow (key :: _ "!.tablatureText")
 
-initialState :: forall input output m . MonadEffect m => input -> State (H.HalogenM (State m) Action () output m)
+
+newtype ParseResult = ParseResult TablatureDocument
+type CachedParseResult = SimpleCacheEntry ParseResult
+
+instance CacheDefault ParseResult CachedParseResult where
+  default _ = ParseResult Nil
+
+instance (MonadState State m, MonadEffect m) => CacheStore m ParseResult CachedParseResult where
+  fetch c = do
+    -- pure $ Just $ ParseResult Nil
+    tablatureText <- getM _tablatureText
+    pure $ ParseResult <$> tryParseTablature tablatureText
+  flush _ value = pure unit
+
+instance CacheInvalidator State CachedParseResult where
+  invalidate = noInvalidate
+
+_parseResult :: Lens' State CachedParseResult
+_parseResult = barlow (key :: _ "!.parseResult")
+
+
+initialState :: forall input . input -> State
 initialState _ = State
   { mode: EditMode
   , loading: false
@@ -149,33 +181,15 @@ initialState _ = State
   , autoscroll: false
   , autoscrollTimer: Nothing
   , autoscrollSpeed: Normal
-  , tablatureText: create 
-    { fetch: H.liftEffect (getTablatureTextFromUrl <#> Just)
-    , flush: \value -> H.liftEffect $ saveTablatureToUrl value
-    , invalidate: pure unit 
-    , default: ""
-    }
-  , parseResult: create
-    { fetch: do
-        -- tablatureText <- get $ _tablatureText
-        -- pure $ tryParseTablature tablatureText
-        pure Nothing
-    , flush: \_ -> pure unit
-    , invalidate: pure unit 
-    , default: Nil
-    }
+  , tablatureText: CachedTablatureText (SimpleCacheEntry Nothing)
+  , parseResult: SimpleCacheEntry Nothing
   -- , rewriteResult: NoValue
   -- , tablatureTitle: Cached defaultTablatureTitle
   -- , tabNormalizationEnabled: NoValue
   -- , tabDozenalizationEnabled: NoValue
   -- , chordDozenalizationEnabled: NoValue
   -- , ignoreDozenalization: NoValue
-  , transposition: create
-    { fetch: H.liftEffect getTranspositionFromUrl
-    , flush: \value -> H.liftEffect $ setAppQueryString { transposition: value }
-    , invalidate: pure unit 
-    , default: Transposition 0
-    }
+  , transposition: SimpleCacheEntry Nothing
   }
 
 cacheState = do

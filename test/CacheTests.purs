@@ -2,7 +2,7 @@ module CacheTests where
 
 import Prelude
 
-import Cache (CacheRecord(..), create, get, peek, set)
+import Cache
 import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
 import Data.Lens.Barlow.Helpers (view, over)
@@ -12,26 +12,37 @@ import Effect (Effect)
 import Test.Assert (assert')
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Data.Newtype (class Newtype)
 
 main :: Effect Unit
 main = do
   initialState <- pure createTestState
-  Tuple newState value <- get _testValue initialState
+  Tuple newState (value::String) <- get _testValue initialState
   newState <- set _testValue "blabla" newState
-  peekedValue <- pure $ peek _testValue newState
+  (peekedValue :: String) <- pure $ peek _testValue newState
   pure unit
 
-_testValue :: Lens' TestState (CacheRecord Effect String)
-_testValue = barlow (key :: _ ".testValue")
+_testValue :: Lens' TestState MyCachedValue
+_testValue = barlow (key :: _ "!.testValue")
 
-type TestState =
-  { testValue :: CacheRecord Effect String }
+newtype MyCachedValue = MyCachedValue (Maybe String)
+
+newtype TestState = TestState
+  { testValue :: MyCachedValue }
+derive instance Newtype TestState _
 
 createTestState :: TestState
-createTestState = 
-  { testValue: create
-    { fetch: pure $ Just "fetched value"
-    , flush: \_ -> pure unit
-    , default: "default value"
-    }
-  }
+createTestState = TestState { testValue: MyCachedValue Nothing }
+
+instance CacheEntry String MyCachedValue where
+  getCacheValue (MyCachedValue c) = c
+  setCacheValue (MyCachedValue c) newValue = MyCachedValue newValue
+instance CacheDefault String MyCachedValue where
+  default _ = ""
+
+instance CacheStore Effect String MyCachedValue where
+  fetch (MyCachedValue c) = pure $ Just "fetched value"
+  flush (MyCachedValue c) = \_ -> pure unit
+
+instance CacheInvalidator TestState MyCachedValue where
+  invalidate cache state = state
