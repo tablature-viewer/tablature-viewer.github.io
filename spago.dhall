@@ -26,6 +26,7 @@ to generate this file without the comments in this block.
   , "filterable"
   , "foldable-traversable"
   , "foreign"
+  , "functors"
   , "halogen"
   , "http-methods"
   , "integers"
@@ -44,6 +45,7 @@ to generate this file without the comments in this block.
   , "stringutils"
   , "transformers"
   , "tuples"
+  , "typelevel-prelude"
   , "web-dom"
   , "web-html"
   ]

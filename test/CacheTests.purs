@@ -16,33 +16,34 @@ import Data.Newtype (class Newtype)
 
 main :: Effect Unit
 main = do
-  initialState <- pure createTestState
-  Tuple newState (value::String) <- get _testValue initialState
-  newState <- set _testValue "blabla" newState
-  (peekedValue :: String) <- pure $ peek _testValue newState
   pure unit
+--   initialState <- pure createTestState
+--   Tuple newState (value::String) <- get _testValue initialState
+--   newState <- set _testValue "blabla" newState
+--   (peekedValue :: String) <- pure $ peek _testValue newState
+--   pure unit
 
-_testValue :: Lens' TestState MyCachedValue
-_testValue = barlow (key :: _ "!.testValue")
+-- _testValue :: Lens' TestState MyCachedValue
+-- _testValue = barlow (key :: _ "!.testValue")
 
-newtype MyCachedValue = MyCachedValue (Maybe String)
+-- newtype MyCachedValue = MyCachedValue (Maybe String)
 
-newtype TestState = TestState
-  { testValue :: MyCachedValue }
-derive instance Newtype TestState _
+-- newtype TestState = TestState
+--   { testValue :: MyCachedValue }
+-- derive instance Newtype TestState _
 
-createTestState :: TestState
-createTestState = TestState { testValue: MyCachedValue Nothing }
+-- createTestState :: TestState
+-- createTestState = TestState { testValue: MyCachedValue Nothing }
 
-instance CacheEntry String MyCachedValue where
-  getCacheValue (MyCachedValue c) = c
-  setCacheValue (MyCachedValue c) newValue = MyCachedValue newValue
-instance CacheDefault String MyCachedValue where
-  default _ = ""
+-- instance CacheEntry String MyCachedValue where
+--   getCacheValue (MyCachedValue c) = c
+--   setCacheValue (MyCachedValue c) newValue = MyCachedValue newValue
+-- instance CacheDefault String MyCachedValue where
+--   default _ = ""
 
-instance CacheStore Effect String MyCachedValue where
-  fetch (MyCachedValue c) = pure $ Just "fetched value"
-  flush (MyCachedValue c) = \_ -> pure unit
+-- instance CacheStore Effect String MyCachedValue where
+--   fetch (MyCachedValue c) = pure $ Just "fetched value"
+--   flush (MyCachedValue c) = \_ -> pure unit
 
-instance CacheInvalidator TestState MyCachedValue where
-  invalidate cache state = state
+-- instance CacheInvalidator TestState MyCachedValue where
+--   invalidate cache state = state

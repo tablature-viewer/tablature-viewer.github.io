@@ -16,6 +16,9 @@ getLocalStorageBoolean key = do
     "false" -> Just false
     _ -> Nothing
 
+setLocalStorageBoolean :: String -> Boolean -> Effect Unit
+setLocalStorageBoolean key value = setLocalStorage key (show value)
+
 getLocalStorageBooleanWithDefault :: String -> Boolean -> Effect Boolean
 getLocalStorageBooleanWithDefault key default = do
   result <- getLocalStorageBoolean key

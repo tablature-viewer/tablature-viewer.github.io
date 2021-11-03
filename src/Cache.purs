@@ -92,38 +92,3 @@ getM _key = do
   MonadState.put newState
   pure value
 
-
--- Attempt to make instance declarations less tedious
-class ReadableCache m a s c where
-  get' :: CacheEntry a c => CacheDefault a c => Fetchable m a c => Lens' s c -> s -> m (Tuple s a)
-
-instance (CacheEntry a c , CacheDefault a c , Fetchable m a c, CacheInvalidator s c) => ReadableCache m a s c where
-  get' = get
-
-
-data SimpleCacheEntry a = SimpleCacheEntry (Maybe a)
-
-instance CacheEntry a (SimpleCacheEntry a) where
-  getCacheValue (SimpleCacheEntry c) = c
-  setCacheValue _ newValue = SimpleCacheEntry newValue
-
-
-class ReadonlyCache m a c | c -> m a where
-  default' :: c -> a
-  fetch' :: c -> m (Maybe a)
-
-
-instance (ReadonlyCache m a c) => CacheDefault a c where
-  default = default'
-instance (ReadonlyCache m a c, Monad m) => Fetchable m a c where
-  fetch = fetch'
-
--- class Foo a b where
---   foo :: a -> b -> String
---   bar :: a -> String
-
-class Foo' a b where
-  foo :: a -> b -> String
-
-class Bar' a where
-  bar :: a -> String
