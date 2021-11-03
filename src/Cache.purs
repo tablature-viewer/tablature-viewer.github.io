@@ -11,15 +11,21 @@ import Type.Prelude (Proxy(..))
 
 -- Cache that can get and set its value in a Monad and peek (with default) for a obtaining a pure value.
 
-class CacheEntry a c where
+-- The cache object type parameter is consistently placed at the end of the type parameter list,
+-- such that newtype instances can be derived.
+
+-- The functional dependency "c -> a" promises that we won't declare multiple instances with the same "c" type.
+class CacheEntry a c | c -> a where
   getCacheValue :: c -> Maybe a
   setCacheValue :: c -> Maybe a -> c
 
-class CacheDefault a c where
+class CacheDefault a c | c -> a where
   default :: c -> a
 
-class Monad m <= CacheStore m a c where
+class Monad m <= Fetchable m a c | c -> a where
   fetch :: c -> m (Maybe a)
+
+class Monad m <= Flushable m a c | c -> a where
   flush :: c -> a -> m Unit
 
 class CacheInvalidator s c where
@@ -28,10 +34,8 @@ class CacheInvalidator s c where
 noInvalidate :: forall c s . c -> s -> s
 noInvalidate _ s = s
 
-class (CacheEntry a c, CacheDefault a c, CacheStore m a c, CacheInvalidator s c) <= Cache m a s c
-instance (CacheEntry a c, CacheDefault a c, CacheStore m a c, CacheInvalidator s c) => Cache m a s c
-
-peek :: forall a s c . CacheEntry a c => CacheDefault a c => Lens' s c -> s -> a
+peek :: forall a s c . CacheEntry a c => CacheDefault a c
+  => Lens' s c -> s -> a
 peek _key state =
   case getCacheValue cache of
     Nothing -> default cache
@@ -39,18 +43,24 @@ peek _key state =
   where
   cache = view _key state
 
-purge :: forall a s c . CacheEntry a c => CacheInvalidator s c => Proxy a -> Lens' s c -> s -> s
+-- TODO: can we get rid of the proxy?
+purge :: forall a s c . CacheEntry a c => CacheInvalidator s c
+  => Proxy a -> Lens' s c -> s -> s
 purge _ _key state = (over _key (\c -> setCacheValue c (Nothing :: Maybe a)) state) # invalidate cache
   where cache = view _key state
 
-set :: forall m a s c . Cache m a s c => Lens' s c -> a -> s -> m s
+-- TODO: we would want to introduce overloads for CacheInvalidator caches and non-CacheInvalidator caches.
+-- But we can only do that if we create a class with a get function which is implemented differently based on instance constraints.
+set :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => Fetchable m a c
+  => Lens' s c -> a -> s -> m s
 set _key value state = do
   flush cache value
   newState <- pure $ over _key (\c -> setCacheValue c (Just value)) state
   pure $ invalidate cache newState
   where cache = view _key state
 
-get :: forall m a s c . Cache m a s c => Lens' s c -> s -> m (Tuple s a)
+get :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Fetchable m a c
+  => Lens' s c -> s -> m (Tuple s a)
 get _key state = do
   cache <- pure $ view _key state
   case getCacheValue cache of
@@ -67,15 +77,53 @@ purgeM proxy _key = do
   newState <- pure $ purge proxy _key state
   MonadState.put newState
 
-setM :: forall m a s c . Cache m a s c => MonadState s m => Lens' s c -> a -> m Unit
+setM :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => Fetchable m a c => MonadState s m
+  => Lens' s c -> a -> m Unit
 setM _key value = do
   state <- MonadState.get
   newState <- set _key value state
   MonadState.put newState
 
-getM :: forall m a s c . Cache m a s c => MonadState s m => Lens' s c -> m a
+getM :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => Fetchable m a c => MonadState s m
+  => Lens' s c -> m a
 getM _key = do
   state <- MonadState.get
   (Tuple newState value) <- get _key state
   MonadState.put newState
   pure value
+
+
+-- Attempt to make instance declarations less tedious
+class ReadableCache m a s c where
+  get' :: CacheEntry a c => CacheDefault a c => Fetchable m a c => Lens' s c -> s -> m (Tuple s a)
+
+instance (CacheEntry a c , CacheDefault a c , Fetchable m a c, CacheInvalidator s c) => ReadableCache m a s c where
+  get' = get
+
+
+data SimpleCacheEntry a = SimpleCacheEntry (Maybe a)
+
+instance CacheEntry a (SimpleCacheEntry a) where
+  getCacheValue (SimpleCacheEntry c) = c
+  setCacheValue _ newValue = SimpleCacheEntry newValue
+
+
+class ReadonlyCache m a c | c -> m a where
+  default' :: c -> a
+  fetch' :: c -> m (Maybe a)
+
+
+instance (ReadonlyCache m a c) => CacheDefault a c where
+  default = default'
+instance (ReadonlyCache m a c, Monad m) => Fetchable m a c where
+  fetch = fetch'
+
+-- class Foo a b where
+--   foo :: a -> b -> String
+--   bar :: a -> String
+
+class Foo' a b where
+  foo :: a -> b -> String
+
+class Bar' a where
+  bar :: a -> String
