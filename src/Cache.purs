@@ -34,8 +34,12 @@ class CacheInvalidator s c where
 noInvalidate :: forall c s . c -> s -> s
 noInvalidate _ s = s
 
-peek :: forall a s c . CacheEntry a c => CacheDefault a c
-  => Lens' s c -> s -> a
+-- Peek without default
+peek' :: forall a s c . CacheEntry a c => Lens' s c -> s -> Maybe a
+peek' _key state = view _key state # getCacheValue
+
+-- Peek with default
+peek :: forall a s c . CacheEntry a c => CacheDefault a c => Lens' s c -> s -> a
 peek _key state =
   case getCacheValue cache of
     Nothing -> default cache
@@ -44,14 +48,13 @@ peek _key state =
   cache = view _key state
 
 -- TODO: can we get rid of the proxy?
-purge :: forall a s c . CacheEntry a c => CacheInvalidator s c
-  => Proxy a -> Lens' s c -> s -> s
+purge :: forall a s c . CacheEntry a c => CacheInvalidator s c => Proxy a -> Lens' s c -> s -> s
 purge _ _key state = (over _key (\c -> setCacheValue c (Nothing :: Maybe a)) state) # invalidate cache
   where cache = view _key state
 
 -- TODO: we would want to introduce overloads for CacheInvalidator caches and non-CacheInvalidator caches.
 -- But we can only do that if we create a class with a get function which is implemented differently based on instance constraints.
-set :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => Fetchable m a c
+set :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c
   => Lens' s c -> a -> s -> m s
 set _key value state = do
   flush cache value
@@ -59,7 +62,7 @@ set _key value state = do
   pure $ invalidate cache newState
   where cache = view _key state
 
-get :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Fetchable m a c
+get :: forall m a s c . CacheEntry a c => CacheDefault a c => Fetchable m a c
   => Lens' s c -> s -> m (Tuple s a)
 get _key state = do
   cache <- pure $ view _key state
@@ -77,18 +80,23 @@ purgeM proxy _key = do
   newState <- pure $ purge proxy _key state
   MonadState.put newState
 
-setM :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => Fetchable m a c => MonadState s m
+setM :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => MonadState s m
   => Lens' s c -> a -> m Unit
 setM _key value = do
   state <- MonadState.get
   newState <- set _key value state
   MonadState.put newState
 
-getM :: forall m a s c . CacheEntry a c => CacheInvalidator s c => CacheDefault a c => Flushable m a c => Fetchable m a c => MonadState s m
+getM :: forall m a s c . CacheEntry a c => CacheDefault a c => Fetchable m a c => MonadState s m
   => Lens' s c -> m a
 getM _key = do
   state <- MonadState.get
-  (Tuple newState value) <- get _key state
-  MonadState.put newState
-  pure value
-
+  cache <- pure $ view _key state
+  case getCacheValue cache of
+    Just value -> pure value
+    Nothing -> do
+      maybeValue <- fetch cache
+      value <- pure $ fromMaybe (default cache) maybeValue
+      newState <- pure $ over _key (\c -> setCacheValue c (Just value)) state
+      MonadState.put newState
+      pure value

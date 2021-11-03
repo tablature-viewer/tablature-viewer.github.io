@@ -7,8 +7,6 @@ import Data.Enum (class Enum)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList)
 import Data.Tuple (Tuple, fst, snd)
-import Effect.Console (log)
-import Effect.Unsafe (unsafePerformEffect)
 import Text.Parsing.StringParser (Parser(..), unParser)
 import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
 
@@ -19,10 +17,6 @@ class Print a where
 class Enum a <= CyclicEnum a where
   succ' :: a -> a
   pred' :: a -> a
-
-debug :: forall a. String -> a -> a
-debug msg = snd $ unsafePerformEffect $ log msg
-  where snd _ b = b
 
 foreach :: forall a b s. s -> List a -> (s -> a -> Tuple s b) -> List b
 foreach _ Nil _ = Nil

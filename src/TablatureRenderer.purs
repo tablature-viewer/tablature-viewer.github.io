@@ -1,8 +1,8 @@
 module TablatureRenderer where
 
 import Prelude
+import TablatureDocument
 
-import TablatureDocument (Chord, ChordLegendElem(..), ChordLineElem(..), HeaderLineElem(..), Note(..), RenderingOptions, Spaced, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), _bass, _elem, _letter, _mod, _mods, _root, _spaceSuffix, _type)
 import Data.Array (fromFoldable)
 import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
@@ -15,8 +15,8 @@ import Halogen.HTML as HH
 import HalogenUtils (classString, renderLineEnding)
 import Utils (print)
 
-renderTablatureDocument :: forall w i. TablatureDocument -> RenderingOptions -> List (HH.HTML w i)
-renderTablatureDocument doc _ = map renderLine doc
+renderTablatureDocument :: forall w i. TablatureDocument -> List (HH.HTML w i)
+renderTablatureDocument doc = map renderLine doc
   where
   renderLine :: TablatureDocumentLine -> HH.HTML w i
   renderLine (TitleLine line) = renderLine' line renderTitleLineElem

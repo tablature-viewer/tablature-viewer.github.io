@@ -2,6 +2,7 @@ module AppState where
 
 import Cache
 import Prelude
+import DebugUtils
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
@@ -88,7 +89,8 @@ initialState _ = State
   , transposition: SimpleCacheEntry Nothing
   }
 
-data SimpleCacheEntry a = SimpleCacheEntry (Maybe a)
+newtype SimpleCacheEntry a = SimpleCacheEntry (Maybe a)
+derive newtype instance (Show a) => Show (SimpleCacheEntry a)
 
 instance CacheEntry a (SimpleCacheEntry a) where
   getCacheValue (SimpleCacheEntry c) = c
@@ -120,7 +122,8 @@ instance CacheDefault String CachedTablatureText where
   default _ = ""
 
 instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureText where
-  fetch _ = liftEffect $ getTablatureTextFromUrl <#> Just
+  fetch _ = do
+    liftEffect $ getTablatureTextFromUrl <#> Just
 
 instance (MonadState State m, MonadEffect m) => Flushable m String CachedTablatureText where
   flush _ value = liftEffect $ saveTablatureToUrl value
@@ -139,12 +142,9 @@ instance CacheDefault TablatureDocument CachedParseResult where
   default _ = Nil
 
 instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedParseResult where
-  fetch c = do
+  fetch _ = do
     tablatureText <- getM _tablatureText
     pure $ tryParseTablature tablatureText
-
-instance (MonadState State m, MonadEffect m) => Flushable m TablatureDocument CachedParseResult where
-  flush _ value = pure unit
 
 instance CacheInvalidator State CachedParseResult where
   invalidate = noInvalidate
@@ -160,13 +160,10 @@ instance CacheDefault TablatureDocument CachedRewriteResult where
   default _ = Nil
 
 instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedRewriteResult where
-  fetch c = do
+  fetch _ = do
     parseResult <- getM _parseResult
-    pure $ Just Nil
-    -- pure $ rewriteTablatureDocument parseResult
-
-instance (MonadState State m, MonadEffect m) => Flushable m TablatureDocument CachedRewriteResult where
-  flush _ value = pure unit
+    renderingOptions <- getRenderingOptions
+    pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
 
 instance CacheInvalidator State CachedRewriteResult where
   invalidate = noInvalidate
@@ -183,13 +180,9 @@ instance CacheDefault String CachedTablatureTitle where
   default _ = "Tab viewer"
 
 instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureTitle where
-  fetch c = do
-    parseResult <- getM _parseResult
-    pure $ Just ""
-    -- pure $ rewriteTablatureDocument parseResult
-
-instance (MonadState State m, MonadEffect m) => Flushable m String CachedTablatureTitle where
-  flush _ value = pure unit
+  fetch _ = do
+    rewriteResult <- getM _rewriteResult
+    pure $ getTitle rewriteResult
 
 instance CacheInvalidator State CachedTablatureTitle where
   invalidate = noInvalidate
@@ -273,10 +266,8 @@ instance CacheDefault Boolean CachedIgnoreDozenalization where
   default _ = false
 
 instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedIgnoreDozenalization where
-  fetch _ = pure $ Just true
-
-instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedIgnoreDozenalization where
-  flush _ value = pure unit
+  fetch _ = do
+    pure Nothing -- TODO
 
 instance CacheInvalidator State CachedIgnoreDozenalization where
   invalidate = noInvalidate
@@ -285,12 +276,7 @@ _ignoreDozenalization :: Lens' State CachedIgnoreDozenalization
 _ignoreDozenalization = barlow (key :: _ "!.ignoreDozenalization")
 
 
--- TODO: find a generic solution for this
-cacheState = do
-  -- _ <- getTablatureTitle
-  pure unit
-
-
+-- TODO: move renderingoptions also to cache?
 getRenderingOptions  :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
 getRenderingOptions = do
   tabNormalizationEnabled <- getM _tabNormalizationEnabled

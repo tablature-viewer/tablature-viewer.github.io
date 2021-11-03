@@ -1,11 +1,12 @@
 module Main where
 
-import Prelude
 import AppState
-import AutoscrollSpeed
 import AppUrl
-import Cache as Cache
+import AutoscrollSpeed
+import Prelude
+import DebugUtils
 
+import Cache as Cache
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.Enum (pred, succ)
@@ -125,72 +126,72 @@ render state = HH.div_
         [ fontAwesome "fa-wrench"
         , optionalText " Settings"
         ]
-      -- , HH.div [ classString "dropdown-menu" ]
-      --   [ HH.button
-      --     [ HP.title "Toggle normalization for tabs on or off"
-      --     , classString "dropdown-item"
-      --     , HE.onClick \_ -> ToggleTabNormalization
-      --     ]
-      --     [ if peekTabNormalizationEnabled state
-      --         then fontAwesome "fa-toggle-on"
-      --         else fontAwesome "fa-toggle-off"
-      --     , HH.text " Normalize tabs"
-      --     ]
-      --   , HH.button
-      --     [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
-      --     , classString "dropdown-item"
-      --     , HE.onClick \_ -> ToggleTabDozenalization
-      --     , classString $ if peekIgnoreDozenalization state then "disabled" else ""
-      --     ]
-      --     [ if peekTabDozenalizationEnabled state && not peekIgnoreDozenalization state
-      --         then fontAwesome "fa-toggle-on"
-      --         else fontAwesome "fa-toggle-off"
-      --     , HH.text " Dozenalize tabs"
-      --     ]
-      --   , HH.button
-      --     [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
-      --     , HE.onClick \_ -> ToggleChordDozenalization
-      --     , classString "dropdown-item"
-      --     , classString $ if peekIgnoreDozenalization state then "disabled" else ""
-      --     ]
-      --     [ if peekChordDozenalizationEnabled state && not peekIgnoreDozenalization state
-      --         then fontAwesome "fa-toggle-on"
-      --         else fontAwesome "fa-toggle-off"
-      --     , HH.text " Dozenalize chords"
-      --     ]
-      --   , HH.div
-      --     [ HP.title "Transpose the tablature"
-      --     , classString "dropdown-item"
-      --     ]
-      --     [ HH.button
-      --       [ HP.title "Transpose down"
-      --       , HE.onClick \_ -> DecreaseTransposition
-      --       ]
-      --       [ fontAwesome "fa-caret-down" ]
-      --     , HH.button
-      --       [ HP.title "Transpose up"
-      --       , HE.onClick \_ -> IncreaseTransposition
-      --       ]
-      --       [ fontAwesome "fa-caret-up" ]
-      --     , HH.span_ [ HH.text $ " Transpose " <> show (peekTransposition state) ]
-      --     ]
-      --   , HH.div
-      --     [ HP.title "Change the autoscroll speed"
-      --     , classString "dropdown-item"
-      --     ]
-      --     [ HH.button
-      --       [ HP.title "Decrease the autoscroll speed"
-      --       , HE.onClick \_ -> DecreaseAutoscrollSpeed
-      --       ]
-      --       [ fontAwesome "fa-backward" ]
-      --     , HH.button
-      --       [ HP.title "Increase the autoscroll speed"
-      --       , HE.onClick \_ -> IncreaseAutoscrollSpeed
-      --       ]
-      --       [ fontAwesome "fa-forward" ]
-      --     , HH.span_ [ HH.text $ " Autoscroll speed " <> show state.autoscrollSpeed ]
-      --     ]
-      --   ]
+      , HH.div [ classString "dropdown-menu" ]
+        [ HH.button
+          [ HP.title "Toggle normalization for tabs on or off"
+          , classString "dropdown-item"
+          , HE.onClick \_ -> ToggleTabNormalization
+          ]
+          [ if Cache.peek _tabNormalizationEnabled state
+              then fontAwesome "fa-toggle-on"
+              else fontAwesome "fa-toggle-off"
+          , HH.text " Normalize tabs"
+          ]
+        , HH.button
+          [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
+          , classString "dropdown-item"
+          , HE.onClick \_ -> ToggleTabDozenalization
+          , classString $ if Cache.peek _ignoreDozenalization state then "disabled" else ""
+          ]
+          [ if Cache.peek _tabDozenalizationEnabled state && not Cache.peek _ignoreDozenalization state
+              then fontAwesome "fa-toggle-on"
+              else fontAwesome "fa-toggle-off"
+          , HH.text " Dozenalize tabs"
+          ]
+        , HH.button
+          [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
+          , HE.onClick \_ -> ToggleChordDozenalization
+          , classString "dropdown-item"
+          , classString $ if Cache.peek _ignoreDozenalization state then "disabled" else ""
+          ]
+          [ if Cache.peek _chordDozenalizationEnabled state && not Cache.peek _ignoreDozenalization state
+              then fontAwesome "fa-toggle-on"
+              else fontAwesome "fa-toggle-off"
+          , HH.text " Dozenalize chords"
+          ]
+        , HH.div
+          [ HP.title "Transpose the tablature"
+          , classString "dropdown-item"
+          ]
+          [ HH.button
+            [ HP.title "Transpose down"
+            , HE.onClick \_ -> DecreaseTransposition
+            ]
+            [ fontAwesome "fa-caret-down" ]
+          , HH.button
+            [ HP.title "Transpose up"
+            , HE.onClick \_ -> IncreaseTransposition
+            ]
+            [ fontAwesome "fa-caret-up" ]
+          , HH.span_ [ HH.text $ " Transpose " <> show (Cache.peek _transposition state) ]
+          ]
+        , HH.div
+          [ HP.title "Change the autoscroll speed"
+          , classString "dropdown-item"
+          ]
+          [ HH.button
+            [ HP.title "Decrease the autoscroll speed"
+            , HE.onClick \_ -> DecreaseAutoscrollSpeed
+            ]
+            [ fontAwesome "fa-backward" ]
+          , HH.button
+            [ HP.title "Increase the autoscroll speed"
+            , HE.onClick \_ -> IncreaseAutoscrollSpeed
+            ]
+            [ fontAwesome "fa-forward" ]
+          , HH.span_ [ HH.text $ " Autoscroll speed " <> show (view (key :: _ "!.autoscrollSpeed") state) ]
+          ]
+        ]
       ]
     , HH.a
       [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
@@ -228,9 +229,8 @@ render state = HH.div_
       else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
 
 
-renderTablature :: forall w i m. State -> Array (HH.HTML w i)
--- renderTablature state = fromFoldable $ renderTablatureDocument (peekRewriteResult state) $ peekRenderingOptions state
-renderTablature state = []
+renderTablature :: forall w i. State -> Array (HH.HTML w i)
+renderTablature state = fromFoldable $ renderTablatureDocument (Cache.peek _rewriteResult state)
 
 
 modifyState :: forall output m . MonadEffect m => (StateRecord -> StateRecord) -> H.HalogenM State Action () output m Unit
@@ -247,15 +247,16 @@ handleAction action = do
   modifyState _ { loading = true, autoscroll = false }
   -- updateAutoscroll intermediateState
   H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
+  -- TODO: force halogen to render at this point, then pause and then resume at the end of the function again
   case action of
     Initialize -> do
       tablatureText <- Cache.getM _tablatureText
       if tablatureText == ""
       then modifyState _ { mode = EditMode }
-      else pure unit
-      -- focusTablatureContainer
+      else modifyState _ { mode = ViewMode }
+      focusTablatureContainer
     ToggleEditMode -> do
-      -- saveScrollTop
+      saveScrollTop
       case originalState.mode of
         EditMode -> do
           tablatureText <- getTablatureTextFromEditor
@@ -267,7 +268,7 @@ handleAction action = do
           tablatureText <- Cache.getM _tablatureText
           setTablatureTextInEditor tablatureText
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
-      -- loadScrollTop
+      loadScrollTop
     ToggleTabNormalization -> do
       tabNormalizationEnabled <- Cache.getM _tabNormalizationEnabled
       Cache.setM _tabNormalizationEnabled (not tabNormalizationEnabled)
@@ -306,9 +307,14 @@ handleAction action = do
       transposition <- Cache.getM _transposition
       Cache.setM _transposition $ predTransposition transposition
 
-  newState <- getState
+  -- newState <- getState
   -- updateAutoscroll newState
-  cacheState
+
+  tablatureTitle <- Cache.getM _tablatureTitle
+  H.liftEffect $ setDocumentTitle tablatureTitle
+
+  -- TODO: find a generic solution to preload cache
+  _ <- Cache.getM _rewriteResult
   modifyState _ { loading = false }
 
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
@@ -321,11 +327,6 @@ getTablatureTextFromEditor = do
   case maybeTextArea of
     Nothing -> H.liftEffect $ Console.error "Could not find textareaTablature" *> pure ""
     Just textArea -> H.liftEffect $ WH.HTMLTextAreaElement.value textArea 
-
-
--- TODO: FIX
--- updateQueryString :: forall output m. MonadEffect m => State -> H.HalogenM State Action () output m Unit 
--- updateQueryString state = pure unit
 
 getTablatureContainerElement :: forall output m. MonadEffect m => H.HalogenM State Action () output m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
