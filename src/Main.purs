@@ -240,7 +240,7 @@ handleAction :: forall output m . MonadAff m => Action -> H.HalogenM State Actio
 handleAction action = do
   originalState <- getState
   modifyState _ { loading = true, autoscroll = false }
-  -- updateAutoscroll intermediateState
+  updateAutoscrollTimer
   H.liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
   -- TODO: force halogen to render at this point, then pause and then resume at the end of the function again
   case action of
@@ -291,10 +291,10 @@ handleAction action = do
     ToggleAutoscroll -> modifyState _ { autoscroll = not originalState.autoscroll }
     IncreaseAutoscrollSpeed -> do
       increaseAutoscrollSpeed
-      modifyState _ { autoscroll = originalState.autoscroll }
+      modifyState _ { autoscroll = originalState.autoscroll } -- We don't want to stop
     DecreaseAutoscrollSpeed -> do
       decreaseAutoscrollSpeed
-      modifyState _ { autoscroll = originalState.autoscroll }
+      modifyState _ { autoscroll = originalState.autoscroll } -- We don't want to stop
     IncreaseTransposition -> do
       transposition <- Cache.getM _transposition
       Cache.setM _transposition $ succTransposition transposition
@@ -302,8 +302,7 @@ handleAction action = do
       transposition <- Cache.getM _transposition
       Cache.setM _transposition $ predTransposition transposition
 
-  -- newState <- getState
-  -- updateAutoscroll newState
+  updateAutoscrollTimer
 
   tablatureTitle <- Cache.getM _tablatureTitle
   H.liftEffect $ setDocumentTitle tablatureTitle
@@ -348,8 +347,9 @@ loadScrollTop = do
     Just tablatureContainerElem -> do
       H.liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
 
-updateAutoscroll :: forall output m . MonadEffect m => StateRecord -> H.HalogenM State Action () output m Unit
-updateAutoscroll state =
+updateAutoscrollTimer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+updateAutoscrollTimer = do
+  state <- getState
   case state.autoscrollTimer of
     Nothing ->
       if state.autoscroll
@@ -364,6 +364,7 @@ updateAutoscroll state =
     H.liftEffect $ clearInterval timerId
     modifyState _ { autoscrollTimer = Nothing }
   startAutoscroll = do
+    state <- getState
     maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
     case maybeTablatureContainerElem of
       Nothing -> pure unit

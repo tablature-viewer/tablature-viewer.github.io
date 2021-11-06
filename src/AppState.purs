@@ -1,16 +1,19 @@
 module AppState where
 
-import Cache (class CacheDefault, class CacheEntry, class Dependable, class Fetchable, class Flushable, class Purgeable, getM, packPurgeableLens)
 import Prelude
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
+import Cache (class CacheDefault, class CacheEntry, class Dependable, class Fetchable, class Flushable, class Purgeable, getM, packPurgeableLens)
 import Control.Monad.State (class MonadState)
 import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
-import Data.List (List(..))
+import Data.List (List(..), fromFoldable)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Data.String.Regex (test)
+import Data.String.Regex.Flags (ignoreCase)
+import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
@@ -99,7 +102,7 @@ instance (MonadState State m, MonadEffect m) => Flushable m Transposition Cached
   flush _ value = liftEffect $ setAppQueryString { transposition: value }
 
 instance Dependable State CachedTransposition where
-  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
+  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
 
 _transposition :: Lens' State CachedTransposition
 _transposition = barlow (key :: _ "!.transposition")
@@ -120,7 +123,7 @@ instance (MonadState State m, MonadEffect m) => Flushable m String CachedTablatu
   flush _ value = liftEffect $ saveTablatureToUrl value
 
 instance Dependable State CachedTablatureText where
-  dependants _ = Cons (packPurgeableLens _parseResult) Nil
+  dependants _ = fromFoldable [ packPurgeableLens _parseResult ]
 
 _tablatureText :: Lens' State CachedTablatureText
 _tablatureText = barlow (key :: _ "!.tablatureText")
@@ -139,7 +142,9 @@ instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument Ca
     pure $ tryParseTablature tablatureText
 
 instance Dependable State CachedParseResult where
-  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
+  dependants _ = fromFoldable
+    [ packPurgeableLens _rewriteResult
+    , packPurgeableLens _tablatureTitle ]
 
 _parseResult :: Lens' State CachedParseResult
 _parseResult = barlow (key :: _ "!.parseResult")
@@ -159,7 +164,7 @@ instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument Ca
     pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
 
 instance Dependable State CachedRewriteResult where
-  dependants _ = Nil
+  dependants _ = fromFoldable []
 
 _rewriteResult :: Lens' State CachedRewriteResult
 _rewriteResult = barlow (key :: _ "!.rewriteResult")
@@ -174,11 +179,11 @@ instance CacheDefault String CachedTablatureTitle where
 
 instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureTitle where
   fetch _ = do
-    rewriteResult <- getM _rewriteResult
-    pure $ getTitle rewriteResult
+    parseResult <- getM _parseResult
+    pure $ getTitle parseResult
 
 instance Dependable State CachedTablatureTitle where
-  dependants _ = Nil
+  dependants _ = fromFoldable [ packPurgeableLens _ignoreDozenalization ]
 
 _tablatureTitle :: Lens' State CachedTablatureTitle
 _tablatureTitle = barlow (key :: _ "!.tablatureTitle")
@@ -198,7 +203,7 @@ instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabNor
   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabNormalizationEnabled value
 
 instance Dependable State CachedTabNormalizationEnabled where
-  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
+  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
 
 _tabNormalizationEnabled :: Lens' State CachedTabNormalizationEnabled
 _tabNormalizationEnabled = barlow (key :: _ "!.tabNormalizationEnabled")
@@ -221,7 +226,7 @@ instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabDoz
   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabDozenalizationEnabled value
 
 instance Dependable State CachedTabDozenalizationEnabled where
-  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
+  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
 
 _tabDozenalizationEnabled :: Lens' State CachedTabDozenalizationEnabled
 _tabDozenalizationEnabled = barlow (key :: _ "!.tabDozenalizationEnabled")
@@ -244,7 +249,7 @@ instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedChordD
   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyChordDozenalizationEnabled value
 
 instance Dependable State CachedChordDozenalizationEnabled where
-  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
+  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
 
 _chordDozenalizationEnabled :: Lens' State CachedChordDozenalizationEnabled
 _chordDozenalizationEnabled = barlow (key :: _ "!.chordDozenalizationEnabled")
@@ -262,10 +267,11 @@ instance CacheDefault Boolean CachedIgnoreDozenalization where
 
 instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedIgnoreDozenalization where
   fetch _ = do
-    pure Nothing -- TODO
+    tablatureTitle <- getM _tablatureTitle
+    pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
 
 instance Dependable State CachedIgnoreDozenalization where
-  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
+  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
 
 _ignoreDozenalization :: Lens' State CachedIgnoreDozenalization
 _ignoreDozenalization = barlow (key :: _ "!.ignoreDozenalization")
