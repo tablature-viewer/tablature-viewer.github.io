@@ -23,7 +23,9 @@ import Utils (foreach, foreach')
 --   - A way to reverse/obsolete the invalidation functions. A Cache should be able to tell what other values it depends on.
 --     Then when these dependencies change, the cache value should be invalidated by the bookkeeper.
 
--- The functional dependency "c -> a" enforces that we won't declare multiple instances with the same "c" type.
+-- TODO: make this an explicit type and store dependencies with it on a subscription basis?
+-- Dependencies would subscribe during fetch.
+-- The subcription list would be cleared after invalidation, such that a subsequent fetch won't result in duplicate subscriptions.
 class CacheEntry a c | c -> a where
   getCacheValue :: c -> Maybe a
   setCacheValue :: c -> a -> c
@@ -43,6 +45,7 @@ mapPurgableLens f (AnyPurgeableLens y) = y f
 class Dependable s c where
   dependants :: c -> List (AnyPurgeableLens s)
 
+-- The functional dependency "c -> a" enforces that we won't declare multiple instances with the same "c" type.
 class CacheDefault a c | c -> a where
   default :: c -> a
 
@@ -77,8 +80,6 @@ purgeDependencies cache initialState = foreach' initialState (dependants cache) 
   where
   loop state packed = mapPurgableLens (\lens -> purge lens state) packed
 
--- TODO: we would want to introduce overloads for CacheInvalidator caches and non-CacheInvalidator caches.
--- But we can only do that if we create a class with a get function which is implemented differently based on instance constraints.
 write :: forall m a s c . CacheEntry a c => Dependable s c => CacheDefault a c => Flushable m a c =>
   Lens' s c -> a -> s -> m s
 write _key value state = do
@@ -87,40 +88,21 @@ write _key value state = do
   pure $ purgeDependencies cache newState
   where cache = view _key state
 
-get :: forall m a s c . CacheEntry a c => CacheDefault a c => Fetchable m a c =>
-  Lens' s c -> s -> m (Tuple s a)
-get _key state = do
-  cache <- pure $ view _key state
-  case getCacheValue cache of
-    Just value -> pure (Tuple state value)
-    Nothing -> do
-      maybeValue <- fetch cache
-      value <- pure $ fromMaybe (default cache) maybeValue
-      newState <- pure $ over _key (\c -> setCacheValue c value) state
-      pure (Tuple newState value)
+purgeM :: forall m s c . Purgeable c => Dependable s c => MonadState s m => Lens' s c -> m Unit
+purgeM _key = MonadState.get <#> purge _key >>= MonadState.put
 
-purgeM :: forall m a s c . Purgeable c => Dependable s c => MonadState s m => Lens' s c -> m Unit
-purgeM _key = do
-  state <- MonadState.get
-  newState <- pure $ purge _key state
-  MonadState.put newState
-
-setM :: forall m a s c . CacheEntry a c => Dependable s c => CacheDefault a c => Flushable m a c => MonadState s m
+writeM :: forall m a s c . CacheEntry a c => Dependable s c => CacheDefault a c => Flushable m a c => MonadState s m
   => Lens' s c -> a -> m Unit
-setM _key value = do
-  state <- MonadState.get
-  newState <- write _key value state
-  MonadState.put newState
+writeM _key value = MonadState.get >>= write _key value >>= MonadState.put
 
-getM :: forall m a s c . CacheEntry a c => CacheDefault a c => Fetchable m a c => MonadState s m => Lens' s c -> m a
-getM _key = do
-  state <- MonadState.get
-  cache <- pure $ view _key state
+readM :: forall m a s c . CacheEntry a c => CacheDefault a c => Fetchable m a c => MonadState s m => Lens' s c -> m a
+readM _key = do
+  cache <- MonadState.get <#> view _key
   case getCacheValue cache of
     Just value -> pure value
     Nothing -> do
       maybeValue <- fetch cache
       value <- pure $ fromMaybe (default cache) maybeValue
-      newState <- pure $ over _key (\c -> setCacheValue c value) state
+      newState <- MonadState.get <#> over _key (\c -> setCacheValue c value)
       MonadState.put newState
       pure value

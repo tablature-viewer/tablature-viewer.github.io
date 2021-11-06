@@ -1,11 +1,12 @@
 module AppState where
 
 import Prelude
+import Cache
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
-import Cache (class CacheDefault, class CacheEntry, class Dependable, class Fetchable, class Flushable, class Purgeable, getM, packPurgeableLens)
 import Control.Monad.State (class MonadState)
+import Control.Monad.State as MonadState
 import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
 import Data.List (List(..), fromFoldable)
@@ -138,7 +139,7 @@ instance CacheDefault TablatureDocument CachedParseResult where
 
 instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedParseResult where
   fetch _ = do
-    tablatureText <- getM _tablatureText
+    tablatureText <- readM _tablatureText
     pure $ tryParseTablature tablatureText
 
 instance Dependable State CachedParseResult where
@@ -159,7 +160,7 @@ instance CacheDefault TablatureDocument CachedRewriteResult where
 
 instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedRewriteResult where
   fetch _ = do
-    parseResult <- getM _parseResult
+    parseResult <- readM _parseResult
     renderingOptions <- getRenderingOptions
     pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
 
@@ -179,7 +180,7 @@ instance CacheDefault String CachedTablatureTitle where
 
 instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureTitle where
   fetch _ = do
-    parseResult <- getM _parseResult
+    parseResult <- readM _parseResult
     pure $ getTitle parseResult
 
 instance Dependable State CachedTablatureTitle where
@@ -267,7 +268,7 @@ instance CacheDefault Boolean CachedIgnoreDozenalization where
 
 instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedIgnoreDozenalization where
   fetch _ = do
-    tablatureTitle <- getM _tablatureTitle
+    tablatureTitle <- readM _tablatureTitle
     pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
 
 instance Dependable State CachedIgnoreDozenalization where
@@ -280,11 +281,11 @@ _ignoreDozenalization = barlow (key :: _ "!.ignoreDozenalization")
 -- TODO: move renderingoptions also to cache?
 getRenderingOptions :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
 getRenderingOptions = do
-  tabNormalizationEnabled <- getM _tabNormalizationEnabled
-  tabDozenalizationEnabled <- getM _tabDozenalizationEnabled
-  chordDozenalizationEnabled <- getM _chordDozenalizationEnabled
-  ignoreDozenalization <- getM _ignoreDozenalization
-  transposition <- getM _transposition
+  tabNormalizationEnabled <- readM _tabNormalizationEnabled
+  tabDozenalizationEnabled <- readM _tabDozenalizationEnabled
+  chordDozenalizationEnabled <- readM _chordDozenalizationEnabled
+  ignoreDozenalization <- readM _ignoreDozenalization
+  transposition <- readM _transposition
   pure $ { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
   , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
   , normalizeTabs: tabNormalizationEnabled

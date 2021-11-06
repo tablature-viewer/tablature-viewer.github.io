@@ -1,11 +1,10 @@
 module Main where
 
-import Prelude
 import AppState
+import Prelude
 
 import AppUrl (redirectToUrlInFragment)
 import AutoscrollSpeed (speedToIntervalMs, speedToIntervalPixelDelta)
-
 import Cache as Cache
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
@@ -245,7 +244,7 @@ handleAction action = do
   -- TODO: force halogen to render at this point, then pause and then resume at the end of the function again
   case action of
     Initialize -> do
-      tablatureText <- Cache.getM _tablatureText
+      tablatureText <- Cache.readM _tablatureText
       if tablatureText == ""
       then modifyState _ { mode = EditMode }
       else modifyState _ { mode = ViewMode }
@@ -255,32 +254,32 @@ handleAction action = do
       case originalState.mode of
         EditMode -> do
           tablatureText <- getTablatureTextFromEditor
-          Cache.setM _tablatureText tablatureText
+          Cache.writeM _tablatureText tablatureText
           modifyState _ { mode = ViewMode }
           focusTablatureContainer
         ViewMode -> do
           modifyState _ { mode = EditMode }
-          tablatureText <- Cache.getM _tablatureText
+          tablatureText <- Cache.readM _tablatureText
           setTablatureTextInEditor tablatureText
           -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
       loadScrollTop
     ToggleTabNormalization -> do
-      tabNormalizationEnabled <- Cache.getM _tabNormalizationEnabled
-      Cache.setM _tabNormalizationEnabled (not tabNormalizationEnabled)
+      tabNormalizationEnabled <- Cache.readM _tabNormalizationEnabled
+      Cache.writeM _tabNormalizationEnabled (not tabNormalizationEnabled)
     ToggleTabDozenalization -> do
-      ignoreDozenalization <- Cache.getM _ignoreDozenalization
+      ignoreDozenalization <- Cache.readM _ignoreDozenalization
       if ignoreDozenalization
       then pure unit
       else do
-        tabDozenalizationEnabled <- Cache.getM _tabDozenalizationEnabled
-        Cache.setM _tabDozenalizationEnabled (not tabDozenalizationEnabled)
+        tabDozenalizationEnabled <- Cache.readM _tabDozenalizationEnabled
+        Cache.writeM _tabDozenalizationEnabled (not tabDozenalizationEnabled)
     ToggleChordDozenalization -> do
-      ignoreDozenalization <- Cache.getM _ignoreDozenalization
+      ignoreDozenalization <- Cache.readM _ignoreDozenalization
       if ignoreDozenalization
       then pure unit
       else do
-        chordDozenalizationEnabled <- Cache.getM _chordDozenalizationEnabled
-        Cache.setM _chordDozenalizationEnabled (not chordDozenalizationEnabled)
+        chordDozenalizationEnabled <- Cache.readM _chordDozenalizationEnabled
+        Cache.writeM _chordDozenalizationEnabled (not chordDozenalizationEnabled)
     CopyShortUrl -> do
       longUrl <- H.liftEffect getLocationString
       maybeShortUrl <- H.liftAff $ createShortUrl longUrl
@@ -296,19 +295,19 @@ handleAction action = do
       decreaseAutoscrollSpeed
       modifyState _ { autoscroll = originalState.autoscroll } -- We don't want to stop
     IncreaseTransposition -> do
-      transposition <- Cache.getM _transposition
-      Cache.setM _transposition $ succTransposition transposition
+      transposition <- Cache.readM _transposition
+      Cache.writeM _transposition $ succTransposition transposition
     DecreaseTransposition -> do
-      transposition <- Cache.getM _transposition
-      Cache.setM _transposition $ predTransposition transposition
+      transposition <- Cache.readM _transposition
+      Cache.writeM _transposition $ predTransposition transposition
 
   updateAutoscrollTimer
 
-  tablatureTitle <- Cache.getM _tablatureTitle
+  tablatureTitle <- Cache.readM _tablatureTitle
   H.liftEffect $ setDocumentTitle tablatureTitle
 
   -- TODO: find a generic solution to preload cache
-  _ <- Cache.getM _rewriteResult
+  _ <- Cache.readM _rewriteResult
   modifyState _ { loading = false }
 
 getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
