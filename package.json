@@ -1,6 +1,7 @@
 {
   "name": "tabviewer",
   "version": "0.0.1",
+  "main": "docs/index.html",
   "directories": {
     "test": "test"
   },
@@ -29,13 +30,15 @@
   "homepage": "https://github.com/tablature-viewer/tablature-viewer.github.io",
   "description": "",
   "devDependencies": {
-    "parcel": "^2.0.0-beta.3.1",
+    "parcel": "2.0.0-beta.3.1",
     "purescript": "^0.14.5",
     "spago": "^0.20.3"
   },
   "dependencies": {
     "lz-string": "^1.4.4",
+    "process": "^0.11.10",
     "unirest": "^0.6.0",
+    "url": "^0.11.0",
     "xhr2": "^0.2.1"
   }
 }
