@@ -23,6 +23,11 @@ foreach _ Nil _ = Nil
 foreach state (x : xs) loop = snd next : (foreach (fst next) xs loop)
   where next = loop state x
 
+foreach' :: forall a s . s -> List a -> (s -> a -> s) -> s
+foreach' state Nil _ = state
+foreach' state (x : xs) loop = foreach' nextState xs loop
+  where nextState = loop state x
+
 applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
 applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
   where result = f x

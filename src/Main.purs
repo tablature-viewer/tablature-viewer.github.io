@@ -1,22 +1,18 @@
 module Main where
 
-import AppState
-import AppUrl
-import AutoscrollSpeed
 import Prelude
-import DebugUtils
+import AppState
+
+import AppUrl (redirectToUrlInFragment)
+import AutoscrollSpeed (speedToIntervalMs, speedToIntervalPixelDelta)
 
 import Cache as Cache
 import Clipboard (copyToClipboard)
 import Data.Array (fromFoldable)
 import Data.Enum (pred, succ)
-import Data.Lens (Lens')
-import Data.Lens.Barlow (barlow, key)
+import Data.Lens.Barlow (key)
 import Data.Lens.Barlow.Helpers (view)
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String.Regex (test)
-import Data.String.Regex.Flags (ignoreCase)
-import Data.String.Regex.Unsafe (unsafeRegex)
+import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff)
@@ -30,7 +26,6 @@ import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import Halogen.VDom.Driver (runUI)
 import HalogenUtils (classString, fontAwesome, optionalText, scrollBy)
-import LocalStorage (getLocalStorageBoolean, setLocalStorage)
 import LocationString (getLocationString, getQueryParam)
 import TablatureDocument (predTransposition, succTransposition)
 import TablatureRenderer (renderTablatureDocument)

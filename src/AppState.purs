@@ -1,35 +1,22 @@
 module AppState where
 
-import Cache
+import Cache (class CacheDefault, class CacheEntry, class Dependable, class Fetchable, class Flushable, class Purgeable, getM, packPurgeableLens)
 import Prelude
-import DebugUtils
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
 import Control.Monad.State (class MonadState)
-import Control.Monad.State as MonadState
-import Data.Enum (class Enum)
-import Data.Enum.Generic (genericPred, genericSucc)
-import Data.Functor.App (App(..))
-import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
-import Data.Lens.Barlow.Helpers (view, over)
 import Data.List (List(..))
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
-import Data.String.Regex (test)
-import Data.String.Regex.Flags (ignoreCase)
-import Data.String.Regex.Unsafe (unsafeRegex)
-import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
-import Halogen as H
-import LocalStorage (getLocalStorageBoolean, getLocalStorageBooleanWithDefault, setLocalStorageBoolean)
+import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
 import TablatureDocument (RenderingOptions, TablatureDocument, Transposition(..), getTitle)
-import TablatureParser (parseTablature, tryParseTablature)
+import TablatureParser (tryParseTablature)
 import TablatureRewriter (rewriteTablatureDocument)
-import Type.Prelude (Proxy(..))
 
 -- TODO: rename to AppAction?
 data Action
@@ -94,8 +81,11 @@ derive newtype instance (Show a) => Show (SimpleCacheEntry a)
 
 instance CacheEntry a (SimpleCacheEntry a) where
   getCacheValue (SimpleCacheEntry c) = c
-  setCacheValue _ newValue = SimpleCacheEntry newValue
-
+  setCacheValue _ newValue = SimpleCacheEntry (Just newValue)
+instance Purgeable (SimpleCacheEntry a) where
+  purgeCacheValue _ = SimpleCacheEntry Nothing
+  hasCacheValue (SimpleCacheEntry Nothing) = false
+  hasCacheValue _ = true
 
 type CachedTransposition = SimpleCacheEntry Transposition
 
@@ -108,8 +98,8 @@ instance (MonadState State m, MonadEffect m) => Fetchable m Transposition Cached
 instance (MonadState State m, MonadEffect m) => Flushable m Transposition CachedTransposition where
   flush _ value = liftEffect $ setAppQueryString { transposition: value }
 
-instance CacheInvalidator State CachedTransposition where
-  invalidate = noInvalidate
+instance Dependable State CachedTransposition where
+  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
 
 _transposition :: Lens' State CachedTransposition
 _transposition = barlow (key :: _ "!.transposition")
@@ -117,6 +107,7 @@ _transposition = barlow (key :: _ "!.transposition")
 
 newtype CachedTablatureText = CachedTablatureText (SimpleCacheEntry String)
 derive newtype instance CacheEntry String CachedTablatureText
+derive newtype instance Purgeable CachedIgnoreDozenalization  
 
 instance CacheDefault String CachedTablatureText where
   default _ = ""
@@ -128,8 +119,8 @@ instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatu
 instance (MonadState State m, MonadEffect m) => Flushable m String CachedTablatureText where
   flush _ value = liftEffect $ saveTablatureToUrl value
 
-instance CacheInvalidator State CachedTablatureText where
-  invalidate _ state = purge (Proxy :: Proxy TablatureDocument) _parseResult state
+instance Dependable State CachedTablatureText where
+  dependants _ = Cons (packPurgeableLens _parseResult) Nil
 
 _tablatureText :: Lens' State CachedTablatureText
 _tablatureText = barlow (key :: _ "!.tablatureText")
@@ -137,6 +128,7 @@ _tablatureText = barlow (key :: _ "!.tablatureText")
 
 newtype CachedParseResult = CachedParseResult (SimpleCacheEntry TablatureDocument)
 derive newtype instance CacheEntry TablatureDocument CachedParseResult 
+derive newtype instance Purgeable CachedChordDozenalizationEnabled  
 
 instance CacheDefault TablatureDocument CachedParseResult where
   default _ = Nil
@@ -146,8 +138,8 @@ instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument Ca
     tablatureText <- getM _tablatureText
     pure $ tryParseTablature tablatureText
 
-instance CacheInvalidator State CachedParseResult where
-  invalidate = noInvalidate
+instance Dependable State CachedParseResult where
+  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
 
 _parseResult :: Lens' State CachedParseResult
 _parseResult = barlow (key :: _ "!.parseResult")
@@ -155,6 +147,7 @@ _parseResult = barlow (key :: _ "!.parseResult")
 
 newtype CachedRewriteResult = CachedRewriteResult (SimpleCacheEntry TablatureDocument)
 derive newtype instance CacheEntry TablatureDocument CachedRewriteResult 
+derive newtype instance Purgeable CachedTabDozenalizationEnabled  
 
 instance CacheDefault TablatureDocument CachedRewriteResult where
   default _ = Nil
@@ -165,16 +158,16 @@ instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument Ca
     renderingOptions <- getRenderingOptions
     pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
 
-instance CacheInvalidator State CachedRewriteResult where
-  invalidate = noInvalidate
+instance Dependable State CachedRewriteResult where
+  dependants _ = Nil
 
 _rewriteResult :: Lens' State CachedRewriteResult
 _rewriteResult = barlow (key :: _ "!.rewriteResult")
 
 
-
 newtype CachedTablatureTitle = CachedTablatureTitle (SimpleCacheEntry String)
 derive newtype instance CacheEntry String CachedTablatureTitle 
+derive newtype instance Purgeable CachedTabNormalizationEnabled  
 
 instance CacheDefault String CachedTablatureTitle where
   default _ = "Tab viewer"
@@ -184,17 +177,16 @@ instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatu
     rewriteResult <- getM _rewriteResult
     pure $ getTitle rewriteResult
 
-instance CacheInvalidator State CachedTablatureTitle where
-  invalidate = noInvalidate
+instance Dependable State CachedTablatureTitle where
+  dependants _ = Nil
 
 _tablatureTitle :: Lens' State CachedTablatureTitle
 _tablatureTitle = barlow (key :: _ "!.tablatureTitle")
 
 
-
-
 newtype CachedTabNormalizationEnabled = CachedTabNormalizationEnabled (SimpleCacheEntry Boolean)
 derive newtype instance CacheEntry Boolean CachedTabNormalizationEnabled 
+derive newtype instance Purgeable CachedTablatureTitle  
 
 instance CacheDefault Boolean CachedTabNormalizationEnabled where
   default _ = false
@@ -205,8 +197,8 @@ instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedTabNor
 instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabNormalizationEnabled where
   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabNormalizationEnabled value
 
-instance CacheInvalidator State CachedTabNormalizationEnabled where
-  invalidate = noInvalidate
+instance Dependable State CachedTabNormalizationEnabled where
+  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
 
 _tabNormalizationEnabled :: Lens' State CachedTabNormalizationEnabled
 _tabNormalizationEnabled = barlow (key :: _ "!.tabNormalizationEnabled")
@@ -217,6 +209,7 @@ localStorageKeyTabNormalizationEnabled = "tabNormalizationEnabled"
 
 newtype CachedTabDozenalizationEnabled = CachedTabDozenalizationEnabled (SimpleCacheEntry Boolean)
 derive newtype instance CacheEntry Boolean CachedTabDozenalizationEnabled 
+derive newtype instance Purgeable CachedRewriteResult  
 
 instance CacheDefault Boolean CachedTabDozenalizationEnabled where
   default _ = false
@@ -227,8 +220,8 @@ instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedTabDoz
 instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabDozenalizationEnabled where
   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabDozenalizationEnabled value
 
-instance CacheInvalidator State CachedTabDozenalizationEnabled where
-  invalidate = noInvalidate
+instance Dependable State CachedTabDozenalizationEnabled where
+  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
 
 _tabDozenalizationEnabled :: Lens' State CachedTabDozenalizationEnabled
 _tabDozenalizationEnabled = barlow (key :: _ "!.tabDozenalizationEnabled")
@@ -239,6 +232,7 @@ localStorageKeyTabDozenalizationEnabled = "tabDozenalizationEnabled"
 
 newtype CachedChordDozenalizationEnabled = CachedChordDozenalizationEnabled (SimpleCacheEntry Boolean)
 derive newtype instance CacheEntry Boolean CachedChordDozenalizationEnabled 
+derive newtype instance Purgeable CachedParseResult  
 
 instance CacheDefault Boolean CachedChordDozenalizationEnabled where
   default _ = false
@@ -249,8 +243,8 @@ instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedChordD
 instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedChordDozenalizationEnabled where
   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyChordDozenalizationEnabled value
 
-instance CacheInvalidator State CachedChordDozenalizationEnabled where
-  invalidate = noInvalidate
+instance Dependable State CachedChordDozenalizationEnabled where
+  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
 
 _chordDozenalizationEnabled :: Lens' State CachedChordDozenalizationEnabled
 _chordDozenalizationEnabled = barlow (key :: _ "!.chordDozenalizationEnabled")
@@ -261,6 +255,7 @@ localStorageKeyChordDozenalizationEnabled = "chordDozenalizationEnabled"
 
 newtype CachedIgnoreDozenalization = CachedIgnoreDozenalization (SimpleCacheEntry Boolean)
 derive newtype instance CacheEntry Boolean CachedIgnoreDozenalization 
+derive newtype instance Purgeable CachedTablatureText  
 
 instance CacheDefault Boolean CachedIgnoreDozenalization where
   default _ = false
@@ -269,15 +264,15 @@ instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedIgnore
   fetch _ = do
     pure Nothing -- TODO
 
-instance CacheInvalidator State CachedIgnoreDozenalization where
-  invalidate = noInvalidate
+instance Dependable State CachedIgnoreDozenalization where
+  dependants _ = Cons (packPurgeableLens _rewriteResult) Nil
 
 _ignoreDozenalization :: Lens' State CachedIgnoreDozenalization
 _ignoreDozenalization = barlow (key :: _ "!.ignoreDozenalization")
 
 
 -- TODO: move renderingoptions also to cache?
-getRenderingOptions  :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
+getRenderingOptions :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
 getRenderingOptions = do
   tabNormalizationEnabled <- getM _tabNormalizationEnabled
   tabDozenalizationEnabled <- getM _tabDozenalizationEnabled
@@ -288,16 +283,3 @@ getRenderingOptions = do
   , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
   , normalizeTabs: tabNormalizationEnabled
   , transposition: transposition }
-
--- peekRenderingOptions :: forall c . State -> RenderingOptions
--- peekRenderingOptions state =
---   { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
---   , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
---   , normalizeTabs: tabNormalizationEnabled
---   , transposition: transposition }
---   where
---   tabNormalizationEnabled = peekTabNormalizationEnabled state
---   tabDozenalizationEnabled = peekTabDozenalizationEnabled state
---   chordDozenalizationEnabled = peekChordDozenalizationEnabled state
---   ignoreDozenalization = peekIgnoreDozenalization state
---   transposition = peekTransposition state
