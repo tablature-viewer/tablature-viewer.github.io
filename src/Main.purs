@@ -15,6 +15,7 @@ import Data.Enum (pred, succ)
 import Data.Lens.Barlow (key)
 import Data.Lens.Barlow.Helpers (view)
 import Data.Maybe (Maybe(..))
+import DebugUtils (debug)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
@@ -72,7 +73,7 @@ component =
     }
 
 render :: forall m. State -> H.ComponentHTML Action () m
-render state = HH.div_
+render state = debug "rendering" $ HH.div_
   [ HH.div 
     [ classString "app" ]
     [ renderHeader
@@ -240,8 +241,7 @@ getState = do
 
 handleAction :: forall output m . MonadAff m => Action -> H.HalogenM State Action () output m Unit
 handleAction action = do
-  modifyState _ { loading = true, autoscroll = false }
-  updateAutoscrollTimer
+  modifyState _ { loading = true }
   liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
 
   -- We don't do the work directly on the halogen monad, to avoid unnecessary rendering triggers.
@@ -257,6 +257,7 @@ handleAction action = do
 
 doAction :: forall output m . MonadAff m => Action -> StateT State (H.HalogenM State Action () output m) Unit
 doAction action = do
+  state <- getState
   case action of
     Initialize -> do
       tablatureText <- Cache.readM _tablatureText
@@ -266,7 +267,6 @@ doAction action = do
       lift focusTablatureContainer
     ToggleEditMode -> do
       lift saveScrollTop
-      (State state) <- MonadState.get
       case state.mode of
         EditMode -> do
           tablatureText <- lift getTablatureTextFromEditor
@@ -304,7 +304,6 @@ doAction action = do
         Nothing -> pure unit
       lift focusTablatureContainer
     ToggleAutoscroll -> do
-      (State state) <- MonadState.get
       modifyState _ { autoscroll = not state.autoscroll }
     IncreaseAutoscrollSpeed -> do
       increaseAutoscrollSpeed
@@ -364,6 +363,7 @@ loadScrollTop = do
     Just tablatureContainerElem -> do
       liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
 
+-- TODO: consider treating the js timer as a backing store for a cache?
 updateAutoscrollTimer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
 updateAutoscrollTimer = do
   state <- getState
@@ -372,10 +372,11 @@ updateAutoscrollTimer = do
       if state.autoscroll
       then startAutoscroll
       else pure unit
-    Just timerId ->
+    Just timerId -> do
+      stopAutoscroll timerId -- Always stop and restart, so the speed is up-to-date
       if state.autoscroll
       then pure unit
-      else stopAutoscroll timerId
+      else startAutoscroll
   where
   stopAutoscroll timerId = do
     liftEffect $ clearInterval timerId

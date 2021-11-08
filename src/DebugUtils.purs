@@ -5,8 +5,8 @@ import Prelude
 import Effect.Console (log)
 import Effect.Unsafe (unsafePerformEffect)
 
-debug :: forall a. Show a => String -> a -> a
-debug msg value = snd (unsafePerformEffect $ log $ msg <> ": " <> show value) value
+debug :: forall a. String -> a -> a
+debug msg value = snd (unsafePerformEffect $ log $ msg) value
   where snd _ b = b
 
 debug_ :: forall a. Show a => a -> a
