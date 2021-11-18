@@ -1,47 +1,68 @@
 module CacheTests where
 
-import Cache (class CacheDefault, class CacheEntry, class Dependable, class Purgeable, packPurgeableLens)
+import Cache
 import Prelude
 
+import Control.Monad.State (class MonadState, StateT(..), execStateT)
+import Control.Monad.State as MonadState
+import Data.Generic.Rep (class Generic)
 import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
 import Data.List (List(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
+import Data.Tuple (Tuple(..), snd)
 import Effect (Effect)
 
 main :: Effect Unit
 main = do
-  pure unit
-  _ <- pure createTestState
+  state <- pure createTestState
+  _ <- execStateT run state
   pure unit
 
-newtype MyCachedValue = MyCachedValue (Maybe String)
+run :: StateT TestState Effect Unit
+run = do
+  pure unit
+  value <- read _testValue1
+  write _testValue1 value
+  purge _testValue1
+  pure unit
+
+testFetch :: forall m . MonadState TestState m => m (Maybe Boolean)
+testFetch = do
+  value2 <- depend _testValue2 _testValue1
+  pure $ Just true
+
+testFlush :: forall m a . Monad m => a -> m Unit
+testFlush value = pure unit
+
+type TestCache = CacheUnit TestState Boolean
+testCache :: TestCache
+testCache = 
+  { value: NoValue
+  , fetch: Fetch testFetch
+  , flush: Flush testFlush
+  , default: false
+  , dependants: Nil
+  }
 
 newtype TestState = TestState
-  { testValue1 :: MyCachedValue
-  , testValue2 :: MyCachedValue }
+  { testValue1 :: TestCache
+  , testValue2 :: TestCache }
+-- data TestState = TestState TestCache TestCache
 derive instance Newtype TestState _
+-- derive instance Generic TestState _
 
-_testValue1 :: Lens' TestState MyCachedValue
+-- _testValue1 :: CacheKey TestState Boolean
 _testValue1 = barlow (key :: _ "!.testValue1")
-_testValue2 :: Lens' TestState MyCachedValue
+_testValue2 :: Lens' TestState TestCache
 _testValue2 = barlow (key :: _ "!.testValue2")
 
 createTestState :: TestState
-createTestState = TestState { testValue1: MyCachedValue Nothing, testValue2: MyCachedValue Nothing }
-
-instance CacheEntry String MyCachedValue where
-  getCacheValue (MyCachedValue c) = c
-  setCacheValue (MyCachedValue c) newValue = MyCachedValue (Just newValue)
-instance CacheDefault String MyCachedValue where
-  default _ = ""
-instance Purgeable MyCachedValue where
-  purgeCacheValue _ = MyCachedValue Nothing
-  hasCacheValue (MyCachedValue Nothing) = false
-  hasCacheValue _ = true
-instance Dependable TestState MyCachedValue where
-  dependants _ = Cons (packPurgeableLens _testValue1) Nil
+createTestState = TestState
+  { testValue1: testCache
+  , testValue2: testCache }
+-- createTestState = TestState testCache testCache
 
 
 newtype Showable = Showable (forall r. (forall a. Show a => a -> r) -> r)

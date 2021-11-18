@@ -48,15 +48,15 @@ type StateRecord =
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
   , loading :: Boolean
-  , tablatureText :: CachedTablatureText
-  , parseResult :: CachedParseResult
-  , rewriteResult :: CachedRewriteResult
-  , tablatureTitle :: CachedTablatureTitle
-  , tabNormalizationEnabled :: CachedTabNormalizationEnabled
-  , tabDozenalizationEnabled :: CachedTabDozenalizationEnabled
-  , chordDozenalizationEnabled :: CachedChordDozenalizationEnabled
+  -- , tablatureText :: CachedTablatureText
+  -- , parseResult :: CachedParseResult
+  -- , rewriteResult :: CachedRewriteResult
+  -- , tablatureTitle :: CachedTablatureTitle
+  -- , tabNormalizationEnabled :: CachedTabNormalizationEnabled
+  -- , tabDozenalizationEnabled :: CachedTabDozenalizationEnabled
+  -- , chordDozenalizationEnabled :: CachedChordDozenalizationEnabled
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
-  , ignoreDozenalization :: CachedIgnoreDozenalization
+  -- , ignoreDozenalization :: CachedIgnoreDozenalization
   , transposition :: CachedTransposition
   }
 derive instance Newtype State _
@@ -69,32 +69,22 @@ initialState _ = State
   , autoscroll: false
   , autoscrollTimer: Nothing
   , autoscrollSpeed: Normal
-  , tablatureText: CachedTablatureText (SimpleCacheEntry Nothing)
-  , parseResult: CachedParseResult (SimpleCacheEntry Nothing)
-  , rewriteResult: CachedRewriteResult (SimpleCacheEntry Nothing)
-  , tablatureTitle: CachedTablatureTitle (SimpleCacheEntry Nothing)
-  , tabNormalizationEnabled: CachedTabNormalizationEnabled (SimpleCacheEntry Nothing)
-  , tabDozenalizationEnabled: CachedTabDozenalizationEnabled (SimpleCacheEntry Nothing)
-  , chordDozenalizationEnabled: CachedChordDozenalizationEnabled (SimpleCacheEntry Nothing)
-  , ignoreDozenalization: CachedIgnoreDozenalization (SimpleCacheEntry Nothing)
-  , transposition: SimpleCacheEntry Nothing
+  -- , tablatureText: CachedTablatureText (SimpleCacheEntry Nothing)
+  -- , parseResult: CachedParseResult (SimpleCacheEntry Nothing)
+  -- , rewriteResult: CachedRewriteResult (SimpleCacheEntry Nothing)
+  -- , tablatureTitle: CachedTablatureTitle (SimpleCacheEntry Nothing)
+  -- , tabNormalizationEnabled: CachedTabNormalizationEnabled (SimpleCacheEntry Nothing)
+  -- , tabDozenalizationEnabled: CachedTabDozenalizationEnabled (SimpleCacheEntry Nothing)
+  -- , chordDozenalizationEnabled: CachedChordDozenalizationEnabled (SimpleCacheEntry Nothing)
+  -- , ignoreDozenalization: CachedIgnoreDozenalization (SimpleCacheEntry Nothing)
+  , transposition: CachedTransposition { value : NoValue, dependants : Nil, default : Transposition 0 }
   }
 
-newtype SimpleCacheEntry a = SimpleCacheEntry (Maybe a)
-derive newtype instance (Show a) => Show (SimpleCacheEntry a)
+newtype CachedTransposition = CachedTransposition (CacheUnit State Transposition)
 
-instance CacheEntry a (SimpleCacheEntry a) where
-  getCacheValue (SimpleCacheEntry c) = c
-  setCacheValue _ newValue = SimpleCacheEntry (Just newValue)
-instance Purgeable (SimpleCacheEntry a) where
-  purgeCacheValue _ = SimpleCacheEntry Nothing
-  hasCacheValue (SimpleCacheEntry Nothing) = false
-  hasCacheValue _ = true
-
-type CachedTransposition = SimpleCacheEntry Transposition
-
-instance CacheDefault Transposition CachedTransposition where
-  default _ = Transposition 0
+instance Cachable State Transposition CachedTransposition where
+  getCacheUnit (CachedTransposition cache) = cache
+  setCacheUnit cache = CachedTransposition cache
 
 instance (MonadState State m, MonadEffect m) => Fetchable m Transposition CachedTransposition where
   fetch _ = liftEffect $ getTranspositionFromUrl
@@ -102,191 +92,188 @@ instance (MonadState State m, MonadEffect m) => Fetchable m Transposition Cached
 instance (MonadState State m, MonadEffect m) => Flushable m Transposition CachedTransposition where
   flush _ value = liftEffect $ setAppQueryString { transposition: value }
 
-instance Dependable State CachedTransposition where
-  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
-
 _transposition :: Lens' State CachedTransposition
 _transposition = barlow (key :: _ "!.transposition")
 
 
-newtype CachedTablatureText = CachedTablatureText (SimpleCacheEntry String)
-derive newtype instance CacheEntry String CachedTablatureText
-derive newtype instance Purgeable CachedIgnoreDozenalization  
+-- newtype CachedTablatureText = CachedTablatureText (SimpleCacheEntry String)
+-- derive newtype instance CacheEntry String CachedTablatureText
+-- derive newtype instance Purgeable CachedIgnoreDozenalization  
 
-instance CacheDefault String CachedTablatureText where
-  default _ = ""
+-- instance CacheDefault String CachedTablatureText where
+--   default _ = ""
 
-instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureText where
-  fetch _ = do
-    liftEffect $ getTablatureTextFromUrl <#> Just
+-- instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureText where
+--   fetch _ = do
+--     liftEffect $ getTablatureTextFromUrl <#> Just
 
-instance (MonadState State m, MonadEffect m) => Flushable m String CachedTablatureText where
-  flush _ value = liftEffect $ saveTablatureToUrl value
+-- instance (MonadState State m, MonadEffect m) => Flushable m String CachedTablatureText where
+--   flush _ value = liftEffect $ saveTablatureToUrl value
 
-instance Dependable State CachedTablatureText where
-  dependants _ = fromFoldable [ packPurgeableLens _parseResult ]
+-- instance Dependable State CachedTablatureText where
+--   dependants _ = fromFoldable [ packPurgeableLens _parseResult ]
 
-_tablatureText :: Lens' State CachedTablatureText
-_tablatureText = barlow (key :: _ "!.tablatureText")
-
-
-newtype CachedParseResult = CachedParseResult (SimpleCacheEntry TablatureDocument)
-derive newtype instance CacheEntry TablatureDocument CachedParseResult 
-derive newtype instance Purgeable CachedChordDozenalizationEnabled  
-
-instance CacheDefault TablatureDocument CachedParseResult where
-  default _ = Nil
-
-instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedParseResult where
-  fetch _ = do
-    tablatureText <- readM _tablatureText
-    pure $ tryParseTablature tablatureText
-
-instance Dependable State CachedParseResult where
-  dependants _ = fromFoldable
-    [ packPurgeableLens _rewriteResult
-    , packPurgeableLens _tablatureTitle ]
-
-_parseResult :: Lens' State CachedParseResult
-_parseResult = barlow (key :: _ "!.parseResult")
+-- _tablatureText :: Lens' State CachedTablatureText
+-- _tablatureText = barlow (key :: _ "!.tablatureText")
 
 
-newtype CachedRewriteResult = CachedRewriteResult (SimpleCacheEntry TablatureDocument)
-derive newtype instance CacheEntry TablatureDocument CachedRewriteResult 
-derive newtype instance Purgeable CachedTabDozenalizationEnabled  
+-- newtype CachedParseResult = CachedParseResult (SimpleCacheEntry TablatureDocument)
+-- derive newtype instance CacheEntry TablatureDocument CachedParseResult 
+-- derive newtype instance Purgeable CachedChordDozenalizationEnabled  
 
-instance CacheDefault TablatureDocument CachedRewriteResult where
-  default _ = Nil
+-- instance CacheDefault TablatureDocument CachedParseResult where
+--   default _ = Nil
 
-instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedRewriteResult where
-  fetch _ = do
-    parseResult <- readM _parseResult
-    renderingOptions <- getRenderingOptions
-    pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
+-- instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedParseResult where
+--   fetch _ = do
+--     tablatureText <- readM _tablatureText
+--     pure $ tryParseTablature tablatureText
 
-instance Dependable State CachedRewriteResult where
-  dependants _ = fromFoldable []
+-- instance Dependable State CachedParseResult where
+--   dependants _ = fromFoldable
+--     [ packPurgeableLens _rewriteResult
+--     , packPurgeableLens _tablatureTitle ]
 
-_rewriteResult :: Lens' State CachedRewriteResult
-_rewriteResult = barlow (key :: _ "!.rewriteResult")
-
-
-newtype CachedTablatureTitle = CachedTablatureTitle (SimpleCacheEntry String)
-derive newtype instance CacheEntry String CachedTablatureTitle 
-derive newtype instance Purgeable CachedTabNormalizationEnabled  
-
-instance CacheDefault String CachedTablatureTitle where
-  default _ = "Tab viewer"
-
-instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureTitle where
-  fetch _ = do
-    parseResult <- readM _parseResult
-    pure $ getTitle parseResult
-
-instance Dependable State CachedTablatureTitle where
-  dependants _ = fromFoldable [ packPurgeableLens _ignoreDozenalization ]
-
-_tablatureTitle :: Lens' State CachedTablatureTitle
-_tablatureTitle = barlow (key :: _ "!.tablatureTitle")
+-- _parseResult :: Lens' State CachedParseResult
+-- _parseResult = barlow (key :: _ "!.parseResult")
 
 
-newtype CachedTabNormalizationEnabled = CachedTabNormalizationEnabled (SimpleCacheEntry Boolean)
-derive newtype instance CacheEntry Boolean CachedTabNormalizationEnabled 
-derive newtype instance Purgeable CachedTablatureTitle  
+-- newtype CachedRewriteResult = CachedRewriteResult (SimpleCacheEntry TablatureDocument)
+-- derive newtype instance CacheEntry TablatureDocument CachedRewriteResult 
+-- derive newtype instance Purgeable CachedTabDozenalizationEnabled  
 
-instance CacheDefault Boolean CachedTabNormalizationEnabled where
-  default _ = false
+-- instance CacheDefault TablatureDocument CachedRewriteResult where
+--   default _ = Nil
 
-instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedTabNormalizationEnabled where
-  fetch _ = liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
+-- instance (MonadState State m, MonadEffect m) => Fetchable m TablatureDocument CachedRewriteResult where
+--   fetch _ = do
+--     parseResult <- readM _parseResult
+--     renderingOptions <- getRenderingOptions
+--     pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
 
-instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabNormalizationEnabled where
-  flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabNormalizationEnabled value
+-- instance Dependable State CachedRewriteResult where
+--   dependants _ = fromFoldable []
 
-instance Dependable State CachedTabNormalizationEnabled where
-  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
-
-_tabNormalizationEnabled :: Lens' State CachedTabNormalizationEnabled
-_tabNormalizationEnabled = barlow (key :: _ "!.tabNormalizationEnabled")
-
-localStorageKeyTabNormalizationEnabled :: String
-localStorageKeyTabNormalizationEnabled = "tabNormalizationEnabled"
+-- _rewriteResult :: Lens' State CachedRewriteResult
+-- _rewriteResult = barlow (key :: _ "!.rewriteResult")
 
 
-newtype CachedTabDozenalizationEnabled = CachedTabDozenalizationEnabled (SimpleCacheEntry Boolean)
-derive newtype instance CacheEntry Boolean CachedTabDozenalizationEnabled 
-derive newtype instance Purgeable CachedRewriteResult  
+-- newtype CachedTablatureTitle = CachedTablatureTitle (SimpleCacheEntry String)
+-- derive newtype instance CacheEntry String CachedTablatureTitle 
+-- derive newtype instance Purgeable CachedTabNormalizationEnabled  
 
-instance CacheDefault Boolean CachedTabDozenalizationEnabled where
-  default _ = false
+-- instance CacheDefault String CachedTablatureTitle where
+--   default _ = "Tab viewer"
 
-instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedTabDozenalizationEnabled where
-  fetch _ = liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
+-- instance (MonadState State m, MonadEffect m) => Fetchable m String CachedTablatureTitle where
+--   fetch _ = do
+--     parseResult <- readM _parseResult
+--     pure $ getTitle parseResult
 
-instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabDozenalizationEnabled where
-  flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabDozenalizationEnabled value
+-- instance Dependable State CachedTablatureTitle where
+--   dependants _ = fromFoldable [ packPurgeableLens _ignoreDozenalization ]
 
-instance Dependable State CachedTabDozenalizationEnabled where
-  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
-
-_tabDozenalizationEnabled :: Lens' State CachedTabDozenalizationEnabled
-_tabDozenalizationEnabled = barlow (key :: _ "!.tabDozenalizationEnabled")
-
-localStorageKeyTabDozenalizationEnabled :: String
-localStorageKeyTabDozenalizationEnabled = "tabDozenalizationEnabled"
+-- _tablatureTitle :: Lens' State CachedTablatureTitle
+-- _tablatureTitle = barlow (key :: _ "!.tablatureTitle")
 
 
-newtype CachedChordDozenalizationEnabled = CachedChordDozenalizationEnabled (SimpleCacheEntry Boolean)
-derive newtype instance CacheEntry Boolean CachedChordDozenalizationEnabled 
-derive newtype instance Purgeable CachedParseResult  
+-- newtype CachedTabNormalizationEnabled = CachedTabNormalizationEnabled (SimpleCacheEntry Boolean)
+-- derive newtype instance CacheEntry Boolean CachedTabNormalizationEnabled 
+-- derive newtype instance Purgeable CachedTablatureTitle  
 
-instance CacheDefault Boolean CachedChordDozenalizationEnabled where
-  default _ = false
+-- instance CacheDefault Boolean CachedTabNormalizationEnabled where
+--   default _ = false
 
-instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedChordDozenalizationEnabled where
-  fetch _ = liftEffect $ getLocalStorageBoolean localStorageKeyChordDozenalizationEnabled
+-- instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedTabNormalizationEnabled where
+--   fetch _ = liftEffect $ getLocalStorageBoolean localStorageKeyTabNormalizationEnabled
 
-instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedChordDozenalizationEnabled where
-  flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyChordDozenalizationEnabled value
+-- instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabNormalizationEnabled where
+--   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabNormalizationEnabled value
 
-instance Dependable State CachedChordDozenalizationEnabled where
-  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
+-- instance Dependable State CachedTabNormalizationEnabled where
+--   dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
 
-_chordDozenalizationEnabled :: Lens' State CachedChordDozenalizationEnabled
-_chordDozenalizationEnabled = barlow (key :: _ "!.chordDozenalizationEnabled")
+-- _tabNormalizationEnabled :: Lens' State CachedTabNormalizationEnabled
+-- _tabNormalizationEnabled = barlow (key :: _ "!.tabNormalizationEnabled")
 
-localStorageKeyChordDozenalizationEnabled :: String
-localStorageKeyChordDozenalizationEnabled = "chordDozenalizationEnabled"
-
-
-newtype CachedIgnoreDozenalization = CachedIgnoreDozenalization (SimpleCacheEntry Boolean)
-derive newtype instance CacheEntry Boolean CachedIgnoreDozenalization 
-derive newtype instance Purgeable CachedTablatureText  
-
-instance CacheDefault Boolean CachedIgnoreDozenalization where
-  default _ = false
-
-instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedIgnoreDozenalization where
-  fetch _ = do
-    tablatureTitle <- readM _tablatureTitle
-    pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
-
-instance Dependable State CachedIgnoreDozenalization where
-  dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
-
-_ignoreDozenalization :: Lens' State CachedIgnoreDozenalization
-_ignoreDozenalization = barlow (key :: _ "!.ignoreDozenalization")
+-- localStorageKeyTabNormalizationEnabled :: String
+-- localStorageKeyTabNormalizationEnabled = "tabNormalizationEnabled"
 
 
--- TODO: move renderingoptions also to cache?
-getRenderingOptions :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
-getRenderingOptions = do
-  tabNormalizationEnabled <- readM _tabNormalizationEnabled
-  tabDozenalizationEnabled <- readM _tabDozenalizationEnabled
-  chordDozenalizationEnabled <- readM _chordDozenalizationEnabled
-  ignoreDozenalization <- readM _ignoreDozenalization
-  transposition <- readM _transposition
-  pure $ { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
-  , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
-  , normalizeTabs: tabNormalizationEnabled
-  , transposition: transposition }
+-- newtype CachedTabDozenalizationEnabled = CachedTabDozenalizationEnabled (SimpleCacheEntry Boolean)
+-- derive newtype instance CacheEntry Boolean CachedTabDozenalizationEnabled 
+-- derive newtype instance Purgeable CachedRewriteResult  
+
+-- instance CacheDefault Boolean CachedTabDozenalizationEnabled where
+--   default _ = false
+
+-- instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedTabDozenalizationEnabled where
+--   fetch _ = liftEffect $ getLocalStorageBoolean localStorageKeyTabDozenalizationEnabled
+
+-- instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedTabDozenalizationEnabled where
+--   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyTabDozenalizationEnabled value
+
+-- instance Dependable State CachedTabDozenalizationEnabled where
+--   dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
+
+-- _tabDozenalizationEnabled :: Lens' State CachedTabDozenalizationEnabled
+-- _tabDozenalizationEnabled = barlow (key :: _ "!.tabDozenalizationEnabled")
+
+-- localStorageKeyTabDozenalizationEnabled :: String
+-- localStorageKeyTabDozenalizationEnabled = "tabDozenalizationEnabled"
+
+
+-- newtype CachedChordDozenalizationEnabled = CachedChordDozenalizationEnabled (SimpleCacheEntry Boolean)
+-- derive newtype instance CacheEntry Boolean CachedChordDozenalizationEnabled 
+-- derive newtype instance Purgeable CachedParseResult  
+
+-- instance CacheDefault Boolean CachedChordDozenalizationEnabled where
+--   default _ = false
+
+-- instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedChordDozenalizationEnabled where
+--   fetch _ = liftEffect $ getLocalStorageBoolean localStorageKeyChordDozenalizationEnabled
+
+-- instance (MonadState State m, MonadEffect m) => Flushable m Boolean CachedChordDozenalizationEnabled where
+--   flush _ value = liftEffect $ setLocalStorageBoolean localStorageKeyChordDozenalizationEnabled value
+
+-- instance Dependable State CachedChordDozenalizationEnabled where
+--   dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
+
+-- _chordDozenalizationEnabled :: Lens' State CachedChordDozenalizationEnabled
+-- _chordDozenalizationEnabled = barlow (key :: _ "!.chordDozenalizationEnabled")
+
+-- localStorageKeyChordDozenalizationEnabled :: String
+-- localStorageKeyChordDozenalizationEnabled = "chordDozenalizationEnabled"
+
+
+-- newtype CachedIgnoreDozenalization = CachedIgnoreDozenalization (SimpleCacheEntry Boolean)
+-- derive newtype instance CacheEntry Boolean CachedIgnoreDozenalization 
+-- derive newtype instance Purgeable CachedTablatureText  
+
+-- instance CacheDefault Boolean CachedIgnoreDozenalization where
+--   default _ = false
+
+-- instance (MonadState State m, MonadEffect m) => Fetchable m Boolean CachedIgnoreDozenalization where
+--   fetch _ = do
+--     tablatureTitle <- readM _tablatureTitle
+--     pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
+
+-- instance Dependable State CachedIgnoreDozenalization where
+--   dependants _ = fromFoldable [ packPurgeableLens _rewriteResult ]
+
+-- _ignoreDozenalization :: Lens' State CachedIgnoreDozenalization
+-- _ignoreDozenalization = barlow (key :: _ "!.ignoreDozenalization")
+
+
+-- -- TODO: move renderingoptions also to cache?
+-- getRenderingOptions :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
+-- getRenderingOptions = do
+--   tabNormalizationEnabled <- readM _tabNormalizationEnabled
+--   tabDozenalizationEnabled <- readM _tabDozenalizationEnabled
+--   chordDozenalizationEnabled <- readM _chordDozenalizationEnabled
+--   ignoreDozenalization <- readM _ignoreDozenalization
+--   transposition <- readM _transposition
+--   pure $ { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
+--   , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
+--   , normalizeTabs: tabNormalizationEnabled
+--   , transposition: transposition }

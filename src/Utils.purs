@@ -2,6 +2,7 @@ module Utils where
 
 import Prelude
 
+import Control.Monad.State (class MonadState)
 import Data.Either (Either(..))
 import Data.Enum (class Enum)
 import Data.List (List(..), (:))
@@ -27,6 +28,12 @@ foreach' :: forall a s . s -> List a -> (s -> a -> s) -> s
 foreach' state Nil _ = state
 foreach' state (x : xs) loop = foreach' nextState xs loop
   where nextState = loop state x
+
+foreachM :: forall m a s . MonadState s m => List a -> (a -> m Unit) -> m Unit
+foreachM Nil _ = pure unit
+foreachM (x : xs) loop = do
+  loop x
+  foreachM xs loop
 
 applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
 applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
