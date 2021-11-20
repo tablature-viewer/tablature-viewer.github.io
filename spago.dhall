@@ -40,6 +40,7 @@ to generate this file without the comments in this block.
   , "profunctor-lenses"
   , "psci-support"
   , "quickcheck"
+  , "record"
   , "simple-json"
   , "string-parsers"
   , "strings"

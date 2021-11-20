@@ -36,14 +36,12 @@ testFetch = do
 testFlush :: forall m a . Monad m => a -> m Unit
 testFlush value = pure unit
 
-type TestCache = CacheUnit TestState Boolean
+type TestCache = ReadWriteCacheUnit TestState Boolean ()
 testCache :: TestCache
-testCache = 
-  { value: NoValue
+testCache = readWriteCache
+  { default: false
   , fetch: Fetch testFetch
   , flush: Flush testFlush
-  , default: false
-  , dependants: Nil
   }
 
 newtype TestState = TestState
