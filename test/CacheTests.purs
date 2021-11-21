@@ -28,7 +28,7 @@ run = do
   purge _testValue1
   pure unit
 
-testFetch :: forall m . MonadState TestState m => m (Maybe Boolean)
+testFetch :: StateT TestState Effect (Maybe Boolean)
 testFetch = do
   value2 <- depend _testValue2 _testValue1
   pure $ Just true
@@ -36,7 +36,7 @@ testFetch = do
 testFlush :: forall m a . Monad m => a -> m Unit
 testFlush value = pure unit
 
-type TestCache = ReadWriteCacheUnit TestState Boolean ()
+type TestCache = ReadWriteCacheUnit TestState Boolean () (StateT TestState Effect)
 testCache :: TestCache
 testCache = readWriteCache
   { default: false
@@ -76,3 +76,8 @@ test1 = mkShowable 42
 test2 :: String
 -- test2 = unShowable (\a -> show a) test1
 test2 = unShowable show test1
+
+data Foo bar = Foo bar | Nothing
+data Bar foo = Bar foo | None
+
+newtype X = X (Foo (Bar X))
