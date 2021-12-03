@@ -13,6 +13,7 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Tuple (Tuple(..), snd)
 import Effect (Effect)
+import Effect.Class.Console as Console
 
 main :: Effect Unit
 main = do
@@ -61,23 +62,3 @@ createTestState = TestState
   { testValue1: testCache
   , testValue2: testCache }
 -- createTestState = TestState testCache testCache
-
-
-newtype Showable = Showable (forall r. (forall a. Show a => a -> r) -> r)
-
-mkShowable :: forall a. Show a => a -> Showable
-mkShowable a = Showable \k -> k a
-
-unShowable :: forall r. (forall a. Show a => a -> r) -> Showable -> r
-unShowable k1 (Showable k2) = k2 k1
-
-test1 :: Showable
-test1 = mkShowable 42
-test2 :: String
--- test2 = unShowable (\a -> show a) test1
-test2 = unShowable show test1
-
-data Foo bar = Foo bar | Nothing
-data Bar foo = Bar foo | None
-
-newtype X = X (Foo (Bar X))

@@ -1,5 +1,6 @@
 module Main where
 
+import AppActions
 import AppState
 import Prelude
 
@@ -8,13 +9,16 @@ import AutoscrollSpeed (speedToIntervalMs, speedToIntervalPixelDelta)
 import Cache as Cache
 import Clipboard (copyToClipboard)
 import Control.Monad.Cont (lift)
-import Control.Monad.State (class MonadState, StateT(..), execStateT)
+import Control.Monad.Free (liftF)
+import Control.Monad.State (class MonadState, StateT(..), execStateT, state)
 import Control.Monad.State as MonadState
+import Control.Monad.Trans.Class (class MonadTrans, lift)
 import Data.Array (fromFoldable)
 import Data.Enum (pred, succ)
 import Data.Lens.Barlow (key)
 import Data.Lens.Barlow.Helpers (view)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
 import DebugUtils (debug)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
@@ -72,7 +76,7 @@ component =
       }
     }
 
-render :: forall m. State -> H.ComponentHTML Action () m
+render :: forall m. (State m) -> H.ComponentHTML Action () m
 render state = debug "rendering" $ HH.div_
   [ HH.div 
     [ classString "app" ]
@@ -227,125 +231,84 @@ render state = debug "rendering" $ HH.div_
       else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
 
 
-renderTablature :: forall w i. State -> Array (HH.HTML w i)
+renderTablature :: forall w i m . (State m) -> Array (HH.HTML w i)
 renderTablature state = fromFoldable $ renderTablatureDocument (Cache.peek _rewriteResult state)
 
 
-modifyState :: forall m . Monad m => MonadState State m => (StateRecord -> StateRecord) -> m Unit
-modifyState f = MonadState.modify_ \(State s) -> State (f s)
-
-getState :: forall m . Monad m => MonadState State m => m StateRecord
-getState = do
-  State state <- MonadState.get
-  pure state
-
-handleAction :: forall output m . MonadAff m => Action -> H.HalogenM State Action () output m Unit
-handleAction action = do
+handleAction :: forall m . MonadAff m => Action -> H.HalogenM (State (MyHaloT m)) Action () Unit m Unit
+handleAction action = unMyHaloT $ handleAction' action
+handleAction' :: forall m . MonadAff m => Action -> MyHaloT m Unit
+handleAction' action = do
   modifyState _ { loading = true }
   liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
 
   -- We don't do the work directly on the halogen monad, to avoid unnecessary rendering triggers.
   -- We wrap the halogen monad inside another State monad and do the work on the outer state monad.
-  currentState <- H.get
-  newState <- execStateT (doAction action) currentState
+  -- currentState :: State (MyHaloT output m) <- MyHaloT MonadState.get
+  -- newState <- execStateT (doAction action # unMyStateT) currentState
   -- Put the state of the outer state monad in the halogen monad
-  H.put $ newState
+  -- H.put $ newState
+  doAction action
 
   updateAutoscrollTimer
 
   modifyState _ { loading = false }
 
-doAction :: forall output m . MonadAff m => Action -> StateT State (H.HalogenM State Action () output m) Unit
+doAction :: forall m . MonadAff m => Action -> MyHaloT m Unit
 doAction action = do
   state <- getState
-  case action of
-    Initialize -> do
-      tablatureText <- Cache.readM _tablatureText
-      if tablatureText == ""
-      then modifyState _ { mode = EditMode }
-      else modifyState _ { mode = ViewMode }
-      lift focusTablatureContainer
-    ToggleEditMode -> do
-      lift saveScrollTop
-      case state.mode of
-        EditMode -> do
-          tablatureText <- lift getTablatureTextFromEditor
-          Cache.writeM _tablatureText tablatureText
-          modifyState _ { mode = ViewMode }
-          lift focusTablatureContainer
-        ViewMode -> do
-          modifyState _ { mode = EditMode }
-          tablatureText <- Cache.readM _tablatureText
-          lift $ setTablatureTextInEditor tablatureText
-          -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
-      lift loadScrollTop
-    ToggleTabNormalization -> do
-      tabNormalizationEnabled <- Cache.readM _tabNormalizationEnabled
-      Cache.writeM _tabNormalizationEnabled (not tabNormalizationEnabled)
-    ToggleTabDozenalization -> do
-      ignoreDozenalization <- Cache.readM _ignoreDozenalization
-      if ignoreDozenalization
-      then pure unit
-      else do
-        tabDozenalizationEnabled <- Cache.readM _tabDozenalizationEnabled
-        Cache.writeM _tabDozenalizationEnabled (not tabDozenalizationEnabled)
-    ToggleChordDozenalization -> do
-      ignoreDozenalization <- Cache.readM _ignoreDozenalization
-      if ignoreDozenalization
-      then pure unit
-      else do
-        chordDozenalizationEnabled <- Cache.readM _chordDozenalizationEnabled
-        Cache.writeM _chordDozenalizationEnabled (not chordDozenalizationEnabled)
-    CopyShortUrl -> do
-      longUrl <- liftEffect getLocationString
-      maybeShortUrl <- liftAff $ createShortUrl longUrl
-      liftEffect $ case maybeShortUrl of
-        Just shortUrl -> copyToClipboard shortUrl
-        Nothing -> pure unit
-      lift focusTablatureContainer
-    ToggleAutoscroll -> do
-      modifyState _ { autoscroll = not state.autoscroll }
-    IncreaseAutoscrollSpeed -> do
-      increaseAutoscrollSpeed
-      modifyState _ { autoscroll = true }
-    DecreaseAutoscrollSpeed -> do
-      decreaseAutoscrollSpeed
-      modifyState _ { autoscroll = true }
-    IncreaseTransposition -> do
-      transposition <- Cache.readM _transposition
-      Cache.writeM _transposition $ succTransposition transposition
-    DecreaseTransposition -> do
-      transposition <- Cache.readM _transposition
-      Cache.writeM _transposition $ predTransposition transposition
+  -- case action of
+  --   Initialize -> do
+  --     initialize
+  --     lift focusTablatureContainer
+  --   ToggleEditMode -> do
+  --     lift saveScrollTop
+  --     toggleEditMode
+  --     lift loadScrollTop
+  --   ToggleTabNormalization -> toggleTabNormalization 
+  --   ToggleTabDozenalization -> toggleTabDozenalization 
+  --   ToggleChordDozenalization -> toggleChordDozenalization 
+  --   CopyShortUrl -> do
+  --     copyShortUrl
+  --     lift focusTablatureContainer
+  --   ToggleAutoscroll -> modifyState _ { autoscroll = not state.autoscroll }
+  --   IncreaseAutoscrollSpeed -> increaseAutoscrollSpeed
+  --   DecreaseAutoscrollSpeed -> decreaseAutoscrollSpeed
+  --   IncreaseTransposition -> increaseTransposition 
+  --   DecreaseTransposition -> decreaseTransposition 
 
-  lift updateAutoscrollTimer
+  -- lift updateAutoscrollTimer
 
-  tablatureTitle <- Cache.readM _tablatureTitle
-  liftEffect $ setDocumentTitle tablatureTitle
+  -- tablatureTitle <- Cache.read _tablatureTitle
+  -- liftEffect $ setDocumentTitle tablatureTitle
 
   -- TODO: find a generic solution to preload cache
-  _ <- Cache.readM _rewriteResult
-  modifyState _ { loading = false }
+  -- _ <- Cache.read _rewriteResult
+  -- modifyState _ { loading = false }
+  pure unit
 
-getTablatureEditorElement :: forall output m. H.HalogenM State Action () output m (Maybe WH.HTMLTextAreaElement)
-getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
+getTablatureEditorElement :: forall m. MonadEffect m => MyHaloT m (Maybe WH.HTMLTextAreaElement)
+getTablatureEditorElement = MyHaloT $ H.getHTMLElementRef refTablatureEditor <#>
   \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
 
-getTablatureTextFromEditor :: forall output m . MonadEffect m => H.HalogenM State Action () output m String
+getTablatureTextFromEditor :: forall m . MonadEffect m => MyHaloT m String
 getTablatureTextFromEditor = do
   maybeTextArea <- getTablatureEditorElement
   case maybeTextArea of
     Nothing -> liftEffect $ Console.error "Could not find textareaTablature" *> pure ""
     Just textArea -> liftEffect $ WH.HTMLTextAreaElement.value textArea 
 
-getTablatureContainerElement :: forall output m. MonadEffect m => H.HalogenM State Action () output m (Maybe WH.HTMLElement)
+-- getTablatureContainerElement :: forall m. MonadEffect m => H.HalogenM (State m) Action () m (Maybe WH.HTMLElement)
+-- getTablatureContainerElement :: forall m. MonadEffect m => H.HalogenM (State (MyStateT m)) Action () (MyStateT m) (Maybe WH.HTMLElement)
+getTablatureContainerElement :: forall m. MonadEffect m => MyHaloT m (Maybe WH.HTMLElement)
 getTablatureContainerElement = do
   state <- getState
   case state.mode of
-    EditMode -> H.getHTMLElementRef refTablatureEditor
-    ViewMode -> H.getHTMLElementRef refTablatureViewer
+    EditMode -> MyHaloT $ H.getHTMLElementRef refTablatureEditor
+    ViewMode -> MyHaloT $ H.getHTMLElementRef refTablatureViewer
 
-saveScrollTop :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+-- saveScrollTop :: forall m . MonadEffect m => H.HalogenM (State m) Action () m Unit
+saveScrollTop :: forall m . MonadEffect m => MyHaloT m Unit
 saveScrollTop = do
   maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
   case maybeTablatureContainerElem of
@@ -353,8 +316,9 @@ saveScrollTop = do
     Just tablatureContainerElem -> do
       newScrollTop <- liftEffect $ scrollTop tablatureContainerElem
       modifyState _ { scrollTop = newScrollTop }
+      pure unit
 
-loadScrollTop :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+loadScrollTop :: forall m . MonadEffect m => MyHaloT m Unit
 loadScrollTop = do
   state <- getState
   maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
@@ -364,9 +328,10 @@ loadScrollTop = do
       liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
 
 -- TODO: consider treating the js timer as a backing store for a cache?
-updateAutoscrollTimer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+updateAutoscrollTimer :: forall m . MonadEffect m => MyHaloT m Unit
 updateAutoscrollTimer = do
-  state <- getState
+  -- state <- getState
+  State state <- MonadState.get
   case state.autoscrollTimer of
     Nothing ->
       if state.autoscroll
@@ -391,22 +356,7 @@ updateAutoscrollTimer = do
         timerId <- liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta state.autoscrollSpeed) elem
         modifyState _ { autoscrollTimer = Just timerId }
 
--- TODO: store scrollspeed somewhere
-increaseAutoscrollSpeed :: forall m . Monad m => StateT State m Unit
-increaseAutoscrollSpeed = do
-  state <- getState
-  case succ state.autoscrollSpeed of
-    Nothing -> pure unit
-    Just speed -> modifyState _ { autoscrollSpeed = speed }
-
-decreaseAutoscrollSpeed :: forall m . Monad m => StateT State m Unit
-decreaseAutoscrollSpeed = do
-  state <- getState
-  case pred state.autoscrollSpeed of
-    Nothing -> pure unit
-    Just speed -> modifyState _ { autoscrollSpeed = speed }
-
-focusTablatureContainer :: forall output m . MonadEffect m => H.HalogenM State Action () output m Unit
+focusTablatureContainer :: forall m . MonadEffect m => MyHaloT m Unit
 focusTablatureContainer = do
   maybeTablatureContainerElem <- getTablatureContainerElement
   case maybeTablatureContainerElem of
@@ -414,7 +364,7 @@ focusTablatureContainer = do
     Just tablatureContainerElem -> liftEffect $ focus tablatureContainerElem
 
 
-setTablatureTextInEditor :: forall output m . MonadEffect m => String -> H.HalogenM State Action () output m Unit
+setTablatureTextInEditor :: forall m . MonadEffect m => String -> MyHaloT m Unit
 setTablatureTextInEditor text = do
   maybeTextArea <- getTablatureEditorElement
   case maybeTextArea of
