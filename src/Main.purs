@@ -18,7 +18,7 @@ import Data.Enum (pred, succ)
 import Data.Lens.Barlow (key)
 import Data.Lens.Barlow.Helpers (view)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import DebugUtils (debug)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
@@ -70,13 +70,15 @@ component =
   H.mkComponent
     { initialState
     , render
-    , eval: H.mkEval H.defaultEval 
+    , eval: eval
+    }
+eval :: forall m query input a. MonadAff m => H.HalogenQ query Action input a -> H.HalogenM State Action () Unit m a
+eval = H.mkEval H.defaultEval 
       { handleAction = handleAction 
       , initialize = Just Initialize
       }
-    }
 
-render :: forall m. (State m) -> H.ComponentHTML Action () m
+render :: forall m. State -> H.ComponentHTML Action () m
 render state = debug "rendering" $ HH.div_
   [ HH.div 
     [ classString "app" ]
@@ -231,12 +233,12 @@ render state = debug "rendering" $ HH.div_
       else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
 
 
-renderTablature :: forall w i m . (State m) -> Array (HH.HTML w i)
+renderTablature :: forall w i m . State -> Array (HH.HTML w i)
 renderTablature state = fromFoldable $ renderTablatureDocument (Cache.peek _rewriteResult state)
 
 
-handleAction :: forall m . MonadAff m => Action -> H.HalogenM (State (MyHaloT m)) Action () Unit m Unit
-handleAction action = unMyHaloT $ handleAction' action
+handleAction :: forall m . MonadAff m => Action -> H.HalogenM  Action () Unit m Unit
+handleAction action = unwrap $ handleAction' action
 handleAction' :: forall m . MonadAff m => Action -> MyHaloT m Unit
 handleAction' action = do
   modifyState _ { loading = true }

@@ -10,7 +10,36 @@ import Effect.Class (class MonadEffect)
 import Effect.Class.Console as Console
 import Control.Monad.Trans.Class (class MonadTrans, lift)
 import Halogen as H
+import Data.Lens (Lens', over, set, view)
+import Data.List (List(..))
+import Data.Maybe (Maybe, fromMaybe)
 
+data CacheValue a = Cached a | NoValue
+
+type CacheUnit s a =
+  { value :: CacheValue a
+  , default :: a }
+
+newtype CacheKey s a = CacheKey (Lens' s (CacheUnit s a))
+unCacheKey (CacheKey c ) = c
+
+data Fetch a m = Fetch (m (Maybe a))
+
+type CacheDef s a m r =
+  { cacheUnit :: CacheKey s a
+  , fetch :: Fetch a m
+  | r }
+-- derive instance Newtype (CacheDef s m a r) _
+-- unCacheDef (CacheDef def) = def
+
+bla state def = do
+  cacheUnit <- view def.cacheUnit state
+  pure cacheUnit.value
+
+read :: forall m a s r . MonadState s m => CacheDef s a m r -> m a
+read def = do
+  cacheUnit <- MonadState.get <#> view (unCacheKey (def).cacheUnit)
+  pure cacheUnit.default
 
 data Incrementor m = Incrementor (m Unit)
 runIncrementor :: forall m. Incrementor m -> m Unit
@@ -62,12 +91,12 @@ doThingsInSeparateStateMonad = do
   State state' <- MonadState.get
   Console.log $ show state'.value
 
-doThings :: forall m . MonadEffect m => MyHaloT m Unit
-doThings = do
-  currentState :: State (MyHaloT m) <- MyHaloT MonadState.get
-  newState <- execStateT (doThingsInSeparateStateMonad # unMyStateT) currentState
+-- doThings :: forall m . MonadEffect m => MyHaloT m Unit
+-- doThings = do
+--   currentState :: State (MyHaloT m) <- MyHaloT MonadState.get
+--   newState <- execStateT (doThingsInSeparateStateMonad # unMyStateT) currentState
   -- Put the state of the outer state monad in the halogen monad
-  H.put $ newState
+  -- H.put $ newState
 
 -- test :: forall m . MonadEffect m => MyStateT m Unit
 -- test = do

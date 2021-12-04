@@ -23,9 +23,7 @@ import Data.Newtype (class Newtype)
 import Halogen as H
 
 -- newtype MyHaloT output m a = MyHaloT (H.HalogenM (State (MyStateT (MyHaloT output m))) Action () output (MyStateT (MyHaloT output m)) a)
-newtype MyHaloT m a = MyHaloT (H.HalogenM (State (MyHaloT m)) Action () Unit m a)
-             type MyHalo m a = H.HalogenM (State (MyHaloT m)) Action () Unit m a
-unMyHaloT (MyHaloT m) = m
+newtype MyHaloT m a = MyHaloT (H.HalogenM State Action () Unit m a)
 instance MonadTrans MyHaloT where
   -- lift :: Monad m => m a -> (MyHaloT output) m a
   lift ma = MyHaloT $ lift ma
@@ -37,13 +35,13 @@ derive newtype instance Monad m => Bind (MyHaloT m)
 derive newtype instance Monad m => Monad (MyHaloT m)
 derive newtype instance MonadEffect m => MonadEffect (MyHaloT m)
 derive newtype instance MonadAff m => MonadAff (MyHaloT m)
-instance Monad m => MonadState (State (MyHaloT m)) (MyHaloT m) where
+instance Monad m => MonadState State (MyHaloT m) where
   -- state f = MyHaloT (H.HalogenM $ pure <<< f)
   -- state f = MyHaloT $ (H.HalogenM <<< liftF <<< H.State) f
   state f = MyHaloT $ state f
 
 -- TODO: store scrollspeed somewhere
-increaseAutoscrollSpeed :: forall m . Monad m => MyHaloT m Unit
+increaseAutoscrollSpeed :: forall m . MonadEffect m => MyHaloT m Unit
 increaseAutoscrollSpeed = do
   state <- getState
   case succ state.autoscrollSpeed of
@@ -51,7 +49,7 @@ increaseAutoscrollSpeed = do
     Just speed -> modifyState _ { autoscrollSpeed = speed }
   modifyState _ { autoscroll = true }
 
-decreaseAutoscrollSpeed :: forall m . Monad m => MyHaloT m Unit
+decreaseAutoscrollSpeed :: forall m . MonadEffect m => MyHaloT m Unit
 decreaseAutoscrollSpeed = do
   state <- getState
   case pred state.autoscrollSpeed of
@@ -59,14 +57,14 @@ decreaseAutoscrollSpeed = do
     Just speed -> modifyState _ { autoscrollSpeed = speed }
   modifyState _ { autoscroll = true }
 
-initialize  :: forall m . Monad m => MyHaloT m Unit
+initialize  :: forall m . MonadEffect m => MyHaloT m Unit
 initialize = do
-  tablatureText <- Cache.read _tablatureText
+  tablatureText <- Cache.read cachedTablatureText
   if tablatureText == ""
   then modifyState _ { mode = EditMode }
   else modifyState _ { mode = ViewMode }
 
-toggleEditMode  :: forall m . Monad m => MyHaloT m Unit
+toggleEditMode  :: forall m . MonadEffect m => MyHaloT m Unit
 toggleEditMode = do
   state <- getState
   case state.mode of
@@ -78,33 +76,33 @@ toggleEditMode = do
       -- lift focusTablatureContainer
     ViewMode -> do
       modifyState _ { mode = EditMode }
-      tablatureText <- Cache.read _tablatureText
+      tablatureText <- Cache.read cachedTablatureText
       pure unit
       -- lift $ setTablatureTextInEditor tablatureText
       -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
 
-toggleTabNormalization  :: forall m . Monad m => MyHaloT m Unit
+toggleTabNormalization  :: forall m . MonadEffect m => MyHaloT m Unit
 toggleTabNormalization = do
-  tabNormalizationEnabled <- Cache.read _tabNormalizationEnabled
-  Cache.write _tabNormalizationEnabled (not tabNormalizationEnabled)
+  tabNormalizationEnabled <- Cache.read cachedTabNormalizationEnabled
+  Cache.write cachedTabNormalizationEnabled (not tabNormalizationEnabled)
 
-toggleTabDozenalization  :: forall m . Monad m => MyHaloT m Unit
+toggleTabDozenalization  :: forall m . MonadEffect m => MyHaloT m Unit
 toggleTabDozenalization = do
-  ignoreDozenalization <- Cache.read _ignoreDozenalization
+  ignoreDozenalization <- Cache.read cachedIgnoreDozenalization
   if ignoreDozenalization
   then pure unit
   else do
-    tabDozenalizationEnabled <- Cache.read _tabDozenalizationEnabled
-    Cache.write _tabDozenalizationEnabled (not tabDozenalizationEnabled)
+    tabDozenalizationEnabled <- Cache.read cachedTabDozenalizationEnabled
+    Cache.write cachedTabDozenalizationEnabled (not tabDozenalizationEnabled)
 
-toggleChordDozenalization  :: forall m . Monad m => MyHaloT m Unit
+toggleChordDozenalization  :: forall m . MonadEffect m => MyHaloT m Unit
 toggleChordDozenalization = do
-  ignoreDozenalization <- Cache.read _ignoreDozenalization
+  ignoreDozenalization <- Cache.read cachedIgnoreDozenalization
   if ignoreDozenalization
   then pure unit
   else do
-    chordDozenalizationEnabled <- Cache.read _chordDozenalizationEnabled
-    Cache.write _chordDozenalizationEnabled (not chordDozenalizationEnabled)
+    chordDozenalizationEnabled <- Cache.read cachedChordDozenalizationEnabled
+    Cache.write cachedChordDozenalizationEnabled (not chordDozenalizationEnabled)
 
 copyShortUrl  :: forall m . MonadAff m => MyHaloT m Unit
 copyShortUrl = do
@@ -114,12 +112,12 @@ copyShortUrl = do
     Just shortUrl -> copyToClipboard shortUrl
     Nothing -> pure unit
 
-increaseTransposition  :: forall m . Monad m => MyHaloT m Unit
+increaseTransposition  :: forall m . MonadEffect m => MyHaloT m Unit
 increaseTransposition = do
-  transposition <- Cache.read _transposition
-  Cache.write _transposition $ succTransposition transposition
+  transposition <- Cache.read cachedTransposition
+  Cache.write cachedTransposition $ succTransposition transposition
 
-decreaseTransposition  :: forall m . Monad m => MyHaloT m Unit
+decreaseTransposition  :: forall m . MonadEffect m => MyHaloT m Unit
 decreaseTransposition = do
-  transposition <- Cache.read _transposition
-  Cache.write _transposition $ predTransposition transposition
+  transposition <- Cache.read cachedTransposition
+  Cache.write cachedTransposition $ predTransposition transposition
