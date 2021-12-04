@@ -219,10 +219,10 @@ render state = debug "rendering" $ HH.div_
     where
     toggleButtonContent = case view (key :: _ "!.mode") state of
       EditMode -> [ fontAwesome "fa-save", optionalText " Save" ]
-      ViewMode  -> [ fontAwesome "fa-edit", optionalText " Edit" ]
+      ViewMode -> [ fontAwesome "fa-edit", optionalText " Edit" ]
     toggleButtonTitle = case view (key :: _ "!.mode") state of
       EditMode -> "Save tablature"
-      ViewMode  -> "Edit tablature"
+      ViewMode -> "Edit tablature"
     toggleAutoscrollContent =
       if view (key :: _ "!.autoscroll") state
       then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
@@ -273,18 +273,33 @@ doAction action = do
 
   lift updateAutoscrollTimer
 
-  tablatureTitle <- Cache.read cachedTablatureTitle
+  tablatureTitle <- Cache.read tablatureTitleCache
   liftEffect $ setDocumentTitle tablatureTitle
 
   -- TODO: find a generic solution to preload cache
-  _ <- Cache.read cachedRewriteResult
+  _ <- Cache.read rewriteResultCache
   pure unit
+
+toggleEditMode :: forall m . MonadEffect m => StateT State (H.HalogenM State Action () Unit m) Unit
+toggleEditMode = do
+  state <- getState
+  case state.mode of
+    ViewMode -> do
+      modifyState _ { mode = EditMode }
+      tablatureText <- Cache.read tablatureTextCache
+      lift $ setTablatureTextInEditor tablatureText
+      -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
+    EditMode -> do
+      tablatureText <- lift getTablatureTextFromEditor
+      Cache.write tablatureTextCache tablatureText
+      modifyState _ { mode = ViewMode }
+      lift focusTablatureContainer
 
 getTablatureEditorElement :: forall m . MonadEffect m => HaloT m (Maybe WH.HTMLTextAreaElement)
 getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
   \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
 
-getTablatureTextFromEditor :: forall m  . MonadEffect m => HaloT m String
+getTablatureTextFromEditor :: forall m . MonadEffect m => HaloT m String
 getTablatureTextFromEditor = do
   maybeTextArea <- getTablatureEditorElement
   case maybeTextArea of
@@ -298,7 +313,7 @@ getTablatureContainerElement = do
     EditMode -> H.getHTMLElementRef refTablatureEditor
     ViewMode -> H.getHTMLElementRef refTablatureViewer
 
-saveScrollTop :: forall m  . MonadEffect m => HaloT m Unit
+saveScrollTop :: forall m . MonadEffect m => HaloT m Unit
 saveScrollTop = do
   maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
   case maybeTablatureContainerElem of
@@ -308,7 +323,7 @@ saveScrollTop = do
       modifyState _ { scrollTop = newScrollTop }
       pure unit
 
-loadScrollTop :: forall m  . MonadEffect m => HaloT m Unit
+loadScrollTop :: forall m . MonadEffect m => HaloT m Unit
 loadScrollTop = do
   state <- getState
   maybeTablatureContainerElem <- getTablatureContainerElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
@@ -318,7 +333,7 @@ loadScrollTop = do
       liftEffect $ setScrollTop state.scrollTop tablatureContainerElem
 
 -- TODO: consider treating the js timer as a backing store for a cache?
-updateAutoscrollTimer :: forall m  . MonadEffect m => HaloT m Unit
+updateAutoscrollTimer :: forall m . MonadEffect m => HaloT m Unit
 updateAutoscrollTimer = do
   -- state <- getState
   State state <- MonadState.get
@@ -346,7 +361,7 @@ updateAutoscrollTimer = do
         timerId <- liftEffect $ setInterval (speedToIntervalMs state.autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta state.autoscrollSpeed) elem
         modifyState _ { autoscrollTimer = Just timerId }
 
-focusTablatureContainer :: forall m  . MonadEffect m => HaloT m Unit
+focusTablatureContainer :: forall m . MonadEffect m => HaloT m Unit
 focusTablatureContainer = do
   maybeTablatureContainerElem <- getTablatureContainerElement
   case maybeTablatureContainerElem of
@@ -354,7 +369,7 @@ focusTablatureContainer = do
     Just tablatureContainerElem -> liftEffect $ focus tablatureContainerElem
 
 
-setTablatureTextInEditor :: forall m  . MonadEffect m => String -> HaloT m Unit
+setTablatureTextInEditor :: forall m . MonadEffect m => String -> HaloT m Unit
 setTablatureTextInEditor text = do
   maybeTextArea <- getTablatureEditorElement
   case maybeTextArea of

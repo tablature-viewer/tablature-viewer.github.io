@@ -45,54 +45,37 @@ decreaseAutoscrollSpeed = do
     Just speed -> modifyState _ { autoscrollSpeed = speed }
   modifyState _ { autoscroll = true }
 
-initialize  :: forall m . MonadEffect m => MonadState State m => m Unit
+initialize :: forall m . MonadEffect m => MonadState State m => m Unit
 initialize = do
-  tablatureText <- Cache.read cachedTablatureText
+  tablatureText <- Cache.read tablatureTextCache
   if tablatureText == ""
   then modifyState _ { mode = EditMode }
   else modifyState _ { mode = ViewMode }
 
-toggleEditMode  :: forall m . MonadEffect m => MonadState State m => m Unit
-toggleEditMode = do
-  state <- getState
-  case state.mode of
-    EditMode -> do
-      -- FIXNOW
-      -- tablatureText <- lift getTablatureTextFromEditor
-      -- Cache.write _tablatureText tablatureText
-      modifyState _ { mode = ViewMode }
-      -- lift focusTablatureContainer
-    ViewMode -> do
-      modifyState _ { mode = EditMode }
-      tablatureText <- Cache.read cachedTablatureText
-      pure unit
-      -- lift $ setTablatureTextInEditor tablatureText
-      -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
-
-toggleTabNormalization  :: forall m . MonadEffect m => MonadState State m => m Unit
+toggleTabNormalization :: forall m . MonadEffect m => MonadState State m => m Unit
 toggleTabNormalization = do
-  tabNormalizationEnabled <- Cache.read cachedTabNormalizationEnabled
-  Cache.write cachedTabNormalizationEnabled (not tabNormalizationEnabled)
+  tabNormalizationEnabled <- Cache.read tabNormalizationEnabledCache
+  Cache.write tabNormalizationEnabledCache (not tabNormalizationEnabled)
 
-toggleTabDozenalization  :: forall m . MonadEffect m => MonadState State m => m Unit
+toggleTabDozenalization :: forall m . MonadEffect m => MonadState State m => m Unit
 toggleTabDozenalization = do
-  ignoreDozenalization <- Cache.read cachedIgnoreDozenalization
+  ignoreDozenalization <- Cache.read ignoreDozenalizationCache
   if ignoreDozenalization
   then pure unit
   else do
-    tabDozenalizationEnabled <- Cache.read cachedTabDozenalizationEnabled
-    Cache.write cachedTabDozenalizationEnabled (not tabDozenalizationEnabled)
+    tabDozenalizationEnabled <- Cache.read tabDozenalizationEnabledCache
+    Cache.write tabDozenalizationEnabledCache (not tabDozenalizationEnabled)
 
-toggleChordDozenalization  :: forall m . MonadEffect m => MonadState State m => m Unit
+toggleChordDozenalization :: forall m . MonadEffect m => MonadState State m => m Unit
 toggleChordDozenalization = do
-  ignoreDozenalization <- Cache.read cachedIgnoreDozenalization
+  ignoreDozenalization <- Cache.read ignoreDozenalizationCache
   if ignoreDozenalization
   then pure unit
   else do
-    chordDozenalizationEnabled <- Cache.read cachedChordDozenalizationEnabled
-    Cache.write cachedChordDozenalizationEnabled (not chordDozenalizationEnabled)
+    chordDozenalizationEnabled <- Cache.read chordDozenalizationEnabledCache
+    Cache.write chordDozenalizationEnabledCache (not chordDozenalizationEnabled)
 
-copyShortUrl  :: forall m . MonadAff m => MonadState State m => m Unit
+copyShortUrl :: forall m . MonadAff m => MonadState State m => m Unit
 copyShortUrl = do
   longUrl <- liftEffect getLocationString
   maybeShortUrl <- liftAff $ createShortUrl longUrl
@@ -100,12 +83,12 @@ copyShortUrl = do
     Just shortUrl -> copyToClipboard shortUrl
     Nothing -> pure unit
 
-increaseTransposition  :: forall m . MonadEffect m => MonadState State m => m Unit
+increaseTransposition :: forall m . MonadEffect m => MonadState State m => m Unit
 increaseTransposition = do
-  transposition <- Cache.read cachedTransposition
-  Cache.write cachedTransposition $ succTransposition transposition
+  transposition <- Cache.read transpositionCache
+  Cache.write transpositionCache $ succTransposition transposition
 
-decreaseTransposition  :: forall m . MonadEffect m => MonadState State m => m Unit
+decreaseTransposition :: forall m . MonadEffect m => MonadState State m => m Unit
 decreaseTransposition = do
-  transposition <- Cache.read cachedTransposition
-  Cache.write cachedTransposition $ predTransposition transposition
+  transposition <- Cache.read transpositionCache
+  Cache.write transpositionCache $ predTransposition transposition
