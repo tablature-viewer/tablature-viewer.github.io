@@ -2,11 +2,14 @@ module AppState where
 
 import Cache
 import Prelude
+import DebugUtils
+import Effect.Console as Console
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
 import Control.Monad.State (class MonadState)
 import Control.Monad.State as MonadState
+import Data.Lens (Lens', over, set, view)
 import Data.Lens.Barlow (barlow, key)
 import Data.List (List(..))
 import Data.Maybe (Maybe(..))
@@ -64,14 +67,31 @@ initialState _ = State
   , transposition: buildCache (Transposition 0)
   }
 
-modifyState :: forall m . MonadState State m => (StateRecord -> StateRecord) -> m Unit
-modifyState f = MonadState.modify_ \(State s) -> State (f s)
+_mode :: Lens' State Mode
+_mode = barlow (key :: _ "!.mode")
+_loading :: Lens' State Boolean
+_loading = barlow (key :: _ "!.loading")
+_scrollTop :: Lens' State Number
+_scrollTop = barlow (key :: _ "!.scrollTop")
+_autoscroll :: Lens' State Boolean
+_autoscroll = barlow (key :: _ "!.autoscroll")
+_autoscrollTimer :: Lens' State (Maybe IntervalId)
+_autoscrollTimer = barlow (key :: _ "!.autoscrollTimer")
+_autoscrollSpeed :: Lens' State AutoscrollSpeed
+_autoscrollSpeed = barlow (key :: _ "!.autoscrollSpeed")
 
-getState :: forall m . MonadState State m => m StateRecord
-getState = do
-  State state <- MonadState.get
-  pure state
-
+viewState :: forall a m . MonadState State m => Lens' State a -> m a
+viewState _key = do
+  state <- MonadState.get
+  pure $ view _key state
+setState :: forall a m . MonadState State m => Lens' State a -> a -> m Unit
+setState _key value = do
+  state <- MonadState.get
+  MonadState.put $ set _key value state
+overState :: forall a m . MonadState State m => Lens' State a -> (a -> a) -> m Unit
+overState _key f = do
+  state <- MonadState.get
+  MonadState.put $ over _key f state
 
 type AppStateReadWriteCacheUnit a = forall m . MonadEffect m => MonadState State m => ReadWriteCacheUnit State a () m
 type AppStateReadCacheUnit a = forall m . MonadEffect m => MonadState State m => ReadableCacheUnit State a () m
@@ -108,8 +128,10 @@ rewriteResultCache :: AppStateReadCacheUnit TablatureDocument
 rewriteResultCache =
   { entry: entryKey
   , fetch: Fetch $ do
+      liftEffect $ Console.log "rewriting"
       parseResult <- depend entryKey parseResultCache
       renderingOptions <- getRenderingOptions
+      liftEffect $ Console.log (show renderingOptions.transposition)
       pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
   } where entryKey = _rewriteResult 
 _rewriteResult :: EntryKey State TablatureDocument

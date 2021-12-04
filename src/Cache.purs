@@ -4,7 +4,7 @@ import Prelude
 
 import Control.Monad.State (class MonadState)
 import Control.Monad.State as MonadState
-import Data.Lens (Lens', over, set, view)
+import Data.Lens (Lens', over, view)
 import Data.List (List(..))
 import Data.Maybe (Maybe, fromMaybe)
 import Utils (foreachM)
@@ -16,14 +16,12 @@ import Utils (foreachM)
 --   - A way to fetch everything (such that peeks will always return something e.g. in the rendering)
 
 -- Dependencies subscribe during fetch.
--- The subcription list is be cleared after invalidation, such that a subsequent fetch won't result in duplicate subscriptions.
+-- The subcription list is to be cleared after invalidation, such that a subsequent fetch won't result in duplicate subscriptions.
 data CacheValue a = Cached a | NoValue
-type CacheDependants s = List (AnyEntryKey s)
-
 type CacheEntry s a =
   { value :: CacheValue a
   , default :: a
-  , dependants :: CacheDependants s }
+  , dependants :: List (AnyEntryKey s) }
 
 buildCache :: forall s a . a -> CacheEntry s a
 buildCache default =
@@ -35,12 +33,12 @@ buildCache default =
 newtype EntryKey s a = EntryKey (Lens' s (CacheEntry s a))
 runEntryKey :: forall s a . EntryKey s a -> Lens' s (CacheEntry s a)
 runEntryKey (EntryKey _key) = _key
-viewEntry :: forall s a . EntryKey s a -> s -> CacheEntry s a
-viewEntry key = view (runEntryKey key)
-setEntry :: forall s a . EntryKey s a -> CacheEntry s a -> s -> s
-setEntry key = set (runEntryKey key)
-overEntry :: forall s a . EntryKey s a -> (CacheEntry s a -> CacheEntry s a) -> s -> s
-overEntry key = over (runEntryKey key)
+viewEntry' :: forall s a . EntryKey s a -> s -> CacheEntry s a
+viewEntry' key = view (runEntryKey key)
+viewEntry :: forall s a m . MonadState s m => EntryKey s a -> m (CacheEntry s a)
+viewEntry key = MonadState.get <#> viewEntry' key
+overEntry :: forall s a m . MonadState s m => EntryKey s a -> (CacheEntry s a -> CacheEntry s a) -> m Unit
+overEntry key f = MonadState.get <#> over (runEntryKey key) f >>= MonadState.put
 
 newtype AnyEntryKey s = AnyEntryKey (forall result. (forall a. EntryKey s a -> result) -> result)
 mkAnyEntryKey :: forall s a. EntryKey s a -> AnyEntryKey s
@@ -69,7 +67,7 @@ type ReadWriteCacheUnit s a r m = CacheUnit s a ( flush :: Flush a m, fetch :: F
 peek' :: forall s a . EntryKey s a -> s -> CacheValue a
 peek' _key state = entry.value
   where 
-  entry = viewEntry _key state
+  entry = viewEntry' _key state
 
 -- Peek with default
 peek :: forall s a . EntryKey s a -> s -> a
@@ -78,53 +76,44 @@ peek _key state =
     NoValue -> entry.default
     Cached result -> result
   where 
-  entry = viewEntry _key state
+  entry = viewEntry' _key state
 
-purge :: forall m s a . MonadState s m => EntryKey s a -> m Unit
-purge _key = do
-  initialState <- MonadState.get
-  entry <- pure $ viewEntry _key initialState
+invalidate :: forall m s a . MonadState s m => EntryKey s a -> m Unit
+invalidate _key = do
+  entry <- viewEntry _key
   case entry.value of
     NoValue -> pure unit
     Cached _ -> do
-      setEntry _key (entry { value = NoValue }) initialState # MonadState.put
-      purgeDependencies entry
+      overEntry _key _ { value = NoValue, dependants = Nil }
+      invalidateDependants entry
 
-purgeDependencies :: forall m s a . MonadState s m => CacheEntry s a -> m Unit
-purgeDependencies entry = do
-  foreachM entry.dependants loop
-  where
-  loop anyKey = mapAnyEntryKey (\_key -> purge _key) anyKey
+invalidateDependants :: forall m s a . MonadState s m => CacheEntry s a -> m Unit
+invalidateDependants entry = foreachM entry.dependants $ mapAnyEntryKey invalidate
 
-depend :: forall m s a b r. MonadState s m => EntryKey s a -> ReadableCacheUnit s b r m -> m b
-depend _key dependency = do
+depend :: forall m s a b r . MonadState s m => EntryKey s a -> ReadableCacheUnit s b r m -> m b
+depend _dependant dependency = do
   dependencyValue <- read dependency
-  addDependency _key (mkAnyEntryKey dependency.entry)
+  addDependant dependency _dependant
   pure dependencyValue
 
-addDependency :: forall m s a . MonadState s m => EntryKey s a -> AnyEntryKey s -> m Unit
-addDependency _key dependencyKey = do
-  MonadState.get
-    <#> overEntry _key (\entry -> entry { dependants = Cons dependencyKey entry.dependants })
-    >>= MonadState.put
+addDependant :: forall m s a b r . MonadState s m => CacheUnit s b r -> EntryKey s a -> m Unit
+addDependant dependency _dependant =
+  overEntry dependency.entry (\entry -> entry { dependants = Cons (mkAnyEntryKey _dependant) entry.dependants })
 
 write :: forall m a s r . MonadState s m => WritableCacheUnit s a r m -> a -> m Unit
 write cache value = do
-  entry <- MonadState.get <#> viewEntry cache.entry
+  entry <- viewEntry cache.entry
   runFlush cache.flush value
-  purgeDependencies entry
-  MonadState.get
-    <#> overEntry cache.entry _ { value = Cached value }
-    >>= MonadState.put
+  invalidateDependants entry
+  overEntry cache.entry _ { value = Cached value }
 
 read :: forall m a s r . MonadState s m => ReadableCacheUnit s a r m -> m a
 read cache = do
-  entry <- MonadState.get <#> viewEntry cache.entry
+  entry <- viewEntry cache.entry
   case entry.value of
     Cached value -> pure value
     NoValue -> do
       maybeValue <- runFetch cache.fetch
       value <- pure $ fromMaybe entry.default maybeValue
-      newState <- MonadState.get <#> overEntry cache.entry _ { value = Cached value }
-      MonadState.put newState
+      overEntry cache.entry _ { value = Cached value }
       pure value

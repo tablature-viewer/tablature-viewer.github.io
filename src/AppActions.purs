@@ -20,7 +20,7 @@ data Action
   | ToggleTabNormalization 
   | ToggleTabDozenalization 
   | ToggleChordDozenalization 
-  | CopyShortUrl
+  | CreateShortUrl
   | ToggleAutoscroll
   | IncreaseAutoscrollSpeed
   | DecreaseAutoscrollSpeed
@@ -31,26 +31,26 @@ data Action
 -- TODO: store scrollspeed somewhere
 increaseAutoscrollSpeed :: forall m . MonadEffect m => MonadState State m => m Unit
 increaseAutoscrollSpeed = do
-  state <- getState
-  case succ state.autoscrollSpeed of
+  currentSpeed <- viewState _autoscrollSpeed
+  case succ currentSpeed of
     Nothing -> pure unit
-    Just speed -> modifyState _ { autoscrollSpeed = speed }
-  modifyState _ { autoscroll = true }
+    Just speed -> setState _autoscrollSpeed speed
+  setState _autoscroll true
 
 decreaseAutoscrollSpeed :: forall m . MonadEffect m => MonadState State m => m Unit
 decreaseAutoscrollSpeed = do
-  state <- getState
-  case pred state.autoscrollSpeed of
+  currentSpeed <- viewState _autoscrollSpeed
+  case pred currentSpeed of
     Nothing -> pure unit
-    Just speed -> modifyState _ { autoscrollSpeed = speed }
-  modifyState _ { autoscroll = true }
+    Just speed -> setState _autoscrollSpeed speed
+  setState _autoscroll true
 
 initialize :: forall m . MonadEffect m => MonadState State m => m Unit
 initialize = do
   tablatureText <- Cache.read tablatureTextCache
   if tablatureText == ""
-  then modifyState _ { mode = EditMode }
-  else modifyState _ { mode = ViewMode }
+  then setState _mode EditMode
+  else setState _mode ViewMode
 
 toggleTabNormalization :: forall m . MonadEffect m => MonadState State m => m Unit
 toggleTabNormalization = do
@@ -75,8 +75,8 @@ toggleChordDozenalization = do
     chordDozenalizationEnabled <- Cache.read chordDozenalizationEnabledCache
     Cache.write chordDozenalizationEnabledCache (not chordDozenalizationEnabled)
 
-copyShortUrl :: forall m . MonadAff m => MonadState State m => m Unit
-copyShortUrl = do
+createAndCopyShortUrl :: forall m . MonadAff m => MonadState State m => m Unit
+createAndCopyShortUrl = do
   longUrl <- liftEffect getLocationString
   maybeShortUrl <- liftAff $ createShortUrl longUrl
   liftEffect $ case maybeShortUrl of
