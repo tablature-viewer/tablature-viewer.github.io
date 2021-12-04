@@ -22,19 +22,19 @@ import Utils (foreachM)
 data CacheValue a = Cached a | NoValue
 type CacheDependants s = List (AnyEntryKey s)
 
-type Entry s a =
+type CacheEntry s a =
   { value :: CacheValue a
   , default :: a
   , dependants :: CacheDependants s }
 
-buildCache :: forall s a . a -> Entry s a
+buildCache :: forall s a . a -> CacheEntry s a
 buildCache default =
   { value: NoValue
   , default: default
   , dependants: Nil }
 
 -- This needs to be a newtype because otherwise we get "Could not match constrained type" errors
-newtype EntryKey s a = EntryKey (Lens' s (Entry s a))
+newtype EntryKey s a = EntryKey (Lens' s (CacheEntry s a))
 runEntryKey (EntryKey _key) = _key
 viewEntry key = view (runEntryKey key)
 setEntry key = set (runEntryKey key)
@@ -88,7 +88,7 @@ purge _key = do
       setEntry _key (entry { value = NoValue }) initialState # MonadState.put
       purgeDependencies entry
 
-purgeDependencies :: forall m s a . MonadState s m => Entry s a -> m Unit
+purgeDependencies :: forall m s a . MonadState s m => CacheEntry s a -> m Unit
 purgeDependencies entry = do
   foreachM (entry.dependants) loop
   where

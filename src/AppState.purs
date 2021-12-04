@@ -32,33 +32,18 @@ type StateRecord =
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
   , loading :: Boolean
-  , tablatureText :: Entry State String
-  , parseResult :: Entry State TablatureDocument
-  , rewriteResult :: Entry State TablatureDocument
-  , tablatureTitle :: Entry State String
-  , tabNormalizationEnabled :: Entry State Boolean
-  , tabDozenalizationEnabled :: Entry State Boolean
-  , chordDozenalizationEnabled :: Entry State Boolean
+  , tablatureText :: CacheEntry State String
+  , parseResult :: CacheEntry State TablatureDocument
+  , rewriteResult :: CacheEntry State TablatureDocument
+  , tablatureTitle :: CacheEntry State String
+  , tabNormalizationEnabled :: CacheEntry State Boolean
+  , tabDozenalizationEnabled :: CacheEntry State Boolean
+  , chordDozenalizationEnabled :: CacheEntry State Boolean
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
-  , ignoreDozenalization :: Entry State Boolean
-  , transposition :: Entry State Transposition
+  , ignoreDozenalization :: CacheEntry State Boolean
+  , transposition :: CacheEntry State Transposition
   }
 derive instance Newtype State _
-
-modifyState :: forall m . MonadState State m => (StateRecord -> StateRecord) -> m Unit
-modifyState f = MonadState.modify_ \(State s) -> State (f s)
-
-getState :: forall m . MonadState State m => m StateRecord
-getState = do
-  State state <- MonadState.get
-  pure state
-
-
-type AppStateReadWriteCacheDef a m = ReadWriteCacheDef State a () m
-type AppStateReadWriteCacheDef' a = forall m . MonadEffect m => MonadState State m => AppStateReadWriteCacheDef a m
-
-type AppStateReadCacheDef a m = ReadableCacheDef State a () m
-type AppStateReadCacheDef' a = forall m . MonadEffect m => MonadState State m => AppStateReadCacheDef a m
 
 initialState :: forall input . input -> State
 initialState _ = State
@@ -78,6 +63,21 @@ initialState _ = State
   , ignoreDozenalization: buildCache false
   , transposition: buildCache (Transposition 0)
   }
+
+modifyState :: forall m . MonadState State m => (StateRecord -> StateRecord) -> m Unit
+modifyState f = MonadState.modify_ \(State s) -> State (f s)
+
+getState :: forall m . MonadState State m => m StateRecord
+getState = do
+  State state <- MonadState.get
+  pure state
+
+
+type AppStateReadWriteCacheDef a m = ReadWriteCacheDef State a () m
+type AppStateReadWriteCacheDef' a = forall m . MonadEffect m => MonadState State m => AppStateReadWriteCacheDef a m
+
+type AppStateReadCacheDef a m = ReadableCacheDef State a () m
+type AppStateReadCacheDef' a = forall m . MonadEffect m => MonadState State m => AppStateReadCacheDef a m
 
 cachedTransposition :: AppStateReadWriteCacheDef' Transposition
 cachedTransposition =

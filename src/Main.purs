@@ -7,14 +7,13 @@ import Prelude
 import AppUrl (redirectToUrlInFragment)
 import AutoscrollSpeed (speedToIntervalMs, speedToIntervalPixelDelta)
 import Cache as Cache
-import Control.Monad.State (class MonadState, StateT, execStateT, state)
+import Control.Monad.State (StateT, execStateT)
 import Control.Monad.State as MonadState
-import Control.Monad.Trans.Class (class MonadTrans, lift)
+import Control.Monad.Trans.Class (lift)
 import Data.Array (fromFoldable)
 import Data.Lens.Barlow (key)
 import Data.Lens.Barlow.Helpers (view)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype, unwrap)
 import DebugUtils (debug)
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
