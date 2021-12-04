@@ -5,38 +5,21 @@ import Prelude
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
-import Control.Monad.State (class MonadState, StateT(..))
+import Control.Monad.State (class MonadState)
 import Control.Monad.State as MonadState
-import Control.Monad.Trans.Class (class MonadTrans, lift)
-import Data.Lens (Lens')
 import Data.Lens.Barlow (barlow, key)
-import Data.List (List(..), fromFoldable)
+import Data.List (List(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
-import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
-import TablatureDocument (NoteLetterPrimitive(..), RenderingOptions, TablatureDocument, Transposition(..), getTitle)
+import TablatureDocument (RenderingOptions, TablatureDocument, Transposition(..), getTitle)
 import TablatureParser (tryParseTablature)
 import TablatureRewriter (rewriteTablatureDocument)
-
--- TODO: rename to AppAction?
-data Action
-  = Initialize 
-  | ToggleEditMode 
-  | ToggleTabNormalization 
-  | ToggleTabDozenalization 
-  | ToggleChordDozenalization 
-  | CopyShortUrl
-  | ToggleAutoscroll
-  | IncreaseAutoscrollSpeed
-  | DecreaseAutoscrollSpeed
-  | IncreaseTransposition
-  | DecreaseTransposition
 
 data Mode = ViewMode | EditMode
 
@@ -49,23 +32,23 @@ type StateRecord =
   -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , scrollTop :: Number
   , loading :: Boolean
-  , tablatureText :: CacheUnit State String
-  , parseResult :: CacheUnit State TablatureDocument
-  , rewriteResult :: CacheUnit State TablatureDocument
-  , tablatureTitle :: CacheUnit State String
-  , tabNormalizationEnabled :: CacheUnit State Boolean
-  , tabDozenalizationEnabled :: CacheUnit State Boolean
-  , chordDozenalizationEnabled :: CacheUnit State Boolean
+  , tablatureText :: Entry State String
+  , parseResult :: Entry State TablatureDocument
+  , rewriteResult :: Entry State TablatureDocument
+  , tablatureTitle :: Entry State String
+  , tabNormalizationEnabled :: Entry State Boolean
+  , tabDozenalizationEnabled :: Entry State Boolean
+  , chordDozenalizationEnabled :: Entry State Boolean
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
-  , ignoreDozenalization :: CacheUnit State Boolean
-  , transposition :: CacheUnit State Transposition
+  , ignoreDozenalization :: Entry State Boolean
+  , transposition :: Entry State Transposition
   }
 derive instance Newtype State _
 
--- modifyState :: forall m . MonadState (State m) m => (StateRecord m -> StateRecord m) -> m Unit
+modifyState :: forall m . MonadState State m => (StateRecord -> StateRecord) -> m Unit
 modifyState f = MonadState.modify_ \(State s) -> State (f s)
 
--- getState :: forall m . MonadState (State m) m => m (StateRecord m)
+getState :: forall m . MonadState State m => m StateRecord
 getState = do
   State state <- MonadState.get
   pure state
@@ -73,13 +56,11 @@ getState = do
 
 type AppStateReadWriteCacheDef a m = ReadWriteCacheDef State a () m
 type AppStateReadWriteCacheDef' a = forall m . MonadEffect m => MonadState State m => AppStateReadWriteCacheDef a m
--- type AppStateReadWriteCacheKey' a = forall m . MonadEffect m => MonadState State m => ReadWriteCacheKey State a () m
 
 type AppStateReadCacheDef a m = ReadableCacheDef State a () m
 type AppStateReadCacheDef' a = forall m . MonadEffect m => MonadState State m => AppStateReadCacheDef a m
--- type AppStateReadCacheKey' a = forall m . MonadEffect m => MonadState State m => ReadableCacheKey State a () m
 
-initialState :: forall input m . MonadEffect m => MonadState State m => input -> State
+initialState :: forall input . input -> State
 initialState _ = State
   { mode: EditMode
   , loading: false
@@ -100,84 +81,84 @@ initialState _ = State
 
 cachedTransposition :: AppStateReadWriteCacheDef' Transposition
 cachedTransposition =
-  { cache: _transposition
+  { entry: _transposition
   , flush: Flush $ \value -> liftEffect $ setAppQueryString { transposition: value }
   , fetch: Fetch $ liftEffect getTranspositionFromUrl
   }
-_transposition :: CacheKey State Transposition
-_transposition = CacheKey (barlow (key :: _ "!.transposition"))
+_transposition :: EntryKey State Transposition
+_transposition = EntryKey (barlow (key :: _ "!.transposition"))
 
 cachedTablatureText :: AppStateReadWriteCacheDef' String
 cachedTablatureText =
-  { cache: _tablatureText
+  { entry: _tablatureText
   , flush: Flush $ \value -> liftEffect $ saveTablatureToUrl value
   , fetch: Fetch $ liftEffect $ getTablatureTextFromUrl <#> Just
   }
-_tablatureText :: CacheKey State String
-_tablatureText = CacheKey (barlow (key :: _ "!.tablatureText"))
+_tablatureText :: EntryKey State String
+_tablatureText = EntryKey (barlow (key :: _ "!.tablatureText"))
 
 cachedParseResult :: AppStateReadCacheDef' TablatureDocument
 cachedParseResult =
-  { cache: cacheKey
+  { entry: entryKey
   , fetch: Fetch $ do
-      tablatureText <- depend cacheKey cachedTablatureText
+      tablatureText <- depend entryKey cachedTablatureText
       pure $ tryParseTablature tablatureText
-  } where cacheKey = _parseResult 
-_parseResult :: CacheKey State TablatureDocument
-_parseResult = CacheKey (barlow (key :: _ "!.parseResult"))
+  } where entryKey = _parseResult 
+_parseResult :: EntryKey State TablatureDocument
+_parseResult = EntryKey (barlow (key :: _ "!.parseResult"))
 
 cachedRewriteResult :: AppStateReadCacheDef' TablatureDocument
 cachedRewriteResult =
-  { cache: cacheKey
+  { entry: entryKey
   , fetch: Fetch $ do
-      parseResult <- depend cacheKey cachedParseResult
+      parseResult <- depend entryKey cachedParseResult
       renderingOptions <- getRenderingOptions
       pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
-  } where cacheKey = _rewriteResult 
-_rewriteResult :: CacheKey State TablatureDocument
-_rewriteResult = CacheKey (barlow (key :: _ "!.rewriteResult"))
+  } where entryKey = _rewriteResult 
+_rewriteResult :: EntryKey State TablatureDocument
+_rewriteResult = EntryKey (barlow (key :: _ "!.rewriteResult"))
 
 cachedTablatureTitle :: AppStateReadCacheDef' String
 cachedTablatureTitle =
-  { cache: cacheKey
+  { entry: entryKey
   , fetch: Fetch $ do
-      parseResult <- depend cacheKey cachedParseResult
+      parseResult <- depend entryKey cachedParseResult
       pure $ getTitle parseResult
-  } where cacheKey = _tablatureTitle 
-_tablatureTitle :: CacheKey State String
-_tablatureTitle = CacheKey (barlow (key :: _ "!.tablatureTitle"))
+  } where entryKey = _tablatureTitle 
+_tablatureTitle :: EntryKey State String
+_tablatureTitle = EntryKey (barlow (key :: _ "!.tablatureTitle"))
 
-cachedLocalStorageBoolean :: String -> CacheKey State Boolean -> AppStateReadWriteCacheDef' Boolean
+cachedLocalStorageBoolean :: String -> EntryKey State Boolean -> AppStateReadWriteCacheDef' Boolean
 cachedLocalStorageBoolean localStorageKey _key =
-  { cache: _key
+  { entry: _key
   , flush: Flush $ \value -> liftEffect $ setLocalStorageBoolean localStorageKey value
   , fetch: Fetch $ liftEffect $ getLocalStorageBoolean localStorageKey
   }
 
 cachedTabNormalizationEnabled :: AppStateReadWriteCacheDef' Boolean
 cachedTabNormalizationEnabled = cachedLocalStorageBoolean "tabNormalizationEnabled" _tabNormalizationEnabled 
-_tabNormalizationEnabled :: CacheKey State Boolean
-_tabNormalizationEnabled = CacheKey (barlow (key :: _ "!.tabNormalizationEnabled"))
+_tabNormalizationEnabled :: EntryKey State Boolean
+_tabNormalizationEnabled = EntryKey (barlow (key :: _ "!.tabNormalizationEnabled"))
 
 cachedTabDozenalizationEnabled :: AppStateReadWriteCacheDef' Boolean
 cachedTabDozenalizationEnabled = cachedLocalStorageBoolean "tabDozenalizationEnabled" _tabDozenalizationEnabled 
-_tabDozenalizationEnabled :: CacheKey State Boolean
-_tabDozenalizationEnabled = CacheKey (barlow (key :: _ "!.tabDozenalizationEnabled"))
+_tabDozenalizationEnabled :: EntryKey State Boolean
+_tabDozenalizationEnabled = EntryKey (barlow (key :: _ "!.tabDozenalizationEnabled"))
 
 cachedChordDozenalizationEnabled :: AppStateReadWriteCacheDef' Boolean
 cachedChordDozenalizationEnabled = cachedLocalStorageBoolean "chordDozenalizationEnabled" _chordDozenalizationEnabled 
-_chordDozenalizationEnabled :: CacheKey State Boolean
-_chordDozenalizationEnabled = CacheKey (barlow (key :: _ "!.chordDozenalizationEnabled"))
+_chordDozenalizationEnabled :: EntryKey State Boolean
+_chordDozenalizationEnabled = EntryKey (barlow (key :: _ "!.chordDozenalizationEnabled"))
 
 cachedIgnoreDozenalization :: AppStateReadCacheDef' Boolean
 cachedIgnoreDozenalization =
-  { cache: cacheKey
+  { entry: entryKey
   , fetch: Fetch $ do
-      tablatureTitle <- depend cacheKey cachedTablatureTitle
+      tablatureTitle <- depend entryKey cachedTablatureTitle
       pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
-  } where cacheKey = _ignoreDozenalization
-_ignoreDozenalization :: CacheKey State Boolean
-_ignoreDozenalization = CacheKey (barlow (key :: _ "!.ignoreDozenalization"))
+  } where entryKey = _ignoreDozenalization
+_ignoreDozenalization :: EntryKey State Boolean
+_ignoreDozenalization = EntryKey (barlow (key :: _ "!.ignoreDozenalization"))
 
 -- -- TODO: move renderingoptions also to cache?
 getRenderingOptions :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
