@@ -3,7 +3,9 @@ Tablature Viewer
 
 Available at https://tabviewer.app
 
-- Paste a regular plain text tablature and then view it in a nicely formatted and colorized way.
+- Paste a regular plain text tablature or chord sheet and then view it in a nicely formatted and colorized way.
+- Transpose chords
+- Autoscroll feature
 - All the tablature information is stored in the URL, so you easily can bookmark and save your tabs. No more dealing with all them ad-heavy tablature sites :)
 - Optionally view the tablature in the base twelve numerical system. (Turn option `dozenalization` on)
 
@@ -20,10 +22,6 @@ You can navigate them by going back and forth just like you would on other websi
 ## How do I keep my bookmark up-to-date when modifying a tab?
 There are browser-extensions which can help you with this.
 For firefox there is [Update Bookmark](https://addons.mozilla.org/en-US/firefox/addon/replace-bookmark/) which reduces the amount of clicks you have to do to update an existing bookmark.
-
-## How do I keep tabs that are already dozenal themselves from being redozenalized?
-You can put the word "dozenal" or "dozenalized" in the title (first line) of your tab, e.g. by appending `(dozenal)` to it.
-This will turn off dozenalization for that tab, regardless of your settings.
 
 ## What is the base twelve numerical system?
 The [base twelve system](https://en.wikipedia.org/wiki/Duodecimal) (also called *dozenal* or *duodecimal* system) is a number system in which we count till twelve instead of ten, and have dedicated symbols for ten (↊, a turned two) and eleven (↋, a turned three).
@@ -49,6 +47,10 @@ But it's mostly for fun.
 So five notes above the octave is called *do five*.
 It's funny coincidence here that the octave note has been called *do* in [musical solfège](https://en.wikipedia.org/wiki/Solf%C3%A8ge) for centuries.
 For more information about pronounciation read [more about the do-gro-mo system](https://en.wikipedia.org/wiki/Duodecimal#Do-gro-mo_system).
+
+## How do I keep tabs that are already dozenal themselves from being redozenalized?
+You can put the word "dozenal" or "dozenalized" in the title (first line) of your tab, e.g. by appending `(dozenal)` to it.
+This will turn off dozenalization for that tab, regardless of your settings.
 
 ## Setup dev environment
 - Install Node.js (64 bit)
