@@ -2,27 +2,107 @@ module TablatureRewriter where
 
 import Prelude
 
-import AppState (Chord, ChordLineElem(..), RenderingOptions, TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), ChordMod(..))
-import Data.Foldable (foldr)
+import TablatureDocument (Chord(..), ChordMod(..), Note(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
+import Data.Lens (_Just, over, traversed)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String (Pattern(..), Replacement(..), replaceAll)
+import Data.Ord (abs)
+import Data.String (Pattern(..), Replacement(..), replace, replaceAll)
+import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
-import Data.String.Utils (repeat, filter)
+import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import Utils (foreach)
+import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
-type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
+type RewriteSettings =
+  { dozenalizeTabs :: Boolean
+  , dozenalizeChords :: Boolean
+  , normalizeTabs :: Boolean
+  , transposition :: Transposition
+  }
 
--- TODO: recognize false positives for chords in text and revert them to regular text.
+type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> TablatureDocument
+
+-- TODO: dozenalize chord legends
+-- TODO: rewrite every operation with lenses
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
+  revertFalsePositiveChords >>>
   fixEmDashes renderingOptions >>>
   addMissingClosingPipe renderingOptions >>>
   dozenalizeChords renderingOptions >>>
-  dozenalizeFrets renderingOptions
+  dozenalizeFrets renderingOptions >>>
+  transposeChords renderingOptions >>>
+  transposeTuning renderingOptions
+
+revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
+revertFalsePositiveChords = map rewriteLine
+  where
+  rewriteLine = over (_TextLine <<< traversed) fix
+  fix = case _ of
+    x@(TextLineChord spacedChord@(Spaced ({ elem: chord }))) ->
+      if chordString == "a" || chordString == "am" || chordString == "A" || chordString == "Am"
+      then Text $ print spacedChord
+      else x
+      where chordString = print chord
+    x -> x
+
+-- Map the Spaced version of some element and compensate the space suffix for the change in printed length
+liftMappingSpaced :: forall a. (Print a) => (a -> a) -> ((Spaced a) -> (Spaced a))
+liftMappingSpaced mapping (Spaced spaced) = Spaced { elem: newElem, spaceSuffix: newSuffix }
+  where
+  newElem = mapping spaced.elem
+  newSuffix = spaced.spaceSuffix + length (print spaced.elem) - length (print newElem)
+
+-- compensates for negative and positive space
+applyChordMapping :: (Chord -> Chord) -> TablatureDocument -> TablatureDocument
+applyChordMapping chordMapping = map (rewriteChordsInTextLine >>> rewriteChordsInChordLine)
+  where
+  mapping = liftMappingSpaced chordMapping
+
+  rewriteChordsInTextLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteChordsInTextLine = over (_ChordLine <<< traversed <<< _ChordLineChord) mapping
+
+  rewriteChordsInChordLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteChordsInChordLine = over (_TextLine <<< traversed <<< _TextLineChord) mapping
+
+transposeChords :: TablatureDocumentRewriter
+transposeChords renderingOptions = applyChordMapping $ chordMapping
+  where
+  chordMapping = over _root noteMapping >>> over (_bass <<< _Just) noteMapping
+  noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
+
+transposeTuning :: TablatureDocumentRewriter
+transposeTuning renderingOptions = map rewriteLine
+  where
+  rewriteLine = over (_TablatureLine <<< traversed <<< _Tuning) (liftMappingSpaced noteMapping)
+  noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
+
+transposeNote :: Transposition -> Note -> Note
+transposeNote transposition =
+  case transposition of
+    Transposition 0 -> identity
+    Transposition t | t > 0 -> (appendSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeNote
+    Transposition t -> (appendSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeNote
+  where
+  appendSuffix suffix = over _mod (_ <> suffix)
+
+-- Rewrite the notes such that there is at most one # or b
+canonicalizeNote :: Note -> Note
+canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>>  applyUntilIdempotent rewrite3
+  where
+  rewrite1 (Note note) = Note note { mod = rewriteMod note.mod }
+    where rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
+  rewrite2 (Note note@{ letter, mod }) = 
+    case stripPrefix (Pattern "##") mod of
+      Nothing -> Note note
+      Just newMod -> Note note { letter = succ' letter, mod = newMod }
+  rewrite3 (Note note@{ letter, mod }) = 
+    case stripPrefix (Pattern "bb") mod of
+      Nothing -> Note note
+      Just newMod -> Note note { letter = pred' letter, mod = newMod }
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
@@ -54,29 +134,13 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTa
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
 
 dozenalizeChords :: TablatureDocumentRewriter
-dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else map rewriteLine doc
+dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else applyChordMapping rewriteChord doc
   where
-  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
-  rewriteLine (ChordLine line) = ChordLine $ (map rewriteChordLineElem line)
-  rewriteLine (TextLine line) = TextLine $ (map rewriteTextLineElem line)
-  rewriteLine x = x
-
-  rewriteChordLineElem :: ChordLineElem -> ChordLineElem
-  rewriteChordLineElem (ChordLineChord chord) = ChordLineChord $ rewriteChord chord
-  rewriteChordLineElem x = x
-
-  rewriteTextLineElem :: TextLineElem -> TextLineElem
-  rewriteTextLineElem (TextLineChord chord) = TextLineChord $ rewriteChord chord
-  rewriteTextLineElem x = x
-
   rewriteChord :: Chord -> Chord
-  rewriteChord chord = chord { type = newType, mods = newMods, bass = newBass }
+  rewriteChord (Chord chord) = Chord chord { type = newType, mods = newMods }
     where
-    -- compensate for each 11 converted to ↋ by adding spaces after the bass mod
     newType = dozenalize chord.type
     newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods
-    shrunkChars = (newType <> foldr (<>) "" (map (\(ChordMod mod) -> mod.interval) newMods)) # filter (_ == "↋") # length
-    newBass = chord.bass { mod = dozenalize chord.bass.mod <> fromMaybe "" (repeat shrunkChars " ") }
 
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
 

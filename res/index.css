@@ -267,6 +267,7 @@ button.dropdown-item, .dropdown-item > button {
 
 .loadingIcon {
   padding: 18px 0px;
+  width: 50px;
 }
 
 .tablatureViewer {

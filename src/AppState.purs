@@ -1,175 +1,185 @@
 module AppState where
 
+import Cache
 import Prelude
 
-import Data.List (List)
-import Data.Maybe (Maybe)
+import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
+import AutoscrollSpeed (AutoscrollSpeed(..))
+import Control.Monad.State (class MonadState)
+import Control.Monad.State as MonadState
+import Data.Lens (Lens', over, set, view)
+import Data.Lens.Barlow (barlow, key)
+import Data.List (List(..))
+import Data.Maybe (Maybe(..))
+import Data.Newtype (class Newtype)
+import Data.String.Regex (test)
+import Data.String.Regex.Flags (ignoreCase)
+import Data.String.Regex.Unsafe (unsafeRegex)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
-
-import Data.Enum (class Enum)
-import Data.Enum.Generic (genericPred, genericSucc)
-import Data.Generic.Rep (class Generic)
-
-data Action
-  = Initialize 
-  | ToggleEditMode 
-  | ToggleTabNormalization 
-  | ToggleTabDozenalization 
-  | ToggleChordDozenalization 
-  | CopyShortUrl
-  | ToggleAutoscroll
-  | IncreaseAutoscrollSpeed
-  | DecreaseAutoscrollSpeed
-
-instance showMode :: Show Mode where
-  show ViewMode = "View Mode"
-  show EditMode = "Edit Mode"
+import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
+import TablatureDocument (TablatureDocument, Transposition(..), getTitle)
+import TablatureParser (tryParseTablature)
+import TablatureRewriter (rewriteTablatureDocument)
 
 data Mode = ViewMode | EditMode
 
-data AutoscrollSpeed
-  = Slowest
-  | Slow
-  | Normal
-  | Fast
-
-instance showAutoscrollSpeed :: Show AutoscrollSpeed where
-  show Slowest = "(0.1)"
-  show Slow = "(0.5)"
-  show Normal = "(1.0)"
-  show Fast = "(2.0)"
-
-derive instance eqAutoscrollSpeed :: Eq AutoscrollSpeed
-derive instance ordAutoscrollSpeed :: Ord AutoscrollSpeed
-derive instance genericAutoscrollSpeed :: Generic AutoscrollSpeed _
-instance enumAutoscrollSpeed :: Enum AutoscrollSpeed where
-  succ = genericSucc
-  pred = genericPred
-
-speedToIntervalMs :: AutoscrollSpeed -> Int
-speedToIntervalMs Slowest = 400
-speedToIntervalMs Slow = 80
-speedToIntervalMs Normal = 40
-speedToIntervalMs Fast = 40
-
-speedToIntervalPixelDelta :: AutoscrollSpeed -> Int
-speedToIntervalPixelDelta Slowest = 1
-speedToIntervalPixelDelta Slow = 1
-speedToIntervalPixelDelta Normal = 1
-speedToIntervalPixelDelta Fast = 2
-
-type State =
+newtype State = State StateRecord
+type StateRecord =
   { mode :: Mode
-  , loading :: Boolean
-  , tablatureText :: String
-  , tablatureTitle :: String
-  , tablatureDocument :: Maybe TablatureDocument
-  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
-  , scrollTop :: Number
   , autoscrollTimer :: Maybe IntervalId
   , autoscrollSpeed :: AutoscrollSpeed
   , autoscroll :: Boolean
-  , tabNormalizationEnabled :: Boolean
-  , tabDozenalizationEnabled :: Boolean
-  , chordDozenalizationEnabled :: Boolean
+  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
+  , scrollTop :: Number
+  , loading :: Boolean
+  , tablatureText :: CacheEntry State String
+  , parseResult :: CacheEntry State TablatureDocument
+  , rewriteResult :: CacheEntry State TablatureDocument
+  , tablatureTitle :: CacheEntry State String
+  , tabNormalizationEnabled :: CacheEntry State Boolean
+  , tabDozenalizationEnabled :: CacheEntry State Boolean
+  , chordDozenalizationEnabled :: CacheEntry State Boolean
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
-  , ignoreDozenalization :: Boolean
+  , ignoreDozenalization :: CacheEntry State Boolean
+  , transposition :: CacheEntry State Transposition
+  }
+derive instance Newtype State _
+
+initialState :: forall input . input -> State
+initialState _ = State
+  { mode: EditMode
+  , loading: false
+  , scrollTop: 0.0
+  , autoscroll: false
+  , autoscrollTimer: Nothing
+  , autoscrollSpeed: Normal
+  , tablatureText: buildCache ""
+  , parseResult: buildCache Nil
+  , rewriteResult: buildCache Nil
+  , tablatureTitle: buildCache "Tab viewer"
+  , tabNormalizationEnabled: buildCache true
+  , tabDozenalizationEnabled: buildCache false
+  , chordDozenalizationEnabled: buildCache false
+  , ignoreDozenalization: buildCache false
+  , transposition: buildCache (Transposition 0)
   }
 
-type RenderingOptions =
-  { dozenalizeTabs :: Boolean
-  , dozenalizeChords :: Boolean
-  , normalizeTabs :: Boolean
+_mode :: Lens' State Mode
+_mode = barlow (key :: _ "!.mode")
+_loading :: Lens' State Boolean
+_loading = barlow (key :: _ "!.loading")
+_scrollTop :: Lens' State Number
+_scrollTop = barlow (key :: _ "!.scrollTop")
+_autoscroll :: Lens' State Boolean
+_autoscroll = barlow (key :: _ "!.autoscroll")
+_autoscrollTimer :: Lens' State (Maybe IntervalId)
+_autoscrollTimer = barlow (key :: _ "!.autoscrollTimer")
+_autoscrollSpeed :: Lens' State AutoscrollSpeed
+_autoscrollSpeed = barlow (key :: _ "!.autoscrollSpeed")
+
+viewState :: forall a m . MonadState State m => Lens' State a -> m a
+viewState _key = do
+  state <- MonadState.get
+  pure $ view _key state
+setState :: forall a m . MonadState State m => Lens' State a -> a -> m Unit
+setState _key value = do
+  state <- MonadState.get
+  MonadState.put $ set _key value state
+overState :: forall a m . MonadState State m => Lens' State a -> (a -> a) -> m Unit
+overState _key f = do
+  state <- MonadState.get
+  MonadState.put $ over _key f state
+
+type AppStateReadWriteCacheUnit a = forall m . MonadEffect m => MonadState State m => ReadWriteCacheUnit State a () m
+type AppStateReadCacheUnit a = forall m . MonadEffect m => MonadState State m => ReadableCacheUnit State a () m
+
+transpositionCache :: AppStateReadWriteCacheUnit Transposition
+transpositionCache =
+  { entry: _transposition
+  , flush: Flush $ \value -> liftEffect $ setAppQueryString { transposition: value }
+  , fetch: Fetch $ liftEffect getTranspositionFromUrl
+  }
+_transposition :: EntryKey State Transposition
+_transposition = EntryKey (barlow (key :: _ "!.transposition"))
+
+tablatureTextCache :: AppStateReadWriteCacheUnit String
+tablatureTextCache =
+  { entry: _tablatureText
+  , flush: Flush $ \value -> liftEffect $ saveTablatureToUrl value
+  , fetch: Fetch $ liftEffect $ getTablatureTextFromUrl <#> Just
+  }
+_tablatureText :: EntryKey State String
+_tablatureText = EntryKey (barlow (key :: _ "!.tablatureText"))
+
+parseResultCache :: AppStateReadCacheUnit TablatureDocument
+parseResultCache =
+  { entry: entryKey
+  , fetch: Fetch $ do
+      tablatureText <- subscribe entryKey tablatureTextCache
+      pure $ tryParseTablature tablatureText
+  } where entryKey = _parseResult 
+_parseResult :: EntryKey State TablatureDocument
+_parseResult = EntryKey (barlow (key :: _ "!.parseResult"))
+
+rewriteResultCache :: AppStateReadCacheUnit TablatureDocument
+rewriteResultCache =
+  { entry: entryKey
+  , fetch: Fetch $ do
+      parseResult <- subscribe entryKey parseResultCache
+      tabNormalizationEnabled <- subscribe entryKey tabNormalizationEnabledCache
+      tabDozenalizationEnabled <- subscribe entryKey tabDozenalizationEnabledCache
+      chordDozenalizationEnabled <- subscribe entryKey chordDozenalizationEnabledCache
+      ignoreDozenalization <- subscribe entryKey ignoreDozenalizationCache
+      transposition <- subscribe entryKey transpositionCache
+      renderingOptions <- pure
+        { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
+        , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
+        , normalizeTabs: tabNormalizationEnabled
+        , transposition: transposition }
+      pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
+  } where entryKey = _rewriteResult 
+_rewriteResult :: EntryKey State TablatureDocument
+_rewriteResult = EntryKey (barlow (key :: _ "!.rewriteResult"))
+
+tablatureTitleCache :: AppStateReadCacheUnit String
+tablatureTitleCache =
+  { entry: entryKey
+  , fetch: Fetch $ do
+      parseResult <- subscribe entryKey parseResultCache
+      pure $ getTitle parseResult
+  } where entryKey = _tablatureTitle 
+_tablatureTitle :: EntryKey State String
+_tablatureTitle = EntryKey (barlow (key :: _ "!.tablatureTitle"))
+
+localStorageBooleanCache :: String -> EntryKey State Boolean -> AppStateReadWriteCacheUnit Boolean
+localStorageBooleanCache localStorageKey _key =
+  { entry: _key
+  , flush: Flush $ \value -> liftEffect $ setLocalStorageBoolean localStorageKey value
+  , fetch: Fetch $ liftEffect $ getLocalStorageBoolean localStorageKey
   }
 
-type TablatureDocument = List TablatureDocumentLine
+tabNormalizationEnabledCache :: AppStateReadWriteCacheUnit Boolean
+tabNormalizationEnabledCache = localStorageBooleanCache "tabNormalizationEnabled" _tabNormalizationEnabled 
+_tabNormalizationEnabled :: EntryKey State Boolean
+_tabNormalizationEnabled = EntryKey (barlow (key :: _ "!.tabNormalizationEnabled"))
 
-data TablatureDocumentLine
-  = TitleLine (List TitleLineElem) -- Title of whole document
-  | HeaderLine (List HeaderLineElem) -- Header per section of document
-  | TablatureLine (List TablatureLineElem)
-  | ChordLine (List ChordLineElem)
-  | TextLine (List TextLineElem)
+tabDozenalizationEnabledCache :: AppStateReadWriteCacheUnit Boolean
+tabDozenalizationEnabledCache = localStorageBooleanCache "tabDozenalizationEnabled" _tabDozenalizationEnabled 
+_tabDozenalizationEnabled :: EntryKey State Boolean
+_tabDozenalizationEnabled = EntryKey (barlow (key :: _ "!.tabDozenalizationEnabled"))
 
-data TitleLineElem
-  = Title String
-  | TitleOther String
+chordDozenalizationEnabledCache :: AppStateReadWriteCacheUnit Boolean
+chordDozenalizationEnabledCache = localStorageBooleanCache "chordDozenalizationEnabled" _chordDozenalizationEnabled 
+_chordDozenalizationEnabled :: EntryKey State Boolean
+_chordDozenalizationEnabled = EntryKey (barlow (key :: _ "!.chordDozenalizationEnabled"))
 
-data HeaderLineElem
-  = Header String
-  | HeaderSuffix String
-
-data TablatureLineElem
-  = Prefix String
-  | Suffix String
-  | Timeline String
-  | Fret String
-  | Special String
-
-data TextLineElem
-  = Text String
-  | Spaces String
-  | TextLineChord Chord
-  | ChordLegend (List ChordLegendElem)
-
-data ChordLegendElem
-  = ChordFret String
-  | ChordSpecial String
-
-data ChordLineElem
-  = ChordLineChord Chord
-  | ChordComment String
-
-type Chord =
-  { root :: Note
-  , type :: String
-  , mods :: List ChordMod
-  , bass :: Note
-  }
-
-newtype ChordMod = ChordMod
-  { pre :: String
-  , interval :: String
-  , post :: String
-  }
-
-type Note =
-  { letter :: String
-  , mod :: String
-  }
-
-instance showLine :: Show TablatureDocumentLine where
-  show (TitleLine elems) = "Title: " <> show elems
-  show (TablatureLine elems) = "Tab: " <> show elems
-  show (TextLine elems) = "Text: " <> show elems
-  show (ChordLine elems) = "Chords: " <> show elems
-  show (HeaderLine elems) = "Header: " <> show elems
-
-instance showTablatureLineElem :: Show TablatureLineElem where
-  show (Prefix string) = string
-  show (Suffix string) = string
-  show (Timeline string) = string
-  show (Fret string) = string
-  show (Special string) = string
-
-instance showTextLineElem :: Show TextLineElem where
-  show (Text string) = string
-  show (Spaces string) = string
-  show (TextLineChord chord) = show chord
-  show (ChordLegend _) = "legend"
-
-instance showChordLineElem :: Show ChordLineElem where
-  show (ChordLineChord chord) = show chord
-  show (ChordComment string) = string
-
-instance showChordMod :: Show ChordMod where
-  show (ChordMod x) = x.pre <> x.interval <> x.post
-
-instance showHeaderLineElem :: Show HeaderLineElem where
-  show (Header string) = string
-  show (HeaderSuffix string) = string
-
-instance showTitleLineElem :: Show TitleLineElem where
-  show (Title string) = string
-  show (TitleOther string) = string
-
+ignoreDozenalizationCache :: AppStateReadCacheUnit Boolean
+ignoreDozenalizationCache =
+  { entry: entryKey
+  , fetch: Fetch $ do
+      tablatureTitle <- subscribe entryKey tablatureTitleCache
+      pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
+  } where entryKey = _ignoreDozenalization
+_ignoreDozenalization :: EntryKey State Boolean
+_ignoreDozenalization = EntryKey (barlow (key :: _ "!.ignoreDozenalization"))

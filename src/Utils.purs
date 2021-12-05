@@ -2,24 +2,42 @@ module Utils where
 
 import Prelude
 
-import Data.List (List(..), (:))
-import Data.Tuple (Tuple, fst, snd)
-import Effect.Console (log)
-import Effect.Unsafe (unsafePerformEffect)
-import Data.List.NonEmpty (NonEmptyList)
+import Control.Monad.State (class MonadState)
 import Data.Either (Either(..))
+import Data.Enum (class Enum)
+import Data.List (List(..), (:))
+import Data.List.NonEmpty (NonEmptyList)
+import Data.Tuple (Tuple, fst, snd)
 import Text.Parsing.StringParser (Parser(..), unParser)
 import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
 
-debug :: forall a. String -> a -> a
-debug msg = snd $ unsafePerformEffect $ log msg
-  where snd _ b = b
+-- Show is for debugging, Print has to give a string that is actually how it is supposed to be presented to the user.
+class Print a where
+  print :: a -> String
+
+class Enum a <= CyclicEnum a where
+  succ' :: a -> a
+  pred' :: a -> a
 
 foreach :: forall a b s. s -> List a -> (s -> a -> Tuple s b) -> List b
 foreach _ Nil _ = Nil
 foreach state (x : xs) loop = snd next : (foreach (fst next) xs loop)
   where next = loop state x
 
+foreach' :: forall a s . s -> List a -> (s -> a -> s) -> s
+foreach' state Nil _ = state
+foreach' state (x : xs) loop = foreach' nextState xs loop
+  where nextState = loop state x
+
+foreachM :: forall m a s . MonadState s m => List a -> (a -> m Unit) -> m Unit
+foreachM Nil _ = pure unit
+foreachM (x : xs) loop = do
+  loop x
+  foreachM xs loop
+
+applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
+applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
+  where result = f x
 
 -- NOTES
 -- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds
