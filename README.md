@@ -1,7 +1,8 @@
 Tablature Viewer
 ================
 
-Available at https://tabviewer.app
+Available at [https://tabviewer.app](https://tabviewer.app).
+Here is a [demo tablature](https://tabviewer.app/?u#BYFxAcC4HpoZ2AewE4gDYEsB2BrAhuBgHTACmyiOArgeEQMaIC20A7AMwCcnrAjO0A).
 
 - Paste a regular plain text tablature or chord sheet and then view it in a nicely formatted and colorized way.
 - Transpose chords
