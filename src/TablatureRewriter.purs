@@ -2,7 +2,7 @@ module TablatureRewriter where
 
 import Prelude
 
-import TablatureDocument (Chord(..), ChordMod(..), Note(..), RenderingOptions, Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
+import TablatureDocument (Chord(..), ChordMod(..), Note(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
 import Data.Lens (_Just, over, traversed)
 import Data.List (List, reverse)
@@ -15,7 +15,14 @@ import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
 import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
 
-type TablatureDocumentRewriter = RenderingOptions -> TablatureDocument -> TablatureDocument
+type RewriteSettings =
+  { dozenalizeTabs :: Boolean
+  , dozenalizeChords :: Boolean
+  , normalizeTabs :: Boolean
+  , transposition :: Transposition
+  }
+
+type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> TablatureDocument
 
 -- TODO: dozenalize chord legends
 -- TODO: rewrite every operation with lenses

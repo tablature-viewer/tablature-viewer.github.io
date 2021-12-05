@@ -2,8 +2,6 @@ module AppState where
 
 import Cache
 import Prelude
-import DebugUtils
-import Effect.Console as Console
 
 import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
@@ -20,7 +18,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
-import TablatureDocument (RenderingOptions, TablatureDocument, Transposition(..), getTitle)
+import TablatureDocument (TablatureDocument, Transposition(..), getTitle)
 import TablatureParser (tryParseTablature)
 import TablatureRewriter (rewriteTablatureDocument)
 
@@ -118,7 +116,7 @@ parseResultCache :: AppStateReadCacheUnit TablatureDocument
 parseResultCache =
   { entry: entryKey
   , fetch: Fetch $ do
-      tablatureText <- depend entryKey tablatureTextCache
+      tablatureText <- subscribe entryKey tablatureTextCache
       pure $ tryParseTablature tablatureText
   } where entryKey = _parseResult 
 _parseResult :: EntryKey State TablatureDocument
@@ -128,10 +126,17 @@ rewriteResultCache :: AppStateReadCacheUnit TablatureDocument
 rewriteResultCache =
   { entry: entryKey
   , fetch: Fetch $ do
-      liftEffect $ Console.log "rewriting"
-      parseResult <- depend entryKey parseResultCache
-      renderingOptions <- getRenderingOptions
-      liftEffect $ Console.log (show renderingOptions.transposition)
+      parseResult <- subscribe entryKey parseResultCache
+      tabNormalizationEnabled <- subscribe entryKey tabNormalizationEnabledCache
+      tabDozenalizationEnabled <- subscribe entryKey tabDozenalizationEnabledCache
+      chordDozenalizationEnabled <- subscribe entryKey chordDozenalizationEnabledCache
+      ignoreDozenalization <- subscribe entryKey ignoreDozenalizationCache
+      transposition <- subscribe entryKey transpositionCache
+      renderingOptions <- pure
+        { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
+        , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
+        , normalizeTabs: tabNormalizationEnabled
+        , transposition: transposition }
       pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
   } where entryKey = _rewriteResult 
 _rewriteResult :: EntryKey State TablatureDocument
@@ -141,7 +146,7 @@ tablatureTitleCache :: AppStateReadCacheUnit String
 tablatureTitleCache =
   { entry: entryKey
   , fetch: Fetch $ do
-      parseResult <- depend entryKey parseResultCache
+      parseResult <- subscribe entryKey parseResultCache
       pure $ getTitle parseResult
   } where entryKey = _tablatureTitle 
 _tablatureTitle :: EntryKey State String
@@ -173,21 +178,8 @@ ignoreDozenalizationCache :: AppStateReadCacheUnit Boolean
 ignoreDozenalizationCache =
   { entry: entryKey
   , fetch: Fetch $ do
-      tablatureTitle <- depend entryKey tablatureTitleCache
+      tablatureTitle <- subscribe entryKey tablatureTitleCache
       pure $ Just $ test (unsafeRegex "dozenal" ignoreCase) tablatureTitle
   } where entryKey = _ignoreDozenalization
 _ignoreDozenalization :: EntryKey State Boolean
 _ignoreDozenalization = EntryKey (barlow (key :: _ "!.ignoreDozenalization"))
-
--- TODO: move renderingoptions also to cache?
-getRenderingOptions :: forall m . MonadState State m => MonadEffect m => m RenderingOptions
-getRenderingOptions = do
-  tabNormalizationEnabled <- read tabNormalizationEnabledCache
-  tabDozenalizationEnabled <- read tabDozenalizationEnabledCache
-  chordDozenalizationEnabled <- read chordDozenalizationEnabledCache
-  ignoreDozenalization <- read ignoreDozenalizationCache
-  transposition <- read transpositionCache
-  pure $ { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
-  , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
-  , normalizeTabs: tabNormalizationEnabled
-  , transposition: transposition }

@@ -28,14 +28,13 @@ data Action
   | DecreaseTransposition
 
 
--- TODO: store scrollspeed somewhere
+-- TODO: store scrollspeed somewhere external?
 increaseAutoscrollSpeed :: forall m . MonadEffect m => MonadState State m => m Unit
 increaseAutoscrollSpeed = do
   currentSpeed <- viewState _autoscrollSpeed
   case succ currentSpeed of
     Nothing -> pure unit
     Just speed -> setState _autoscrollSpeed speed
-  setState _autoscroll true
 
 decreaseAutoscrollSpeed :: forall m . MonadEffect m => MonadState State m => m Unit
 decreaseAutoscrollSpeed = do
@@ -43,7 +42,6 @@ decreaseAutoscrollSpeed = do
   case pred currentSpeed of
     Nothing -> pure unit
     Just speed -> setState _autoscrollSpeed speed
-  setState _autoscroll true
 
 initialize :: forall m . MonadEffect m => MonadState State m => m Unit
 initialize = do

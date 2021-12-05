@@ -90,8 +90,8 @@ invalidate _key = do
 invalidateDependants :: forall m s a . MonadState s m => CacheEntry s a -> m Unit
 invalidateDependants entry = foreachM entry.dependants $ mapAnyEntryKey invalidate
 
-depend :: forall m s a b r . MonadState s m => EntryKey s a -> ReadableCacheUnit s b r m -> m b
-depend _dependant dependency = do
+subscribe :: forall m s a b r . MonadState s m => EntryKey s a -> ReadableCacheUnit s b r m -> m b
+subscribe _dependant dependency = do
   dependencyValue <- read dependency
   addDependant dependency _dependant
   pure dependencyValue

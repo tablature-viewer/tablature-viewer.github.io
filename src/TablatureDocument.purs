@@ -228,13 +228,6 @@ instance noteLetterPrint :: Print NoteLetter where
     where uppercase = print letter.primitive
 
 
-type RenderingOptions =
-  { dozenalizeTabs :: Boolean
-  , dozenalizeChords :: Boolean
-  , normalizeTabs :: Boolean
-  , transposition :: Transposition
-  }
-
 newtype Transposition = Transposition Int
 
 instance transpositionShow :: Show Transposition where

@@ -4,18 +4,30 @@ import AppActions
 import AppState
 import Prelude
 
+import AutoscrollSpeed (speedToIntervalMs, speedToIntervalPixelDelta)
 import Cache as Cache
+import Control.Monad.State (class MonadState)
 import Data.Array (fromFoldable)
-import Data.Lens.Barlow (key)
-import Data.Lens.Barlow.Helpers (view)
+import Data.Lens (view)
+import Data.Maybe (Maybe(..))
 import DebugUtils (debug)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Console as Console
+import Effect.Timer (IntervalId, clearInterval, setInterval)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
-import HalogenUtils (classString, fontAwesome, optionalText)
+import HalogenUtils (classString, fontAwesome, optionalText, scrollBy)
 import TablatureRenderer (renderTablatureDocument)
+import Web.DOM (Element)
+import Web.DOM.Element (scrollTop, setScrollTop)
+import Web.HTML as WH
+import Web.HTML.HTMLElement (focus, toElement)
+import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
 
+
+type HaloT m a = H.HalogenM State Action () Unit m a
 
 refTablatureEditor :: H.RefLabel
 refTablatureEditor = H.RefLabel "tablatureEditor"
@@ -36,7 +48,7 @@ render state = debug "rendering" $ HH.div_
   ]
   where
   renderTablature = fromFoldable $ renderTablatureDocument (Cache.peek _rewriteResult state)
-  renderBody = case view (key :: _ "!.mode") state of
+  renderBody = case view _mode state of
     ViewMode -> HH.div 
       [ classString "tablatureViewer tablature"
       , HP.ref refTablatureViewer
@@ -65,7 +77,7 @@ render state = debug "rendering" $ HH.div_
     ]
   renderLoadingIcon = HH.div 
     [ classString "loadingIcon lds-ellipsis" ]
-    if view (key :: _ "!.loading") state then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
+    if view _loading state then [ HH.div_ [], HH.div_ [], HH.div_ [], HH.div_ [] ] else []
   renderControls = HH.div 
     [ classString "controls" ]
     [ HH.div
@@ -139,7 +151,7 @@ render state = debug "rendering" $ HH.div_
             , HE.onClick \_ -> IncreaseAutoscrollSpeed
             ]
             [ fontAwesome "fa-forward" ]
-          , HH.span_ [ HH.text $ " Autoscroll speed " <> show (view (key :: _ "!.autoscrollSpeed") state) ]
+          , HH.span_ [ HH.text $ " Autoscroll speed " <> show (view _autoscrollSpeed state) ]
           ]
         ]
       ]
@@ -167,13 +179,84 @@ render state = debug "rendering" $ HH.div_
       ] toggleAutoscrollContent
     ]
     where
-    toggleButtonContent = case view (key :: _ "!.mode") state of
+    toggleButtonContent = case view _mode state of
       EditMode -> [ fontAwesome "fa-save", optionalText " Save" ]
       ViewMode -> [ fontAwesome "fa-edit", optionalText " Edit" ]
-    toggleButtonTitle = case view (key :: _ "!.mode") state of
+    toggleButtonTitle = case view _mode state of
       EditMode -> "Save tablature"
       ViewMode -> "Edit tablature"
     toggleAutoscrollContent =
-      if view (key :: _ "!.autoscroll") state
+      if view _autoscroll state
       then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
       else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
+
+
+getTablatureEditorElement :: forall m . MonadEffect m => HaloT m (Maybe WH.HTMLTextAreaElement)
+getTablatureEditorElement = H.getHTMLElementRef refTablatureEditor <#>
+  \maybeHtmlElement -> maybeHtmlElement >>= WH.HTMLTextAreaElement.fromHTMLElement
+
+getTablatureTextFromEditor :: forall m . MonadEffect m => HaloT m String
+getTablatureTextFromEditor = do
+  maybeTextArea <- getTablatureEditorElement
+  case maybeTextArea of
+    Nothing -> liftEffect $ Console.error "Could not find textareaTablature" *> pure ""
+    Just textArea -> liftEffect $ WH.HTMLTextAreaElement.value textArea 
+
+getTablatureContainerHtmlElement :: forall m . MonadEffect m => HaloT m (Maybe WH.HTMLElement)
+getTablatureContainerHtmlElement = do
+  mode <- viewState _mode
+  case mode of
+    EditMode -> H.getHTMLElementRef refTablatureEditor
+    ViewMode -> H.getHTMLElementRef refTablatureViewer
+
+getTablatureContainerElement :: forall m . MonadEffect m => HaloT m (Maybe Element)
+getTablatureContainerElement = getTablatureContainerHtmlElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
+
+saveScrollTop :: forall m . MonadEffect m => HaloT m Unit
+saveScrollTop = do
+  maybeTablatureContainerElem <- getTablatureContainerHtmlElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
+  case maybeTablatureContainerElem of
+    Nothing -> liftEffect $ Console.error "Could not find tablatureContainer"
+    Just tablatureContainerElem -> do
+      newScrollTop <- liftEffect $ scrollTop tablatureContainerElem
+      setState _scrollTop newScrollTop
+
+loadScrollTop :: forall m . MonadEffect m => HaloT m Unit
+loadScrollTop = do
+  maybeTablatureContainerElem <- getTablatureContainerHtmlElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
+  case maybeTablatureContainerElem of
+    Nothing -> liftEffect $ Console.error "Could not find tablatureContainer"
+    Just tablatureContainerElem -> do
+      scrollTop <- viewState _scrollTop
+      liftEffect $ setScrollTop scrollTop tablatureContainerElem
+
+
+focusTablatureContainer :: forall m . MonadEffect m => HaloT m Unit
+focusTablatureContainer = do
+  maybeTablatureContainerElem <- getTablatureContainerHtmlElement
+  case maybeTablatureContainerElem of
+    Nothing -> liftEffect $ Console.error "Could not find tablatureContainer"
+    Just tablatureContainerElem -> liftEffect $ focus tablatureContainerElem
+
+
+setTablatureTextInEditor :: forall m . MonadEffect m => String -> HaloT m Unit
+setTablatureTextInEditor text = do
+  maybeTextArea <- getTablatureEditorElement
+  case maybeTextArea of
+    Nothing -> liftEffect $ Console.error "Could not find textareaTablature" *> pure unit
+    Just textArea -> liftEffect $ WH.HTMLTextAreaElement.setValue text textArea 
+
+stopAutoscroll :: forall m . MonadEffect m => MonadState State m => m Unit
+stopAutoscroll = do
+  autoscrollTimer <- viewState _autoscrollTimer
+  case autoscrollTimer of
+    Nothing -> pure unit
+    Just intervalId -> do
+      liftEffect $ clearInterval intervalId
+      setState _autoscrollTimer Nothing
+
+startAutoscrollOnElement :: forall m . MonadEffect m => MonadState State m => Element -> m Unit
+startAutoscrollOnElement elem = do
+  autoscrollSpeed <- viewState _autoscrollSpeed
+  intervalId <- liftEffect $ setInterval (speedToIntervalMs autoscrollSpeed) $ scrollBy 0 (speedToIntervalPixelDelta autoscrollSpeed) elem
+  setState _autoscrollTimer (Just intervalId)
