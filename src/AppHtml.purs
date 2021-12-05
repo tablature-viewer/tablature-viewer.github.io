@@ -10,7 +10,6 @@ import Control.Monad.State (class MonadState)
 import Data.Array (fromFoldable)
 import Data.Lens (view)
 import Data.Maybe (Maybe(..))
-import DebugUtils (debug)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console as Console
 import Effect.Timer (clearInterval, setInterval)
@@ -36,7 +35,7 @@ refTablatureViewer :: H.RefLabel
 refTablatureViewer = H.RefLabel "tablatureViewer"
 
 render :: forall m. State -> H.ComponentHTML Action () m
-render state = debug "rendering" $ HH.div_
+render state = HH.div_
   [ HH.div 
     [ classString "app" ]
     [ renderHeader
