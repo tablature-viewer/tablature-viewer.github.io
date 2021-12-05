@@ -13,7 +13,7 @@ import Data.Maybe (Maybe(..))
 import DebugUtils (debug)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console as Console
-import Effect.Timer (IntervalId, clearInterval, setInterval)
+import Effect.Timer (clearInterval, setInterval)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
@@ -99,28 +99,42 @@ render state = debug "rendering" $ HH.div_
               else fontAwesome "fa-toggle-off"
           , HH.text " Normalize tabs"
           ]
-        , HH.button
-          [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
-          , classString "dropdown-item"
-          , HE.onClick \_ -> ToggleTabDozenalization
-          , classString $ if Cache.peek _ignoreDozenalization state then "disabled" else ""
-          ]
-          [ if Cache.peek _tabDozenalizationEnabled state && not Cache.peek _ignoreDozenalization state
+        , if Cache.peek _ignoreDozenalization state
+          then HH.button
+            [ HP.title "Tablature is already dozenal"
+            , classString "dropdown-item disabled"
+            ]
+            [ fontAwesome "fa-toggle-off"
+            , HH.text " Dozenalize tabs"
+            ]
+          else HH.button
+            [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
+            , classString "dropdown-item"
+            , HE.onClick \_ -> ToggleTabDozenalization
+            ]
+            [ if Cache.peek _tabDozenalizationEnabled state
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
-          , HH.text " Dozenalize tabs"
-          ]
-        , HH.button
-          [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
-          , HE.onClick \_ -> ToggleChordDozenalization
-          , classString "dropdown-item"
-          , classString $ if Cache.peek _ignoreDozenalization state then "disabled" else ""
-          ]
-          [ if Cache.peek _chordDozenalizationEnabled state && not Cache.peek _ignoreDozenalization state
+            , HH.text " Dozenalize tabs"
+            ]
+        , if Cache.peek _ignoreDozenalization state
+          then HH.button
+            [ HP.title "Tablature is already dozenal"
+            , classString "dropdown-item disabled"
+            ]
+            [ fontAwesome "fa-toggle-off"
+            , HH.text " Dozenalize chords"
+            ]
+          else HH.button
+            [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
+            , HE.onClick \_ -> ToggleChordDozenalization
+            , classString "dropdown-item"
+            ]
+            [ if Cache.peek _chordDozenalizationEnabled state
               then fontAwesome "fa-toggle-on"
               else fontAwesome "fa-toggle-off"
-          , HH.text " Dozenalize chords"
-          ]
+            , HH.text " Dozenalize chords"
+            ]
         , HH.div
           [ HP.title "Transpose the tablature"
           , classString "dropdown-item"
