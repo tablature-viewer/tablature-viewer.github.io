@@ -10,13 +10,13 @@ import Data.Maybe (Maybe, fromMaybe)
 import Utils (foreachM)
 
 -- Cached value that can be read and written in a State Monad and be "peeked" (with default) in a pure context
+-- Dependants can subscribe to dependencies during fetch.
+-- The subcription list is to be cleared after invalidation, such that a subsequent fetch won't result in duplicate subscriptions.
 
 -- TODO: this cache implementation is now completely decentralized
 -- However, we do want some form of central bookkeeping, because we want:
 --   - A way to fetch everything (such that peeks will always return something e.g. in the rendering)
 
--- Dependencies subscribe during fetch.
--- The subcription list is to be cleared after invalidation, such that a subsequent fetch won't result in duplicate subscriptions.
 data CacheValue a = Cached a | NoValue
 type CacheEntry s a =
   { value :: CacheValue a

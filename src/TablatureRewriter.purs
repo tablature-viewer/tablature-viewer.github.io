@@ -37,6 +37,7 @@ rewriteTablatureDocument renderingOptions =
   transposeChords renderingOptions >>>
   transposeTuning renderingOptions
 
+-- TODO: improve heuristic
 revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
 revertFalsePositiveChords = map rewriteLine
   where
@@ -50,7 +51,7 @@ revertFalsePositiveChords = map rewriteLine
     x -> x
 
 -- Map the Spaced version of some element and compensate the space suffix for the change in printed length
-liftMappingSpaced :: forall a. (Print a) => (a -> a) -> ((Spaced a) -> (Spaced a))
+liftMappingSpaced :: forall a. Print a => (a -> a) -> ((Spaced a) -> (Spaced a))
 liftMappingSpaced mapping (Spaced spaced) = Spaced { elem: newElem, spaceSuffix: newSuffix }
   where
   newElem = mapping spaced.elem

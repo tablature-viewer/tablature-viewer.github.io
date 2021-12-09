@@ -2,21 +2,18 @@ module TablatureDocument where
 
 import Prelude
 
-import Data.List (List, findIndex, (!!))
 import Data.Enum (class Enum, pred, succ)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Foldable (foldr)
 import Data.Generic.Rep (class Generic)
-import Data.Lens (Prism', prism')
-import Data.Lens.Common (simple)
-import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Lens.Record (prop)
+import Data.Lens (Prism', Lens', prism')
+import Data.Lens.Barlow (barlow, key)
+import Data.List (List, findIndex, (!!))
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.Show.Generic (genericShow)
 import Data.String (toLower)
 import Data.String.Utils (repeat)
-import Data.Symbol (SProxy(..))
 import Partial.Unsafe (unsafePartial)
 import Utils (class Print, class CyclicEnum, pred', succ', print)
 
@@ -28,6 +25,7 @@ data TablatureDocumentLine
   | TablatureLine (List TablatureLineElem)
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
+derive instance Generic TablatureDocumentLine _
 
 -- TOD: change to lens
 getTitle :: TablatureDocument -> Maybe String
@@ -51,25 +49,24 @@ getTitle tablatureDocument =
         Nothing -> Nothing
         Just elem -> Just elem
 
+_TitleLine :: Prism' TablatureDocumentLine (List TitleLineElem)
+_TitleLine = barlow (key :: _ "%TitleLine")
 
 _TablatureLine :: Prism' TablatureDocumentLine (List TablatureLineElem)
-_TablatureLine = prism' TablatureLine case _ of
-  TablatureLine l -> Just l
-  _ -> Nothing
+_TablatureLine = barlow (key :: _ "%TablatureLine")
 
 _ChordLine :: Prism' TablatureDocumentLine (List ChordLineElem)
-_ChordLine = prism' ChordLine case _ of
-  ChordLine l -> Just l
-  _ -> Nothing
+_ChordLine = barlow (key :: _ "%ChordLine")
 
 _TextLine :: Prism' TablatureDocumentLine (List TextLineElem)
-_TextLine = prism' TextLine case _ of
-  TextLine l -> Just l
-  _ -> Nothing
+_TextLine = barlow (key :: _ "%TextLine")
 
 data TitleLineElem
   = Title String
   | TitleOther String
+
+-- _Title :: Prism' (List TitleLineElem) String
+_Title = barlow (key :: _ "+%Title")
 
 data HeaderLineElem
   = Header String
@@ -117,9 +114,10 @@ _ChordLineChord = prism' ChordLineChord case _ of
 newtype Spaced a = Spaced { elem :: a, spaceSuffix :: Int }
 derive instance newtypeSpaced :: Newtype (Spaced a) _
 
--- _elem :: forall a r. Lens' { elem :: a | r } a
-_elem = simple _Newtype <<< prop (SProxy :: SProxy "elem")
-_spaceSuffix = simple _Newtype <<< prop (SProxy :: SProxy "spaceSuffix")
+_elem :: forall a . Lens' (Spaced a) a
+_elem = barlow (key :: _ "!.elem")
+_spaceSuffix :: forall a . Lens' (Spaced a) Int
+_spaceSuffix = barlow (key :: _ "!.spaceSuffix")
 
 instance printSpaced :: (Print a) => Print (Spaced a) where
   print (Spaced x) = print x.elem <> (fromMaybe "" $ repeat x.spaceSuffix " ")
@@ -132,13 +130,14 @@ newtype Chord = Chord
   }
 derive instance newtypeChord :: Newtype Chord _
 
--- _root :: forall n a r. Lens' (Newtype n { root :: a | r }) a
-_root = simple _Newtype <<< prop (SProxy :: SProxy "root")
-_type = simple _Newtype <<< prop (SProxy :: SProxy "type")
--- _bass :: forall a r. Lens' { bass :: a | r } a
-_bass = simple _Newtype <<< prop (SProxy :: SProxy "bass")
--- _mods :: forall a r. Lens' { mods :: a | r } a
-_mods = simple _Newtype <<< prop (SProxy :: SProxy "mods")
+_root :: Lens' Chord Note
+_root = barlow (key :: _ "!.root")
+_type :: Lens' Chord String
+_type = barlow (key :: _ "!.type")
+_bass :: Lens' Chord (Maybe Note)
+_bass = barlow (key :: _ "!.bass")
+_mods :: Lens' Chord (List ChordMod)
+_mods = barlow (key :: _ "!.mods")
 
 derive instance eqChord :: Eq Chord
 
@@ -168,10 +167,10 @@ newtype Note = Note
   }
 derive instance newtypeNote :: Newtype Note _
 
--- _letter :: forall a r. Lens' { letter :: a | r } a
-_letter = simple _Newtype <<< prop (SProxy :: SProxy "letter")
--- _mod :: forall a r. Lens' { mod :: a | r } a
-_mod = simple _Newtype <<< prop (SProxy :: SProxy "mod")
+_letter :: Lens' Note NoteLetter
+_letter = barlow (key :: _ "!.letter")
+_mod :: Lens' Note String
+_mod = barlow (key :: _ "!.mod")
 
 derive instance eqNote :: Eq Note
 
