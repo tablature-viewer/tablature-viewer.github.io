@@ -71,7 +71,7 @@ parseChord = do
   chordType <- parseChordType
   mods <- parseChordMods
   maybeBass <- optionMaybe (string "/" *> parseNote)
-  assertEndWordBoundary
+  assertEndChordBoundary
   spaceSuffix <- parseSpaces
   pure $ Spaced
     { elem: Chord
@@ -101,9 +101,9 @@ parseSpacedNote = do
   spaceSuffix <- parseSpaces
   pure $ Spaced { elem: note, spaceSuffix: length spaceSuffix }
 
--- A chord comment is a non chord string that is either a series of dots or a series of spaces or a parenthesized expression.
+-- A chord comment is a non chord string that is either a series of dots, a series of spaces, a xN expression or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
-parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+|[^\S\n\r]+)[^\S\n\r]*""" <#> \result -> ChordComment result
+parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+|[^\S\n\r]+|x\d+)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
 parseTextLine = safeManyTill (parseTextLineSpace <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
@@ -118,8 +118,8 @@ parseSpaces = regex """[ ]*"""
 parseWord :: Parser TextLineElem
 parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
 
-assertEndWordBoundary :: Parser Unit
-assertEndWordBoundary = eof <|> lookAhead (regex """\s""") *> pure unit
+assertEndChordBoundary :: Parser Unit
+assertEndChordBoundary = eof <|> lookAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
 parseChordLegend = lookAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
