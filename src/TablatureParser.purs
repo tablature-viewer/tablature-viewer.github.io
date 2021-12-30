@@ -103,7 +103,7 @@ parseSpacedNote = do
 
 -- A chord comment is a non chord string that is either a series of dots or a series of spaces or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
-parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+| +)[^\S\n\r]*""" <#> \result -> ChordComment result
+parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+|[^\S\n\r]+)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
 parseTextLine = safeManyTill (parseTextLineSpace <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
