@@ -55,7 +55,7 @@ parseTablatureLine = do
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
-  header <- regex """[^\S\n\r]*\[[^\n\r]+\]"""
+  header <- regex """[^\S\n\r]*\[[^\n\r]*\w{2}[^\n\r]*\]"""
   suffix <- regex """[^\r\n]*""" <* parseEndOfLine
   pure $ HeaderLine ((Header header):(HeaderSuffix suffix):Nil)
 

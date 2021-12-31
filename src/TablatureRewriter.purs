@@ -56,7 +56,7 @@ revertFalsePositiveChords = map rewriteLine
   rewriteElement  :: TextLineElem -> TextLineElem 
   rewriteElement = case _ of
     x@(TextLineChord spacedChord@(Spaced ({ elem: chord }))) ->
-      if unsafeTestRegex "^([Aa][Mm]?|[Dd]o)$" $ print chord
+      if unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord
       then Text $ print spacedChord
       else x
     x -> x
