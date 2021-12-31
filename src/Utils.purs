@@ -3,13 +3,17 @@ module Utils where
 import Prelude
 
 import Control.Monad.State (class MonadState)
-import Data.Either (Either(..))
+import Data.Either (Either(..), hush)
 import Data.Enum (class Enum)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList)
+import Data.Maybe (fromJust)
+import Data.String.Regex (regex, test)
+import Data.String.Regex.Flags (noFlags)
 import Data.Tuple (Tuple, fst, snd)
-import Text.Parsing.StringParser (Parser(..), unParser)
-import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
+import Partial.Unsafe (unsafePartial)
+import Text.Parsing.StringParser (Parser(..), try, unParser)
+import Text.Parsing.StringParser.Combinators (lookAhead, many, many1, many1Till, manyTill)
 
 -- Show is for debugging, Print has to give a string that is actually how it is supposed to be presented to the user.
 class Print a where
@@ -39,6 +43,9 @@ applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
 applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
   where result = f x
 
+unsafeTestRegex :: String -> String -> Boolean
+unsafeTestRegex patternString text = test (unsafePartial $ fromJust $ hush $ regex patternString noFlags) text
+
 -- NOTES
 -- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds
 -- many (many p) will get stuck for any p
@@ -66,3 +73,6 @@ safeManyTill p = manyTill (assertConsume p)
 
 safeMany1Till :: forall a end. Parser a -> Parser end -> Parser (NonEmptyList a)
 safeMany1Till p = many1Till (assertConsume p)
+
+safeLookAhead :: forall a. Parser a -> Parser a
+safeLookAhead = try <<< lookAhead

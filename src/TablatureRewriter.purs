@@ -2,9 +2,8 @@ module TablatureRewriter where
 
 import Prelude
 
-import TablatureDocument (Chord(..), ChordMod(..), Note(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
 import Data.Int (decimal, fromString, radix, toStringAs)
-import Data.Lens (_Just, over, traversed)
+import Data.Lens (_Just, allOf, anyOf, over, traversed)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
@@ -13,7 +12,8 @@ import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import Utils (applyUntilIdempotent, foreach, pred', succ', print, class Print)
+import TablatureDocument (Chord(..), ChordMod(..), Note(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
+import Utils (class Print, applyUntilIdempotent, foreach, pred', print, succ', unsafeTestRegex)
 
 type RewriteSettings =
   { dozenalizeTabs :: Boolean
@@ -40,17 +40,29 @@ rewriteTablatureDocument renderingOptions =
 revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
 revertFalsePositiveChords = map rewriteLine
   where
-  rewriteLine = over (_TextLine <<< traversed) fix
-  fix = case _ of
+  rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
+  rewriteLine line = 
+    if allOf (_TextLine <<< traversed) (not elemIsChordLegend) line && anyOf (_TextLine <<< traversed) elemIsNaturalLanguage line
+    then over (_TextLine <<< traversed) rewriteElement line
+    else line
+  elemIsNaturalLanguage :: TextLineElem -> Boolean
+  elemIsNaturalLanguage = case _ of
+    Text text -> unsafeTestRegex "^\\w*$" text
+    _ -> false
+  elemIsChordLegend :: TextLineElem -> Boolean
+  elemIsChordLegend = case _ of
+    ChordLegend _ -> true
+    _ -> false
+  rewriteElement  :: TextLineElem -> TextLineElem 
+  rewriteElement = case _ of
     x@(TextLineChord spacedChord@(Spaced ({ elem: chord }))) ->
-      if chordString == "a" || chordString == "am" || chordString == "A" || chordString == "Am"
+      if unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord
       then Text $ print spacedChord
       else x
-      where chordString = print chord
     x -> x
 
 -- Map the Spaced version of some element and compensate the space suffix for the change in printed length
-liftMappingSpaced :: forall a. (Print a) => (a -> a) -> ((Spaced a) -> (Spaced a))
+liftMappingSpaced :: forall a. Print a => (a -> a) -> ((Spaced a) -> (Spaced a))
 liftMappingSpaced mapping (Spaced spaced) = Spaced { elem: newElem, spaceSuffix: newSuffix }
   where
   newElem = mapping spaced.elem
