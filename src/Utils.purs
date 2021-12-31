@@ -12,8 +12,8 @@ import Data.String.Regex (regex, test)
 import Data.String.Regex.Flags (noFlags)
 import Data.Tuple (Tuple, fst, snd)
 import Partial.Unsafe (unsafePartial)
-import Text.Parsing.StringParser (Parser(..), unParser)
-import Text.Parsing.StringParser.Combinators (many, many1, many1Till, manyTill)
+import Text.Parsing.StringParser (Parser(..), try, unParser)
+import Text.Parsing.StringParser.Combinators (lookAhead, many, many1, many1Till, manyTill)
 
 -- Show is for debugging, Print has to give a string that is actually how it is supposed to be presented to the user.
 class Print a where
@@ -73,3 +73,6 @@ safeManyTill p = manyTill (assertConsume p)
 
 safeMany1Till :: forall a end. Parser a -> Parser end -> Parser (NonEmptyList a)
 safeMany1Till p = many1Till (assertConsume p)
+
+safeLookAhead :: forall a. Parser a -> Parser a
+safeLookAhead = try <<< lookAhead
