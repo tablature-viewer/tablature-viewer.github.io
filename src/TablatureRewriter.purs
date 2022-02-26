@@ -103,22 +103,25 @@ transposeNote transposition =
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
-canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>> applyUntilIdempotent rewrite3 >>> toPreferredMod
+canonicalizeNote = 
+  applyUntilIdempotent collapseRedundants >>> 
+  applyUntilIdempotent reduceSharps >>> 
+  applyUntilIdempotent reduceFlats >>> 
+  toPreferredMod
   where
-  rewrite1 note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
-  rewrite2 note = 
+  collapseRedundants note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
+  reduceSharps note = 
     if view _primitive note == B || view _primitive note == E then substitute "#" else substitute "##"
     where 
     substitute p = case stripPrefix (Pattern p) (view _mod note) of
       Nothing -> note
       Just newMod -> note # set _mod newMod # over _primitive succ'
-  rewrite3 note = 
+  reduceFlats note = 
     if view _primitive note == C || view _primitive note == F then substitute "b" else substitute "bb"
     where
-    substitute p = 
-      case stripPrefix (Pattern p) (view _mod note) of
-        Nothing -> note
-        Just newMod -> note # set _mod newMod # over _primitive pred'
+    substitute p = case stripPrefix (Pattern p) (view _mod note) of
+      Nothing -> note
+      Just newMod -> note # set _mod newMod # over _primitive pred'
   toPreferredMod note =
     case view _mod note of
       "#" -> case view _primitive note of
