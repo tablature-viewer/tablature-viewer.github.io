@@ -12,7 +12,7 @@ import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import TablatureDocument (Chord(..), ChordMod(..), Note(..), NoteLetterPrimitive(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _primitive, _root)
+import TablatureDocument (Chord(..), ChordMod(..), Note, NoteLetterPrimitive(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _primitive, _root)
 import Utils (class Print, applyUntilIdempotent, foreach, pred', print, succ', unsafeTestRegex)
 
 type RewriteSettings =
@@ -103,7 +103,7 @@ transposeNote transposition =
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
-canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>>  applyUntilIdempotent rewrite3
+canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>> applyUntilIdempotent rewrite3 >>> toPreferredMod
   where
   rewrite1 note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
   rewrite2 note = 
@@ -119,6 +119,19 @@ canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrit
       case stripPrefix (Pattern p) (view _mod note) of
         Nothing -> note
         Just newMod -> note # set _mod newMod # over _primitive pred'
+  toPreferredMod note =
+    case view _mod note of
+      "#" -> case view _primitive note of
+        A -> note # set _mod "b" # set _primitive B
+        D -> note # set _mod "b" # set _primitive E
+        G -> note # set _mod "b" # set _primitive A
+        _ -> note
+      "b" -> case view _primitive note of
+        D -> note # set _mod "#" # set _primitive C
+        G -> note # set _mod "#" # set _primitive F
+        _ -> note
+      _ -> note
+
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
