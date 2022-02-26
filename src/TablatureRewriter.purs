@@ -3,7 +3,7 @@ module TablatureRewriter where
 import Prelude
 
 import Data.Int (decimal, fromString, radix, toStringAs)
-import Data.Lens (_Just, allOf, anyOf, over, traversed)
+import Data.Lens (_Just, allOf, anyOf, over, set, traversed, view)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
@@ -12,7 +12,7 @@ import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import TablatureDocument (Chord(..), ChordMod(..), Note(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _root)
+import TablatureDocument (Chord(..), ChordMod(..), Note(..), NoteLetterPrimitive(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _primitive, _root)
 import Utils (class Print, applyUntilIdempotent, foreach, pred', print, succ', unsafeTestRegex)
 
 type RewriteSettings =
@@ -105,16 +105,20 @@ transposeNote transposition =
 canonicalizeNote :: Note -> Note
 canonicalizeNote = applyUntilIdempotent rewrite1 >>> applyUntilIdempotent rewrite2 >>>  applyUntilIdempotent rewrite3
   where
-  rewrite1 (Note note) = Note note { mod = rewriteMod note.mod }
-    where rewriteMod = replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement "")
-  rewrite2 (Note note@{ letter, mod }) = 
-    case stripPrefix (Pattern "##") mod of
-      Nothing -> Note note
-      Just newMod -> Note note { letter = succ' letter, mod = newMod }
-  rewrite3 (Note note@{ letter, mod }) = 
-    case stripPrefix (Pattern "bb") mod of
-      Nothing -> Note note
-      Just newMod -> Note note { letter = pred' letter, mod = newMod }
+  rewrite1 note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
+  rewrite2 note = 
+    if view _primitive note == B || view _primitive note == E then substitute "#" else substitute "##"
+    where 
+    substitute p = case stripPrefix (Pattern p) (view _mod note) of
+      Nothing -> note
+      Just newMod -> note # set _mod newMod # over _primitive succ'
+  rewrite3 note = 
+    if view _primitive note == C || view _primitive note == F then substitute "b" else substitute "bb"
+    where
+    substitute p = 
+      case stripPrefix (Pattern p) (view _mod note) of
+        Nothing -> note
+        Just newMod -> note # set _mod newMod # over _primitive pred'
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc

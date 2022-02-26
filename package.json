@@ -11,7 +11,8 @@
     "serve": "npm run build && parcel serve index.html",
     "release": "rm -rf docs && npm run build && parcel build ./index.html --dist-dir docs/ --public-url replacethiswithadot && sed -i 's/replacethiswithadot/./g' docs/index.html && git checkout -- docs/CNAME",
     "publish": "npm run release && git add . && git commit -m publish",
-    "clean": "rm -rf .cache .spago .psci_modules node_modules output .parcel-cache"
+    "clean": "rm -rf .cache .spago .psci_modules node_modules output .parcel-cache",
+    "repl": "spago repl"
   },
   "repository": {
     "type": "git",

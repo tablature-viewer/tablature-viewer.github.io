@@ -23,6 +23,12 @@ type CacheEntry s a =
   , default :: a
   , dependants :: List (AnyEntryKey s) }
 
+newtype AnyEntryKey s = AnyEntryKey (forall result. (forall a. EntryKey s a -> result) -> result)
+mkAnyEntryKey :: forall s a. EntryKey s a -> AnyEntryKey s
+mkAnyEntryKey x = AnyEntryKey \f -> f x
+mapAnyEntryKey :: forall result s. (forall a . EntryKey s a -> result) -> AnyEntryKey s -> result
+mapAnyEntryKey f (AnyEntryKey y) = y f
+
 buildCache :: forall s a . a -> CacheEntry s a
 buildCache default =
   { value: NoValue
@@ -40,12 +46,6 @@ viewEntry key = MonadState.get <#> viewEntry' key
 overEntry :: forall s a m . MonadState s m => EntryKey s a -> (CacheEntry s a -> CacheEntry s a) -> m Unit
 overEntry key f = MonadState.get <#> over (runEntryKey key) f >>= MonadState.put
 
-newtype AnyEntryKey s = AnyEntryKey (forall result. (forall a. EntryKey s a -> result) -> result)
-mkAnyEntryKey :: forall s a. EntryKey s a -> AnyEntryKey s
-mkAnyEntryKey x = AnyEntryKey \f -> f x
-mapAnyEntryKey :: forall result s. (forall a . EntryKey s a -> result) -> AnyEntryKey s -> result
-mapAnyEntryKey f (AnyEntryKey y) = y f
-
 -- We need to wrap these functions in a datatype, otherwise the cache unit and containing records cannot occur in instance declarations.
 data Fetch a m = Fetch (m (Maybe a))
 runFetch :: forall a m . Fetch a m -> m (Maybe a)
@@ -58,9 +58,9 @@ type CacheUnit s a r =
   { entry :: EntryKey s a
   | r }
 
-type ReadableCacheUnit s a r m = CacheUnit s a ( fetch :: Fetch a m | r )
-type WritableCacheUnit s a r m = CacheUnit s a ( flush :: Flush a m | r )
 type ReadWriteCacheUnit s a r m = CacheUnit s a ( flush :: Flush a m, fetch :: Fetch a m | r )
+type WritableCacheUnit s a r m = CacheUnit s a ( flush :: Flush a m | r )
+type ReadableCacheUnit s a r m = CacheUnit s a ( fetch :: Fetch a m | r )
 
 
 -- Peek without default

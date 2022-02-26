@@ -152,5 +152,4 @@ tryRunParser parser inputString =
         <> "\nError: " <> show rec.error
         <> "\nIn input string: " <> inputString
         <> "\nWith unparsed suffix: " <> (show $ drop rec.pos inputString)
-    Right rec -> do
-      pure rec.result
+    Right rec -> pure rec.result

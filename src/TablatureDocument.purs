@@ -15,7 +15,7 @@ import Data.Show.Generic (genericShow)
 import Data.String (toLower)
 import Data.String.Utils (repeat)
 import Partial.Unsafe (unsafePartial)
-import Utils (class Print, class CyclicEnum, pred', succ', print)
+import Utils (class CyclicEnum, class Print, print)
 
 type TablatureDocument = List TablatureDocumentLine
 
@@ -112,14 +112,14 @@ _ChordLineChord = prism' ChordLineChord case _ of
 -- The number of spaces after an expression.
 -- E.g. this is part of a chord so that it can be expanded and shrunk easily when rewriting chords without losing the original alignment
 newtype Spaced a = Spaced { elem :: a, spaceSuffix :: Int }
-derive instance newtypeSpaced :: Newtype (Spaced a) _
+derive instance Newtype (Spaced a) _
 
 _elem :: forall a . Lens' (Spaced a) a
 _elem = barlow (key :: _ "!.elem")
 _spaceSuffix :: forall a . Lens' (Spaced a) Int
 _spaceSuffix = barlow (key :: _ "!.spaceSuffix")
 
-instance printSpaced :: (Print a) => Print (Spaced a) where
+instance (Print a) => Print (Spaced a) where
   print (Spaced x) = print x.elem <> (fromMaybe "" $ repeat x.spaceSuffix " ")
 
 newtype Chord = Chord
@@ -128,7 +128,7 @@ newtype Chord = Chord
   , mods :: List ChordMod
   , bass :: Maybe Note
   }
-derive instance newtypeChord :: Newtype Chord _
+derive instance Newtype Chord _
 
 _root :: Lens' Chord Note
 _root = barlow (key :: _ "!.root")
@@ -139,16 +139,16 @@ _bass = barlow (key :: _ "!.bass")
 _mods :: Lens' Chord (List ChordMod)
 _mods = barlow (key :: _ "!.mods")
 
-derive instance eqChord :: Eq Chord
+derive instance Eq Chord
 
-instance printChord :: Print Chord where
+instance Print Chord where
   print (Chord chord) =
     (chord.root # print)
     <> chord.type
     <> (foldr (<>) "" (map (\(ChordMod mod) -> mod.pre <> mod.interval <> mod.post) chord.mods))
     <> (fromMaybe "" $ chord.bass <#> print)
 
-instance printNote :: Print Note where
+instance Print Note where
   print (Note note) = print note.letter <> note.mod
 
 newtype ChordMod = ChordMod
@@ -156,45 +156,51 @@ newtype ChordMod = ChordMod
   , interval :: String
   , post :: String
   }
-instance printChordMod :: Print ChordMod where
+instance Print ChordMod where
   print (ChordMod mod) = mod.pre <> mod.interval <> mod.post
 
-derive instance eqChordMod :: Eq ChordMod
+derive instance Eq ChordMod
 
 newtype Note = Note
   { letter :: NoteLetter
   , mod :: String
   }
-derive instance newtypeNote :: Newtype Note _
+derive instance Newtype Note _
 
 _letter :: Lens' Note NoteLetter
 _letter = barlow (key :: _ "!.letter")
 _mod :: Lens' Note String
 _mod = barlow (key :: _ "!.mod")
 
-derive instance eqNote :: Eq Note
+derive instance Eq Note
 
 newtype NoteLetter = NoteLetter
   { primitive :: NoteLetterPrimitive
   , lowercase :: Boolean
   }
+derive instance Newtype NoteLetter _
+
+_primitive :: Lens' Note NoteLetterPrimitive
+_primitive = barlow (key :: _ "!.letter!.primitive")
+_lowercase :: Lens' Note Boolean
+_lowercase = barlow (key :: _ "!.letter!.lowercase")
 
 data NoteLetterPrimitive = A | B | C | D | E | F | G
 
-derive instance eqNoteLetterPrimitive :: Eq NoteLetterPrimitive
-derive instance ordNoteLetterPrimitive :: Ord NoteLetterPrimitive
-derive instance genericNoteLetterPrimitive :: Generic NoteLetterPrimitive _
-instance enumNoteLetterPrimitive :: Enum NoteLetterPrimitive where
+derive instance Eq NoteLetterPrimitive
+derive instance Ord NoteLetterPrimitive
+derive instance Generic NoteLetterPrimitive _
+instance Enum NoteLetterPrimitive where
   succ G = Just A
   succ x = genericSucc x
   pred A = Just G
   pred x = genericPred x
 
-instance cyclicEnumNoteLetterPrimitive :: CyclicEnum NoteLetterPrimitive where
+instance CyclicEnum NoteLetterPrimitive where
   succ' x = unsafePartial $ fromJust $ succ x
   pred' x = unsafePartial $ fromJust $ pred x
 
-instance noteLetterPrimitivePrint :: Print NoteLetterPrimitive where
+instance Print NoteLetterPrimitive where
   print = genericShow
 
 fromString :: String -> Maybe NoteLetterPrimitive
@@ -207,19 +213,11 @@ fromString "F" = Just F
 fromString "G" = Just G
 fromString _ = Nothing
 
-instance cyclicEnumNoteLetter :: CyclicEnum NoteLetter where
-  succ' (NoteLetter n) = NoteLetter n { primitive = succ' n.primitive }
-  pred' (NoteLetter n) = NoteLetter n { primitive = pred' n.primitive }
-
-instance enumNoteLetter :: Enum NoteLetter where
-  succ n = Just $ succ' n
-  pred n = Just $ pred' n
-
-derive instance eqNoteLetter :: Eq NoteLetter
-instance ordNoteLetter :: Ord NoteLetter where
+derive instance Eq NoteLetter
+instance Ord NoteLetter where
   compare (NoteLetter n) (NoteLetter m) = compare n.primitive m.primitive
 
-instance noteLetterPrint :: Print NoteLetter where
+instance Print NoteLetter where
   print (NoteLetter letter) =
     if letter.lowercase
     then toLower uppercase
@@ -229,13 +227,13 @@ instance noteLetterPrint :: Print NoteLetter where
 
 newtype Transposition = Transposition Int
 
-instance transpositionShow :: Show Transposition where
+instance Show Transposition where
   show (Transposition i) = if i >= 0 then "+" <> show i else show i
 
-instance transpositionEq :: Eq Transposition where
+instance Eq Transposition where
   eq (Transposition i) (Transposition j) = eq i j
 
-instance transpositionOrd :: Ord Transposition where
+instance Ord Transposition where
   compare (Transposition i) (Transposition j) = compare i j
 
 identityTransposition :: Transposition
@@ -245,14 +243,14 @@ succTransposition (Transposition i) = Transposition $ i+1
 predTransposition :: Transposition -> Transposition
 predTransposition (Transposition i) = Transposition $ i-1
 
-instance showLine :: Show TablatureDocumentLine where
+instance Show TablatureDocumentLine where
   show (TitleLine elems) = "Title: " <> show elems
   show (TablatureLine elems) = "Tab: " <> show elems
   show (TextLine elems) = "Text: " <> show elems
   show (ChordLine elems) = "Chords: " <> show elems
   show (HeaderLine elems) = "Header: " <> show elems
  
-instance showTablatureLineElem :: Show TablatureLineElem where
+instance Show TablatureLineElem where
   show (Prefix string) = string
   show (Tuning spacedNote) = print spacedNote
   show (Timeline string) = string
@@ -260,23 +258,23 @@ instance showTablatureLineElem :: Show TablatureLineElem where
   show (Special string) = string
   show (Suffix string) = string
  
-instance showTextLineElem :: Show TextLineElem where
+instance Show TextLineElem where
   show (Text string) = string
   show (Spaces string) = string
   show (TextLineChord chord) = print chord
   show (ChordLegend _) = "legend"
  
-instance showChordLineElem :: Show ChordLineElem where
+instance Show ChordLineElem where
   show (ChordLineChord chord) = print chord
   show (ChordComment string) = string
  
-instance showChordMod :: Show ChordMod where
+instance Show ChordMod where
   show (ChordMod x) = x.pre <> x.interval <> x.post
  
-instance showHeaderLineElem :: Show HeaderLineElem where
+instance Show HeaderLineElem where
   show (Header string) = string
   show (HeaderSuffix string) = string
  
-instance showTitleLineElem :: Show TitleLineElem where
+instance Show TitleLineElem where
   show (Title string) = string
   show (TitleOther string) = string
