@@ -23,13 +23,14 @@ renderTablatureDocument doc = map renderLine doc
   renderLine (TextLine line) = renderLine' line renderTextLineElem
   renderLine (ChordLine line) = renderLine' line renderChordLineElem
   renderLine (HeaderLine line) = renderLine' line renderHeaderLineElem
-  renderLine (TablatureLine line) = renderLine' line renderTablatureLineElem 
+  renderLine (TablatureLine line) = renderLine' line renderTablatureLineElem
 
   renderLine' :: forall a. List a -> (a -> HH.HTML w i) -> HH.HTML w i
   renderLine' line lineRenderer = HH.span_ $ fromFoldable $ (lineRenderer <$> line) <> renderLineEnding : Nil
 
   renderTitleLineElem (Title string) = renderWithClass string "tabTitle"
   renderTitleLineElem (TitleOther string) = renderWithClass string "tabText"
+
   renderTextLineElem :: TextLineElem -> HH.HTML w i
   renderTextLineElem (Text string) = renderWithClass string "tabText"
   renderTextLineElem (Spaces string) = renderWithClass string "tabText"
@@ -45,17 +46,20 @@ renderTablatureDocument doc = map renderLine doc
   renderHeaderLineElem (HeaderSuffix string) = renderWithClass string "tabText"
   renderChordLineElem (ChordComment string) = renderWithClass string "tabSuffix"
   renderChordLineElem (ChordLineChord chord) = renderChord chord
+
   renderChordLegendElem :: ChordLegendElem -> HH.HTML w i
   renderChordLegendElem (ChordFret string) = renderWithClass string "tabFret"
   renderChordLegendElem (ChordSpecial string) = renderWithClass string "tabSpecial"
+
   renderTuning :: (Spaced Note) -> HH.HTML w i
   renderTuning spacedNote =
     HH.span [ classString "tabChord" ]
-        [ HH.text $ print $ view (_elem <<< _letter) spacedNote
-        , HH.sub_ [ HH.text $ view (_elem <<< _mod ) spacedNote ]
-        , HH.text $ fromMaybe "" $ repeat (view _spaceSuffix spacedNote) " "
-        , HH.sub_ [ createFontSizeCompensation $ view (_elem <<< _mod) spacedNote ]
-        ]
+      [ HH.text $ print $ view (_elem <<< _letter) spacedNote
+      , HH.sub_ [ HH.text $ view (_elem <<< _mod) spacedNote ]
+      , HH.text $ fromMaybe "" $ repeat (view _spaceSuffix spacedNote) " "
+      , HH.sub_ [ createFontSizeCompensation $ view (_elem <<< _mod) spacedNote ]
+      ]
+
   renderChord :: (Spaced Chord) -> HH.HTML w i
   renderChord chord =
     HH.span [ classString "tabChord" ] $

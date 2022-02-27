@@ -18,33 +18,32 @@ saveTablatureToUrl :: String -> Effect Unit
 saveTablatureToUrl tablatureText = do
   case compressToEncodedURIComponent tablatureText of
     Just compressed -> H.liftEffect $ setFragmentString compressed
-    Nothing -> H.liftEffect $ Console.error("Could not save tablature to URL")
+    Nothing -> H.liftEffect $ Console.error ("Could not save tablature to URL")
 
 getTablatureTextFromUrl :: Effect String
 getTablatureTextFromUrl = do
   fragment <- H.liftEffect getFragmentString
-  if fragment == "" || fragment == "#"
-  then pure ""
+  if fragment == "" || fragment == "#" then pure ""
   else case decompressFromEncodedURIComponent fragment of
     Just decompressed -> pure decompressed
-    Nothing -> Console.error("Could not load tablature from URL") *> pure ""
+    Nothing -> Console.error ("Could not load tablature from URL") *> pure ""
 
 redirectToUrlInFragment :: Effect Unit
 redirectToUrlInFragment = do
   compressedUrl <- getFragmentString
   case decompressFromEncodedURIComponent compressedUrl of
     Just url -> setLocationString url
-    _ -> Console.error("Could not load decompressed shortlink URL") *> pure unit
+    _ -> Console.error ("Could not load decompressed shortlink URL") *> pure unit
 
 getTranspositionFromUrl :: Effect (Maybe Transposition)
-getTranspositionFromUrl  = do
+getTranspositionFromUrl = do
   maybeTransposition <- getQueryParam "t"
   case maybeTransposition of
     Nothing -> pure Nothing
     Just transposition ->
       case fromString transposition of
         Just n -> pure $ Just $ Transposition n
-        _ -> Console.error("Could not load decompressed shortlink URL") *> pure Nothing
+        _ -> Console.error ("Could not load decompressed shortlink URL") *> pure Nothing
 
 setAppQueryString :: QueryParams -> Effect Unit
 setAppQueryString state =

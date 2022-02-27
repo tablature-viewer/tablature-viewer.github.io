@@ -42,13 +42,13 @@ component =
   H.mkComponent
     { initialState
     , render
-    , eval: H.mkEval H.defaultEval 
-      { handleAction = handleAction 
-      , initialize = Just Initialize
-      }
+    , eval: H.mkEval H.defaultEval
+        { handleAction = handleAction
+        , initialize = Just Initialize
+        }
     }
 
-handleAction :: forall m . MonadAff m => Action -> HaloT m Unit
+handleAction :: forall m. MonadAff m => Action -> HaloT m Unit
 handleAction action = do
   prepareHtml action
   liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
@@ -58,7 +58,7 @@ handleAction action = do
   updateFocus action
   liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
 
-prepareHtml :: forall m . MonadAff m => Action -> HaloT m Unit
+prepareHtml :: forall m. MonadAff m => Action -> HaloT m Unit
 prepareHtml action = do
   setState _loading true
   case action of
@@ -74,20 +74,20 @@ prepareHtml action = do
 
 -- We don't do the work directly on the halogen monad, to avoid unnecessary rendering triggers.
 -- We wrap the halogen monad inside another State monad and do the work on the outer state monad.
-doAction :: forall m . MonadAff m => Action -> StateT State (H.HalogenM State Action () Unit m) Unit
+doAction :: forall m. MonadAff m => Action -> StateT State (H.HalogenM State Action () Unit m) Unit
 doAction action = do
   case action of
     Initialize -> initialize
     ToggleEditMode -> pure unit -- Done in prepareHtml
-    ToggleTabNormalization -> toggleTabNormalization 
-    ToggleTabDozenalization -> toggleTabDozenalization 
-    ToggleChordDozenalization -> toggleChordDozenalization 
+    ToggleTabNormalization -> toggleTabNormalization
+    ToggleTabDozenalization -> toggleTabDozenalization
+    ToggleChordDozenalization -> toggleChordDozenalization
     CreateShortUrl -> createAndCopyShortUrl
     ToggleAutoscroll -> pure unit -- Done in updateAutoscroll
     IncreaseAutoscrollSpeed -> increaseAutoscrollSpeed
     DecreaseAutoscrollSpeed -> decreaseAutoscrollSpeed
-    IncreaseTransposition -> increaseTransposition 
-    DecreaseTransposition -> decreaseTransposition 
+    IncreaseTransposition -> increaseTransposition
+    DecreaseTransposition -> decreaseTransposition
 
   updateAutoscroll action
   updateDocumentTitle
@@ -96,20 +96,20 @@ doAction action = do
   _ <- Cache.read rewriteResultCache
   setState _loading false
 
-updateDocumentTitle :: forall m . MonadAff m => MonadState State m => m Unit
+updateDocumentTitle :: forall m. MonadAff m => MonadState State m => m Unit
 updateDocumentTitle = do
   tablatureTitle <- Cache.read tablatureTitleCache
   liftEffect $ setDocumentTitle tablatureTitle
 
-updateFocus :: forall m . MonadAff m => Action -> HaloT m Unit
-updateFocus action = 
+updateFocus :: forall m. MonadAff m => Action -> HaloT m Unit
+updateFocus action =
   case action of
     Initialize -> focusTablatureContainer
     ToggleEditMode -> loadScrollTop
     CreateShortUrl -> focusTablatureContainer
     _ -> pure unit
 
-toggleEditMode :: forall m . MonadEffect m => HaloT m Unit
+toggleEditMode :: forall m. MonadEffect m => HaloT m Unit
 toggleEditMode = do
   mode <- viewState _mode
   case mode of
@@ -117,30 +117,30 @@ toggleEditMode = do
       setState _mode EditMode
       tablatureText <- Cache.read tablatureTextCache
       setTablatureTextInEditor tablatureText
-      -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
+    -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
     EditMode -> do
       tablatureText <- getTablatureTextFromEditor
       Cache.write tablatureTextCache tablatureText
       setState _mode ViewMode
       focusTablatureContainer
 
-updateAutoscroll :: forall m . MonadAff m => Action -> StateT State (H.HalogenM State Action () Unit m) Unit
+updateAutoscroll :: forall m. MonadAff m => Action -> StateT State (H.HalogenM State Action () Unit m) Unit
 updateAutoscroll action = do
   currentAutoscroll <- viewState _autoscroll
   setState _autoscroll $ case action of
-    DecreaseAutoscrollSpeed ->  true
+    DecreaseAutoscrollSpeed -> true
     IncreaseAutoscrollSpeed -> true
     ToggleAutoscroll -> not currentAutoscroll
     _ -> false
   updateAutoscrollTimer
 
-updateAutoscrollTimer :: forall m . MonadAff m => StateT State (H.HalogenM State Action () Unit m) Unit
+updateAutoscrollTimer :: forall m. MonadAff m => StateT State (H.HalogenM State Action () Unit m) Unit
 updateAutoscrollTimer = do
   stopAutoscroll -- Always stop and restart, so the speed is up-to-date
   autoscroll <- viewState _autoscroll
   if autoscroll then startAutoscroll else pure unit
 
-startAutoscroll :: forall m . MonadAff m => StateT State (H.HalogenM State Action () Unit m) Unit
+startAutoscroll :: forall m. MonadAff m => StateT State (H.HalogenM State Action () Unit m) Unit
 startAutoscroll = do
   maybeTablatureContainerElem <- lift getTablatureContainerElement
   case maybeTablatureContainerElem of
@@ -149,6 +149,6 @@ startAutoscroll = do
 
 setDocumentTitle :: String -> Effect Unit
 setDocumentTitle title = do
-    window <- window
-    document <- document window
-    setTitle title document
+  window <- window
+  document <- document window
+  setTitle title document

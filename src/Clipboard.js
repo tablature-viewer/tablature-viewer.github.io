@@ -1,7 +1,7 @@
 'use strict';
 
 exports.copyToClipboard = function (text) {
-  return function() {
+  return function () {
     window.prompt("Copy the following link:", text);
   }
 }

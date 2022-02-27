@@ -16,8 +16,8 @@ import LZString (compressToEncodedURIComponent)
 import LocationString (getLocationBaseString)
 import Simple.JSON (readJSON, writeJSON)
 
-type RequestBodyRecord = {url :: String}
-type ResponseRecord = {shortlink :: {shortlink :: String}}
+type RequestBodyRecord = { url :: String }
+type ResponseRecord = { shortlink :: { shortlink :: String } }
 
 createShortUrl :: String -> Aff (Maybe String)
 createShortUrl url = do
@@ -41,10 +41,11 @@ createShortUrl url = do
     { url = apiEndpoint
     , method = Left Method.POST
     , headers =
-      [ RequestHeader "content-type" "application/json"
-      , RequestHeader "x-rapidapi-key" "5dffbe9520msh2ca951c0dbb64cdp1aebe4jsn61b4bad6925a"
-      , RequestHeader "x-rapidapi-host" "shortlink1.p.rapidapi.com"
-      , RequestHeader "useQueryString" "true"
-      ]
+        [ RequestHeader "content-type" "application/json"
+        , RequestHeader "x-rapidapi-key" "5dffbe9520msh2ca951c0dbb64cdp1aebe4jsn61b4bad6925a"
+        , RequestHeader "x-rapidapi-host" "shortlink1.p.rapidapi.com"
+        , RequestHeader "useQueryString" "true"
+        ]
     , content = Just $ RequestBody.string $ writeJSON reqBody
-    , responseFormat = ResponseFormat.string}
+    , responseFormat = ResponseFormat.string
+    }

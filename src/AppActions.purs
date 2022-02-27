@@ -15,11 +15,11 @@ import TablatureDocument (predTransposition, succTransposition)
 import UrlShortener (createShortUrl)
 
 data Action
-  = Initialize 
-  | ToggleEditMode 
-  | ToggleTabNormalization 
-  | ToggleTabDozenalization 
-  | ToggleChordDozenalization 
+  = Initialize
+  | ToggleEditMode
+  | ToggleTabNormalization
+  | ToggleTabDozenalization
+  | ToggleChordDozenalization
   | CreateShortUrl
   | ToggleAutoscroll
   | IncreaseAutoscrollSpeed
@@ -27,53 +27,49 @@ data Action
   | IncreaseTransposition
   | DecreaseTransposition
 
-
 -- TODO: store scrollspeed somewhere external?
-increaseAutoscrollSpeed :: forall m . MonadEffect m => MonadState State m => m Unit
+increaseAutoscrollSpeed :: forall m. MonadEffect m => MonadState State m => m Unit
 increaseAutoscrollSpeed = do
   currentSpeed <- viewState _autoscrollSpeed
   case succ currentSpeed of
     Nothing -> pure unit
     Just speed -> setState _autoscrollSpeed speed
 
-decreaseAutoscrollSpeed :: forall m . MonadEffect m => MonadState State m => m Unit
+decreaseAutoscrollSpeed :: forall m. MonadEffect m => MonadState State m => m Unit
 decreaseAutoscrollSpeed = do
   currentSpeed <- viewState _autoscrollSpeed
   case pred currentSpeed of
     Nothing -> pure unit
     Just speed -> setState _autoscrollSpeed speed
 
-initialize :: forall m . MonadEffect m => MonadState State m => m Unit
+initialize :: forall m. MonadEffect m => MonadState State m => m Unit
 initialize = do
   tablatureText <- Cache.read tablatureTextCache
-  if tablatureText == ""
-  then setState _mode EditMode
+  if tablatureText == "" then setState _mode EditMode
   else setState _mode ViewMode
 
-toggleTabNormalization :: forall m . MonadEffect m => MonadState State m => m Unit
+toggleTabNormalization :: forall m. MonadEffect m => MonadState State m => m Unit
 toggleTabNormalization = do
   tabNormalizationEnabled <- Cache.read tabNormalizationEnabledCache
   Cache.write tabNormalizationEnabledCache (not tabNormalizationEnabled)
 
-toggleTabDozenalization :: forall m . MonadEffect m => MonadState State m => m Unit
+toggleTabDozenalization :: forall m. MonadEffect m => MonadState State m => m Unit
 toggleTabDozenalization = do
   ignoreDozenalization <- Cache.read ignoreDozenalizationCache
-  if ignoreDozenalization
-  then pure unit
+  if ignoreDozenalization then pure unit
   else do
     tabDozenalizationEnabled <- Cache.read tabDozenalizationEnabledCache
     Cache.write tabDozenalizationEnabledCache (not tabDozenalizationEnabled)
 
-toggleChordDozenalization :: forall m . MonadEffect m => MonadState State m => m Unit
+toggleChordDozenalization :: forall m. MonadEffect m => MonadState State m => m Unit
 toggleChordDozenalization = do
   ignoreDozenalization <- Cache.read ignoreDozenalizationCache
-  if ignoreDozenalization
-  then pure unit
+  if ignoreDozenalization then pure unit
   else do
     chordDozenalizationEnabled <- Cache.read chordDozenalizationEnabledCache
     Cache.write chordDozenalizationEnabledCache (not chordDozenalizationEnabled)
 
-createAndCopyShortUrl :: forall m . MonadAff m => MonadState State m => m Unit
+createAndCopyShortUrl :: forall m. MonadAff m => MonadState State m => m Unit
 createAndCopyShortUrl = do
   longUrl <- liftEffect getLocationString
   maybeShortUrl <- liftAff $ createShortUrl longUrl
@@ -81,12 +77,12 @@ createAndCopyShortUrl = do
     Just shortUrl -> copyToClipboard shortUrl
     Nothing -> pure unit
 
-increaseTransposition :: forall m . MonadEffect m => MonadState State m => m Unit
+increaseTransposition :: forall m. MonadEffect m => MonadState State m => m Unit
 increaseTransposition = do
   transposition <- Cache.read transpositionCache
   Cache.write transpositionCache $ succTransposition transposition
 
-decreaseTransposition :: forall m . MonadEffect m => MonadState State m => m Unit
+decreaseTransposition :: forall m. MonadEffect m => MonadState State m => m Unit
 decreaseTransposition = do
   transposition <- Cache.read transpositionCache
   Cache.write transpositionCache $ predTransposition transposition

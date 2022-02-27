@@ -23,7 +23,7 @@ import Utils (safeMany, safeManyTill, safeLookAhead)
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
   commentLinesBeforeTitle <- option Nil $ (try $ safeManyTill parseTextLine (safeLookAhead (parseTitleLine <|> parseTablatureLine)))
-  title <- option Nil $ (try parseTitleLine) <#> \result -> result:Nil
+  title <- option Nil $ (try parseTitleLine) <#> \result -> result : Nil
   body <- safeMany ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
 
@@ -41,26 +41,27 @@ parseTablatureLine = do
   tabLine <- safeLookAhead (regex """\|\|?""") *> safeMany
     (
       -- We allow normal dashes - and em dashes —
-      (regex """(([\-—](?!\|)|([\-—]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> \result -> Timeline result) <|>
-      (regex ("""[\d↊↋]+""") <#> \result -> Fret result) <|>
-      (regex ("""[^\s|\-—\d↊↋]+""") <#> \result -> Special result)
+      (regex """(([\-—](?!\|)|([\-—]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> \result -> Timeline result)
+        <|> (regex ("""[\d↊↋]+""") <#> \result -> Fret result)
+        <|>
+          (regex ("""[^\s|\-—\d↊↋]+""") <#> \result -> Special result)
     )
   tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
   suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
-  pure $ TablatureLine (prefix:Nil <> (getTuning maybeTuning) <> tabLine <> tabLineClose:Nil <> suffix:Nil)
+  pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> tabLine <> tabLineClose : Nil <> suffix : Nil)
   where
   getTuning = case _ of
     Nothing -> Nil
-    Just t -> t:Nil
+    Just t -> t : Nil
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
   header <- regex """[^\S\n\r]*\[[^\n\r]*\w{2}[^\n\r]*\]"""
   suffix <- regex """[^\r\n]*""" <* parseEndOfLine
-  pure $ HeaderLine ((Header header):(HeaderSuffix suffix):Nil)
+  pure $ HeaderLine ((Header header) : (HeaderSuffix suffix) : Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = (safeMany parseChordComment <> (parseChordLineChord <#> \c -> c:Nil) <> safeMany (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
+parseChordLine = (safeMany parseChordComment <> (parseChordLineChord <#> \c -> c : Nil) <> safeMany (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
 
 parseChordLineChord :: Parser ChordLineElem
 parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
@@ -75,11 +76,11 @@ parseChord = do
   spaceSuffix <- parseSpaces
   pure $ Spaced
     { elem: Chord
-      { root: root
-      , type: chordType
-      , mods: (ChordMod { pre: "", interval:mods, post: "" }):Nil
-      , bass: maybeBass
-      }
+        { root: root
+        , type: chordType
+        , mods: (ChordMod { pre: "", interval: mods, post: "" }) : Nil
+        , bass: maybeBass
+        }
     , spaceSuffix: length spaceSuffix
     }
   where
@@ -106,7 +107,7 @@ parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+|[^\S\n\r]+|x\d+)[^\S\n\r]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = safeManyTill (parseTextLineSpace <|> try (parseChord <#> \chord  -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
+parseTextLine = safeManyTill (parseTextLineSpace <|> try (parseChord <#> \chord -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
   <#> \result -> TextLine result
 
 parseTextLineSpace :: Parser TextLineElem
@@ -122,12 +123,13 @@ assertEndChordBoundary :: Parser Unit
 assertEndChordBoundary = eof <|> safeLookAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
-parseChordLegend = safeLookAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
-  *> safeMany ((regex """[1234567890↊↋]""" <#> ChordFret) <|> (regex """[xX-]""" <#> ChordSpecial)) <#> ChordLegend 
+parseChordLegend =
+  safeLookAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
+    *> safeMany ((regex """[1234567890↊↋]""" <#> ChordFret) <|> (regex """[xX-]""" <#> ChordSpecial)) <#> ChordLegend
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine
-parseAnyLine = regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result):Nil)
+parseAnyLine = regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result) : Nil)
 
 -- | We are as flexible as possible when it comes to line endings.
 -- | Any of the following forms are considered valid: \n \r \n\r eof
@@ -144,12 +146,15 @@ parseTablature :: String -> TablatureDocument
 parseTablature text = tryParseTablature text # fromMaybe Nil
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
-tryRunParser parser inputString = 
+tryRunParser parser inputString =
   case unParser (parser <* eof) { str: inputString, pos: 0 } of
     Left rec -> Console.error msg # unsafePerformEffect # \_ -> Nothing
       where
       msg = "Position: " <> show rec.pos
-        <> "\nError: " <> show rec.error
-        <> "\nIn input string: " <> inputString
-        <> "\nWith unparsed suffix: " <> (show $ drop rec.pos inputString)
+        <> "\nError: "
+        <> show rec.error
+        <> "\nIn input string: "
+        <> inputString
+        <> "\nWith unparsed suffix: "
+        <> (show $ drop rec.pos inputString)
     Right rec -> pure rec.result

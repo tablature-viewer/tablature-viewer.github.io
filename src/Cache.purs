@@ -21,64 +21,75 @@ data CacheValue a = Cached a | NoValue
 type CacheEntry s a =
   { value :: CacheValue a
   , default :: a
-  , dependants :: List (AnyEntryKey s) }
+  , dependants :: List (AnyEntryKey s)
+  }
 
 newtype AnyEntryKey s = AnyEntryKey (forall result. (forall a. EntryKey s a -> result) -> result)
+
 mkAnyEntryKey :: forall s a. EntryKey s a -> AnyEntryKey s
 mkAnyEntryKey x = AnyEntryKey \f -> f x
-mapAnyEntryKey :: forall result s. (forall a . EntryKey s a -> result) -> AnyEntryKey s -> result
+
+mapAnyEntryKey :: forall result s. (forall a. EntryKey s a -> result) -> AnyEntryKey s -> result
 mapAnyEntryKey f (AnyEntryKey y) = y f
 
-buildCache :: forall s a . a -> CacheEntry s a
+buildCache :: forall s a. a -> CacheEntry s a
 buildCache default =
   { value: NoValue
   , default: default
-  , dependants: Nil }
+  , dependants: Nil
+  }
 
 -- This needs to be a newtype because otherwise we get "Could not match constrained type" errors
 newtype EntryKey s a = EntryKey (Lens' s (CacheEntry s a))
-runEntryKey :: forall s a . EntryKey s a -> Lens' s (CacheEntry s a)
+
+runEntryKey :: forall s a. EntryKey s a -> Lens' s (CacheEntry s a)
 runEntryKey (EntryKey _key) = _key
-viewEntry' :: forall s a . EntryKey s a -> s -> CacheEntry s a
+
+viewEntry' :: forall s a. EntryKey s a -> s -> CacheEntry s a
 viewEntry' key = view (runEntryKey key)
-viewEntry :: forall s a m . MonadState s m => EntryKey s a -> m (CacheEntry s a)
+
+viewEntry :: forall s a m. MonadState s m => EntryKey s a -> m (CacheEntry s a)
 viewEntry key = MonadState.get <#> viewEntry' key
-overEntry :: forall s a m . MonadState s m => EntryKey s a -> (CacheEntry s a -> CacheEntry s a) -> m Unit
+
+overEntry :: forall s a m. MonadState s m => EntryKey s a -> (CacheEntry s a -> CacheEntry s a) -> m Unit
 overEntry key f = MonadState.get <#> over (runEntryKey key) f >>= MonadState.put
 
 -- We need to wrap these functions in a datatype, otherwise the cache unit and containing records cannot occur in instance declarations.
 data Fetch a m = Fetch (m (Maybe a))
-runFetch :: forall a m . Fetch a m -> m (Maybe a)
+
+runFetch :: forall a m. Fetch a m -> m (Maybe a)
 runFetch (Fetch fetch) = fetch
+
 data Flush a m = Flush (a -> m Unit)
-runFlush :: forall a m . Flush a m -> a -> m Unit
+
+runFlush :: forall a m. Flush a m -> a -> m Unit
 runFlush (Flush flush) = flush
 
 type CacheUnit s a r =
   { entry :: EntryKey s a
-  | r }
+  | r
+  }
 
-type ReadWriteCacheUnit s a r m = CacheUnit s a ( flush :: Flush a m, fetch :: Fetch a m | r )
-type WritableCacheUnit s a r m = CacheUnit s a ( flush :: Flush a m | r )
-type ReadableCacheUnit s a r m = CacheUnit s a ( fetch :: Fetch a m | r )
-
+type ReadWriteCacheUnit s a r m = CacheUnit s a (flush :: Flush a m, fetch :: Fetch a m | r)
+type WritableCacheUnit s a r m = CacheUnit s a (flush :: Flush a m | r)
+type ReadableCacheUnit s a r m = CacheUnit s a (fetch :: Fetch a m | r)
 
 -- Peek without default
-peek' :: forall s a . EntryKey s a -> s -> CacheValue a
+peek' :: forall s a. EntryKey s a -> s -> CacheValue a
 peek' _key state = entry.value
-  where 
+  where
   entry = viewEntry' _key state
 
 -- Peek with default
-peek :: forall s a . EntryKey s a -> s -> a
+peek :: forall s a. EntryKey s a -> s -> a
 peek _key state =
   case entry.value of
     NoValue -> entry.default
     Cached result -> result
-  where 
+  where
   entry = viewEntry' _key state
 
-invalidate :: forall m s a . MonadState s m => EntryKey s a -> m Unit
+invalidate :: forall m s a. MonadState s m => EntryKey s a -> m Unit
 invalidate _key = do
   entry <- viewEntry _key
   case entry.value of
@@ -87,27 +98,27 @@ invalidate _key = do
       overEntry _key _ { value = NoValue, dependants = Nil }
       invalidateDependants entry
 
-invalidateDependants :: forall m s a . MonadState s m => CacheEntry s a -> m Unit
+invalidateDependants :: forall m s a. MonadState s m => CacheEntry s a -> m Unit
 invalidateDependants entry = foreachM entry.dependants $ mapAnyEntryKey invalidate
 
-subscribe :: forall m s a b r . MonadState s m => EntryKey s a -> ReadableCacheUnit s b r m -> m b
+subscribe :: forall m s a b r. MonadState s m => EntryKey s a -> ReadableCacheUnit s b r m -> m b
 subscribe _dependant dependency = do
   dependencyValue <- read dependency
   addDependant dependency _dependant
   pure dependencyValue
 
-addDependant :: forall m s a b r . MonadState s m => CacheUnit s b r -> EntryKey s a -> m Unit
+addDependant :: forall m s a b r. MonadState s m => CacheUnit s b r -> EntryKey s a -> m Unit
 addDependant dependency _dependant =
   overEntry dependency.entry (\entry -> entry { dependants = Cons (mkAnyEntryKey _dependant) entry.dependants })
 
-write :: forall m a s r . MonadState s m => WritableCacheUnit s a r m -> a -> m Unit
+write :: forall m a s r. MonadState s m => WritableCacheUnit s a r m -> a -> m Unit
 write cache value = do
   entry <- viewEntry cache.entry
   runFlush cache.flush value
   invalidateDependants entry
   overEntry cache.entry _ { value = Cached value }
 
-read :: forall m a s r . MonadState s m => ReadableCacheUnit s a r m -> m a
+read :: forall m a s r. MonadState s m => ReadableCacheUnit s a r m -> m a
 read cache = do
   entry <- viewEntry cache.entry
   case entry.value of

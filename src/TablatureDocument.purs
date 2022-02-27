@@ -25,11 +25,12 @@ data TablatureDocumentLine
   | TablatureLine (List TablatureLineElem)
   | ChordLine (List ChordLineElem)
   | TextLine (List TextLineElem)
+
 derive instance Generic TablatureDocumentLine _
 
 -- TOD: change to lens
 getTitle :: TablatureDocument -> Maybe String
-getTitle tablatureDocument = 
+getTitle tablatureDocument =
   case findElement isTitleLine tablatureDocument of
     Just (TitleLine line) ->
       case findElement isTitle line of
@@ -41,6 +42,7 @@ getTitle tablatureDocument =
   isTitleLine _ = false
   isTitle (Title _) = true
   isTitle _ = false
+
   findElement :: forall a. (a -> Boolean) -> List a -> Maybe a
   findElement p l =
     case findIndex p l of
@@ -64,6 +66,8 @@ _TextLine = barlow (key :: _ "%TextLine")
 data TitleLineElem
   = Title String
   | TitleOther String
+
+derive instance Generic TitleLineElem _
 
 -- _Title :: Prism' (List TitleLineElem) String
 _Title = barlow (key :: _ "+%Title")
@@ -112,11 +116,13 @@ _ChordLineChord = prism' ChordLineChord case _ of
 -- The number of spaces after an expression.
 -- E.g. this is part of a chord so that it can be expanded and shrunk easily when rewriting chords without losing the original alignment
 newtype Spaced a = Spaced { elem :: a, spaceSuffix :: Int }
+
 derive instance Newtype (Spaced a) _
 
-_elem :: forall a . Lens' (Spaced a) a
+_elem :: forall a. Lens' (Spaced a) a
 _elem = barlow (key :: _ "!.elem")
-_spaceSuffix :: forall a . Lens' (Spaced a) Int
+
+_spaceSuffix :: forall a. Lens' (Spaced a) Int
 _spaceSuffix = barlow (key :: _ "!.spaceSuffix")
 
 instance (Print a) => Print (Spaced a) where
@@ -128,14 +134,18 @@ newtype Chord = Chord
   , mods :: List ChordMod
   , bass :: Maybe Note
   }
+
 derive instance Newtype Chord _
 
 _root :: Lens' Chord Note
 _root = barlow (key :: _ "!.root")
+
 _type :: Lens' Chord String
 _type = barlow (key :: _ "!.type")
+
 _bass :: Lens' Chord (Maybe Note)
 _bass = barlow (key :: _ "!.bass")
+
 _mods :: Lens' Chord (List ChordMod)
 _mods = barlow (key :: _ "!.mods")
 
@@ -144,9 +154,9 @@ derive instance Eq Chord
 instance Print Chord where
   print (Chord chord) =
     (chord.root # print)
-    <> chord.type
-    <> (foldr (<>) "" (map (\(ChordMod mod) -> mod.pre <> mod.interval <> mod.post) chord.mods))
-    <> (fromMaybe "" $ chord.bass <#> print)
+      <> chord.type
+      <> (foldr (<>) "" (map (\(ChordMod mod) -> mod.pre <> mod.interval <> mod.post) chord.mods))
+      <> (fromMaybe "" $ chord.bass <#> print)
 
 instance Print Note where
   print (Note note) = print note.letter <> note.mod
@@ -156,6 +166,7 @@ newtype ChordMod = ChordMod
   , interval :: String
   , post :: String
   }
+
 instance Print ChordMod where
   print (ChordMod mod) = mod.pre <> mod.interval <> mod.post
 
@@ -165,10 +176,12 @@ newtype Note = Note
   { letter :: NoteLetter
   , mod :: String
   }
+
 derive instance Newtype Note _
 
 _letter :: Lens' Note NoteLetter
 _letter = barlow (key :: _ "!.letter")
+
 _mod :: Lens' Note String
 _mod = barlow (key :: _ "!.mod")
 
@@ -178,10 +191,12 @@ newtype NoteLetter = NoteLetter
   { primitive :: NoteLetterPrimitive
   , lowercase :: Boolean
   }
+
 derive instance Newtype NoteLetter _
 
 _primitive :: Lens' Note NoteLetterPrimitive
 _primitive = barlow (key :: _ "!.letter!.primitive")
+
 _lowercase :: Lens' Note Boolean
 _lowercase = barlow (key :: _ "!.letter!.lowercase")
 
@@ -219,11 +234,10 @@ instance Ord NoteLetter where
 
 instance Print NoteLetter where
   print (NoteLetter letter) =
-    if letter.lowercase
-    then toLower uppercase
+    if letter.lowercase then toLower uppercase
     else uppercase
-    where uppercase = print letter.primitive
-
+    where
+    uppercase = print letter.primitive
 
 newtype Transposition = Transposition Int
 
@@ -238,10 +252,12 @@ instance Ord Transposition where
 
 identityTransposition :: Transposition
 identityTransposition = Transposition 0
+
 succTransposition :: Transposition -> Transposition
-succTransposition (Transposition i) = Transposition $ i+1
+succTransposition (Transposition i) = Transposition $ i + 1
+
 predTransposition :: Transposition -> Transposition
-predTransposition (Transposition i) = Transposition $ i-1
+predTransposition (Transposition i) = Transposition $ i - 1
 
 instance Show TablatureDocumentLine where
   show (TitleLine elems) = "Title: " <> show elems
@@ -249,7 +265,7 @@ instance Show TablatureDocumentLine where
   show (TextLine elems) = "Text: " <> show elems
   show (ChordLine elems) = "Chords: " <> show elems
   show (HeaderLine elems) = "Header: " <> show elems
- 
+
 instance Show TablatureLineElem where
   show (Prefix string) = string
   show (Tuning spacedNote) = print spacedNote
@@ -257,24 +273,24 @@ instance Show TablatureLineElem where
   show (Fret string) = string
   show (Special string) = string
   show (Suffix string) = string
- 
+
 instance Show TextLineElem where
   show (Text string) = string
   show (Spaces string) = string
   show (TextLineChord chord) = print chord
   show (ChordLegend _) = "legend"
- 
+
 instance Show ChordLineElem where
   show (ChordLineChord chord) = print chord
   show (ChordComment string) = string
- 
+
 instance Show ChordMod where
   show (ChordMod x) = x.pre <> x.interval <> x.post
- 
+
 instance Show HeaderLineElem where
   show (Header string) = string
   show (HeaderSuffix string) = string
- 
+
 instance Show TitleLineElem where
   show (Title string) = string
   show (TitleOther string) = string

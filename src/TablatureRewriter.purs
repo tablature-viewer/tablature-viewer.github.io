@@ -29,35 +29,37 @@ type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> Tablatu
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument renderingOptions =
-  revertFalsePositiveChords >>>
-  fixEmDashes renderingOptions >>>
-  addMissingClosingPipe renderingOptions >>>
-  dozenalizeChords renderingOptions >>>
-  dozenalizeFrets renderingOptions >>>
-  transposeChords renderingOptions >>>
-  transposeTuning renderingOptions
+  revertFalsePositiveChords
+    >>> fixEmDashes renderingOptions
+    >>> addMissingClosingPipe renderingOptions
+    >>> dozenalizeChords renderingOptions
+    >>> dozenalizeFrets renderingOptions
+    >>> transposeChords renderingOptions
+    >>>
+      transposeTuning renderingOptions
 
 revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
 revertFalsePositiveChords = map rewriteLine
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
-  rewriteLine line = 
-    if allOf (_TextLine <<< traversed) (not elemIsChordLegend) line && anyOf (_TextLine <<< traversed) elemIsNaturalLanguage line
-    then over (_TextLine <<< traversed) rewriteElement line
+  rewriteLine line =
+    if allOf (_TextLine <<< traversed) (not elemIsChordLegend) line && anyOf (_TextLine <<< traversed) elemIsNaturalLanguage line then over (_TextLine <<< traversed) rewriteElement line
     else line
+
   elemIsNaturalLanguage :: TextLineElem -> Boolean
   elemIsNaturalLanguage = case _ of
     Text text -> unsafeTestRegex "^\\w*$" text
     _ -> false
+
   elemIsChordLegend :: TextLineElem -> Boolean
   elemIsChordLegend = case _ of
     ChordLegend _ -> true
     _ -> false
-  rewriteElement  :: TextLineElem -> TextLineElem 
+
+  rewriteElement :: TextLineElem -> TextLineElem
   rewriteElement = case _ of
     x@(TextLineChord spacedChord@(Spaced ({ elem: chord }))) ->
-      if unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord
-      then Text $ print spacedChord
+      if unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord then Text $ print spacedChord
       else x
     x -> x
 
@@ -103,20 +105,21 @@ transposeNote transposition =
 
 -- Rewrite the notes such that there is at most one # or b
 canonicalizeNote :: Note -> Note
-canonicalizeNote = 
-  applyUntilIdempotent collapseRedundants >>> 
-  applyUntilIdempotent reduceSharps >>> 
-  applyUntilIdempotent reduceFlats >>> 
-  toPreferredMod
+canonicalizeNote =
+  applyUntilIdempotent collapseRedundants
+    >>> applyUntilIdempotent reduceSharps
+    >>> applyUntilIdempotent reduceFlats
+    >>>
+      toPreferredMod
   where
   collapseRedundants note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
-  reduceSharps note = 
+  reduceSharps note =
     if view _primitive note == B || view _primitive note == E then substitute "#" else substitute "##"
-    where 
+    where
     substitute p = case stripPrefix (Pattern p) (view _mod note) of
       Nothing -> note
       Just newMod -> note # set _mod newMod # over _primitive succ'
-  reduceFlats note = 
+  reduceFlats note =
     if view _primitive note == C || view _primitive note == F then substitute "b" else substitute "bb"
     where
     substitute p = case stripPrefix (Pattern p) (view _mod note) of
@@ -134,7 +137,6 @@ canonicalizeNote =
         G -> note # set _mod "#" # set _primitive F
         _ -> note
       _ -> note
-
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
@@ -156,11 +158,12 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTa
 
   rewriteTablatureLine :: List TablatureLineElem -> List TablatureLineElem
   rewriteTablatureLine elems = reverse $
-    foreach false (reverse elems) (\done elem ->
-      case elem of
-        Timeline t -> Tuple true (Timeline (if done then t else rewriteLastTimelinePiece t))
-        _ -> Tuple done elem
-    )
+    foreach false (reverse elems)
+      ( \done elem ->
+          case elem of
+            Timeline t -> Tuple true (Timeline (if done then t else rewriteLastTimelinePiece t))
+            _ -> Tuple done elem
+      )
 
   rewriteLastTimelinePiece :: String -> String
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
@@ -174,7 +177,7 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords
     newType = dozenalize chord.type
     newMods = map (\(ChordMod mod) -> ChordMod mod { interval = dozenalize mod.interval }) chord.mods
 
-  dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11") 
+  dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11")
 
 dozenalizeFrets :: TablatureDocumentRewriter
 dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalizeTabs then doc else map rewriteLine doc
@@ -186,15 +189,16 @@ dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalizeTabs th
   -- Rendering elements needs care because the numbers ↊ and ↋ take less space than 10 and 11.
   -- We need to make up for this with extra dashes at the first next Timeline element.
   rewriteTablatureLineElems :: List TablatureLineElem -> List TablatureLineElem
-  rewriteTablatureLineElems elems = foreach 0 elems (\pendingDashes elem ->
-    case elem of
-      Timeline string -> Tuple 0 $ Timeline (fromMaybe "" (repeat pendingDashes "-") <> string)
-      Fret string -> flip Tuple (Fret fretString) $
-        if fretString == "↊" || fretString == "↋"
-        then pendingDashes + 1
-        else pendingDashes
-        where fretString = toDozenalString string
-      _ -> Tuple pendingDashes elem
+  rewriteTablatureLineElems elems = foreach 0 elems
+    ( \pendingDashes elem ->
+        case elem of
+          Timeline string -> Tuple 0 $ Timeline (fromMaybe "" (repeat pendingDashes "-") <> string)
+          Fret string -> flip Tuple (Fret fretString) $
+            if fretString == "↊" || fretString == "↋" then pendingDashes + 1
+            else pendingDashes
+            where
+            fretString = toDozenalString string
+          _ -> Tuple pendingDashes elem
     )
 
   toDozenalString :: String -> String
@@ -205,8 +209,7 @@ dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalizeTabs th
         -- If the fret number is large it's probably not a single fret number but rather incorrectly concatenated fret numbers.
         -- This already means that the tab is probably broken and ambiguous all over the place, but let's do a best effort
         -- of showing something understandable and not convert it.
-        if n > 25
-        then show n
+        if n > 25 then show n
         else toStringAs dozenal n # replaceAll (Pattern "a") (Replacement "↊") # replaceAll (Pattern "b") (Replacement "↋")
         where
         dozenal = fromMaybe decimal $ radix 12
