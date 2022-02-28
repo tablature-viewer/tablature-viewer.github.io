@@ -143,7 +143,7 @@ render state = HH.div_
                     , HE.onClick \_ -> IncreaseTransposition
                     ]
                     [ fontAwesome "fa-caret-up" ]
-                , HH.span_ [ HH.text $ " Transpose " <> show (Cache.peek _transposition state) ]
+                , HH.span_ [ HH.text $ " Transpose " <> show (Cache.peek _urlParams state).transposition ]
                 ]
             , HH.div
                 [ HP.title "Change the autoscroll speed"

@@ -79,10 +79,10 @@ createAndCopyShortUrl = do
 
 increaseTransposition :: forall m. MonadEffect m => MonadState State m => m Unit
 increaseTransposition = do
-  transposition <- Cache.read transpositionCache
-  Cache.write transpositionCache $ succTransposition transposition
+  urlParams <- Cache.read urlParamsCache
+  Cache.write urlParamsCache $ urlParams { transposition = succTransposition urlParams.transposition }
 
 decreaseTransposition :: forall m. MonadEffect m => MonadState State m => m Unit
 decreaseTransposition = do
-  transposition <- Cache.read transpositionCache
-  Cache.write transpositionCache $ predTransposition transposition
+  urlParams <- Cache.read urlParamsCache
+  Cache.write urlParamsCache $ urlParams { transposition = predTransposition urlParams.transposition }

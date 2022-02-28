@@ -3,7 +3,7 @@ module AppState where
 import Cache
 import Prelude
 
-import AppUrl (getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
+import AppUrl (UrlParams, getAppUrlParams, getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
 import Control.Monad.State (class MonadState)
 import Control.Monad.State as MonadState
@@ -15,16 +15,18 @@ import Data.Newtype (class Newtype)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
+import Debug (spy)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
 import TablatureDocument (TablatureDocument, Transposition(..), getTitle)
 import TablatureParser (tryParseTablature)
-import TablatureRewriter (rewriteTablatureDocument)
+import TablatureRewriter (NoteOrientation(..), rewriteTablatureDocument)
 
 data Mode = ViewMode | EditMode
 
 newtype State = State StateRecord
+
 type StateRecord =
   { mode :: Mode
   , autoscrollTimer :: Maybe IntervalId
@@ -40,9 +42,10 @@ type StateRecord =
   , tabNormalizationEnabled :: CacheEntry State Boolean
   , tabDozenalizationEnabled :: CacheEntry State Boolean
   , chordDozenalizationEnabled :: CacheEntry State Boolean
+  , upperCaseNotes :: CacheEntry State Boolean
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
   , ignoreDozenalization :: CacheEntry State Boolean
-  , transposition :: CacheEntry State Transposition
+  , urlParams :: CacheEntry State UrlParams
   }
 
 derive instance Newtype State _
@@ -62,8 +65,9 @@ initialState _ = State
   , tabNormalizationEnabled: buildCache true
   , tabDozenalizationEnabled: buildCache false
   , chordDozenalizationEnabled: buildCache false
+  , upperCaseNotes: buildCache true
   , ignoreDozenalization: buildCache false
-  , transposition: buildCache (Transposition 0)
+  , urlParams: buildCache { transposition: Transposition 0, preferredNoteOrientation: Default }
   }
 
 _mode :: Lens' State Mode
@@ -102,20 +106,21 @@ overState _key f = do
 type AppStateReadWriteCacheUnit a = forall m. MonadEffect m => MonadState State m => ReadWriteCacheUnit State a () m
 type AppStateReadCacheUnit a = forall m. MonadEffect m => MonadState State m => ReadableCacheUnit State a () m
 
-transpositionCache :: AppStateReadWriteCacheUnit Transposition
-transpositionCache =
-  { entry: _transposition
-  , flush: Flush $ \value -> liftEffect $ setAppQueryString { transposition: value }
-  , fetch: Fetch $ liftEffect getTranspositionFromUrl
+-- TODO make a single query params cache unit so we can flush the whole thing easily
+urlParamsCache :: AppStateReadWriteCacheUnit UrlParams
+urlParamsCache =
+  { entry: _urlParams
+  , flush: Flush \value -> liftEffect $ setAppQueryString value
+  , fetch: Fetch $ liftEffect $ getAppUrlParams <#> Just
   }
 
-_transposition :: EntryKey State Transposition
-_transposition = EntryKey (barlow (key :: _ "!.transposition"))
+_urlParams :: EntryKey State UrlParams
+_urlParams = EntryKey (barlow (key :: _ "!.urlParams"))
 
 tablatureTextCache :: AppStateReadWriteCacheUnit String
 tablatureTextCache =
   { entry: _tablatureText
-  , flush: Flush $ \value -> liftEffect $ saveTablatureToUrl value
+  , flush: Flush \value -> liftEffect $ saveTablatureToUrl value
   , fetch: Fetch $ liftEffect $ getTablatureTextFromUrl <#> Just
   }
 
@@ -144,12 +149,15 @@ rewriteResultCache =
       tabDozenalizationEnabled <- subscribe entryKey tabDozenalizationEnabledCache
       chordDozenalizationEnabled <- subscribe entryKey chordDozenalizationEnabledCache
       ignoreDozenalization <- subscribe entryKey ignoreDozenalizationCache
-      transposition <- subscribe entryKey transpositionCache
+      urlParams <- subscribe entryKey urlParamsCache
+
       renderingOptions <- pure
         { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
         , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
         , normalizeTabs: tabNormalizationEnabled
-        , transposition: transposition
+        , transposition: urlParams.transposition
+        , preferredNoteOrientation: urlParams.preferredNoteOrientation
+        , upperCaseNotes: false -- TODO: make configurable
         }
       pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
   }

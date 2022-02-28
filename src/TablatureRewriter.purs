@@ -20,7 +20,11 @@ type RewriteSettings =
   , dozenalizeChords :: Boolean
   , normalizeTabs :: Boolean
   , transposition :: Transposition
+  , upperCaseNotes :: Boolean
+  , preferredNoteOrientation :: NoteOrientation
   }
+
+data NoteOrientation = Flat | Sharp | Default
 
 type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> TablatureDocument
 
@@ -28,15 +32,15 @@ type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> Tablatu
 -- TODO: rewrite every operation with lenses
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
-rewriteTablatureDocument renderingOptions =
+rewriteTablatureDocument settings =
   revertFalsePositiveChords
-    >>> fixEmDashes renderingOptions
-    >>> addMissingClosingPipe renderingOptions
-    >>> dozenalizeChords renderingOptions
-    >>> dozenalizeFrets renderingOptions
-    >>> transposeChords renderingOptions
+    >>> fixEmDashes settings
+    >>> addMissingClosingPipe settings
+    >>> dozenalizeChords settings
+    >>> dozenalizeFrets settings
+    >>> transposeChords settings
     >>>
-      transposeTuning renderingOptions
+      transposeTuning settings
 
 revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
 revertFalsePositiveChords = map rewriteLine
@@ -83,34 +87,33 @@ applyChordMapping chordMapping = map (rewriteChordsInTextLine >>> rewriteChordsI
   rewriteChordsInChordLine = over (_TextLine <<< traversed <<< _TextLineChord) mapping
 
 transposeChords :: TablatureDocumentRewriter
-transposeChords renderingOptions = applyChordMapping $ chordMapping
+transposeChords settings = applyChordMapping $ chordMapping
   where
   chordMapping = over _root noteMapping >>> over (_bass <<< _Just) noteMapping
-  noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
+  noteMapping = transposeNote settings >>> canonicalizeNote settings
 
 transposeTuning :: TablatureDocumentRewriter
-transposeTuning renderingOptions = map rewriteLine
+transposeTuning settings = map rewriteLine
   where
   rewriteLine = over (_TablatureLine <<< traversed <<< _Tuning) (liftMappingSpaced noteMapping)
-  noteMapping = transposeNote renderingOptions.transposition >>> canonicalizeNote
+  noteMapping = transposeNote settings >>> canonicalizeNote settings
 
-transposeNote :: Transposition -> Note -> Note
-transposeNote transposition =
-  case transposition of
+transposeNote :: RewriteSettings -> Note -> Note
+transposeNote settings =
+  case settings.transposition of
     Transposition 0 -> identity
-    Transposition t | t > 0 -> (appendSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeNote
-    Transposition t -> (appendSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeNote
+    Transposition t | t > 0 -> (appendSuffix $ fromMaybe "" $ repeat t "#") >>> canonicalizeNote settings
+    Transposition t -> (appendSuffix $ fromMaybe "" $ repeat (abs t) "b") >>> canonicalizeNote settings
   where
   appendSuffix suffix = over _mod (_ <> suffix)
 
 -- Rewrite the notes such that there is at most one # or b
-canonicalizeNote :: Note -> Note
-canonicalizeNote =
+canonicalizeNote :: RewriteSettings -> Note -> Note
+canonicalizeNote settings =
   applyUntilIdempotent collapseRedundants
     >>> applyUntilIdempotent reduceSharps
     >>> applyUntilIdempotent reduceFlats
-    >>>
-      toPreferredMod
+    >>> toPreferredOrientation
   where
   collapseRedundants note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
   reduceSharps note =
@@ -125,21 +128,43 @@ canonicalizeNote =
     substitute p = case stripPrefix (Pattern p) (view _mod note) of
       Nothing -> note
       Just newMod -> note # set _mod newMod # over _primitive pred'
-  toPreferredMod note =
-    case view _mod note of
-      "#" -> case view _primitive note of
-        A -> note # set _mod "b" # set _primitive B
-        D -> note # set _mod "b" # set _primitive E
-        G -> note # set _mod "b" # set _primitive A
-        _ -> note
-      "b" -> case view _primitive note of
-        D -> note # set _mod "#" # set _primitive C
-        G -> note # set _mod "#" # set _primitive F
-        _ -> note
-      _ -> note
+  toPreferredOrientation note =
+    case settings.preferredNoteOrientation of
+      Default ->
+        case view _mod note of
+          "#" -> case view _primitive note of
+            A -> note # set _mod "b" # set _primitive B
+            D -> note # set _mod "b" # set _primitive E
+            G -> note # set _mod "b" # set _primitive A
+            _ -> note
+          "b" -> case view _primitive note of
+            D -> note # set _mod "#" # set _primitive C
+            G -> note # set _mod "#" # set _primitive F
+            _ -> note
+          _ -> note
+      Flat ->
+        case view _mod note of
+          "#" -> case view _primitive note of
+            A -> note # set _mod "b" # set _primitive B
+            C -> note # set _mod "b" # set _primitive D
+            D -> note # set _mod "b" # set _primitive E
+            F -> note # set _mod "b" # set _primitive G
+            G -> note # set _mod "b" # set _primitive A
+            _ -> note
+          _ -> note
+      Sharp ->
+        case view _mod note of
+          "b" -> case view _primitive note of
+            A -> note # set _mod "#" # set _primitive G
+            B -> note # set _mod "#" # set _primitive A
+            D -> note # set _mod "#" # set _primitive C
+            E -> note # set _mod "#" # set _primitive D
+            G -> note # set _mod "#" # set _primitive F
+            _ -> note
+          _ -> note
 
 fixEmDashes :: TablatureDocumentRewriter
-fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
+fixEmDashes settings doc = if not settings.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ (map rewriteTablatureLineElem line)
@@ -150,7 +175,7 @@ fixEmDashes renderingOptions doc = if not renderingOptions.normalizeTabs then do
   rewriteTablatureLineElem x = x
 
 addMissingClosingPipe :: TablatureDocumentRewriter
-addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTabs then doc else map rewriteLine doc
+addMissingClosingPipe settings doc = if not settings.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLine line
@@ -169,7 +194,7 @@ addMissingClosingPipe renderingOptions doc = if not renderingOptions.normalizeTa
   rewriteLastTimelinePiece string = if charAt (length string - 1) string /= Just '|' then string <> "|" else string
 
 dozenalizeChords :: TablatureDocumentRewriter
-dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords then doc else applyChordMapping rewriteChord doc
+dozenalizeChords settings doc = if not settings.dozenalizeChords then doc else applyChordMapping rewriteChord doc
   where
   rewriteChord :: Chord -> Chord
   rewriteChord (Chord chord) = Chord chord { type = newType, mods = newMods }
@@ -180,7 +205,7 @@ dozenalizeChords renderingOptions doc = if not renderingOptions.dozenalizeChords
   dozenalize = replaceAll (Pattern "11") (Replacement "↋") >>> replaceAll (Pattern "13") (Replacement "11")
 
 dozenalizeFrets :: TablatureDocumentRewriter
-dozenalizeFrets renderingOptions doc = if not renderingOptions.dozenalizeTabs then doc else map rewriteLine doc
+dozenalizeFrets settings doc = if not settings.dozenalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ rewriteTablatureLineElems line

@@ -5,6 +5,7 @@ import Prelude
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
+import Data.String (joinWith)
 import Effect (Effect)
 import Foreign (Foreign, readString)
 
@@ -25,3 +26,7 @@ getQueryParam paramName = do
   pure $ case result # readString # runExcept of
     Right s -> Just s
     _ -> Nothing
+
+setQueryComponents :: Array String -> Effect Unit
+setQueryComponents components =
+  setQueryString $ joinWith "&" components
