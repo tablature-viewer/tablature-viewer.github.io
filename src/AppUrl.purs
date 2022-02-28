@@ -15,7 +15,7 @@ import TablatureRewriter (NoteOrientation(..))
 
 type UrlParams =
   { transposition :: Transposition
-  , preferredNoteOrientation :: NoteOrientation
+  , noteOrientation :: NoteOrientation
   }
 
 saveTablatureToUrl :: String -> Effect Unit
@@ -49,13 +49,13 @@ getTranspositionFromUrl = do
         Just n -> pure $ Just $ Transposition n
         _ -> Console.error ("Could not parse transposition parameter") *> pure Nothing
 
-getPreferredNoteOrientationFromUrl :: Effect (Maybe NoteOrientation)
-getPreferredNoteOrientationFromUrl = do
-  maybePreferredNoteOrientation <- getQueryParam "o"
-  case maybePreferredNoteOrientation of
+getNoteOrientationFromUrl :: Effect (Maybe NoteOrientation)
+getNoteOrientationFromUrl = do
+  maybeNoteOrientation <- getQueryParam "o"
+  case maybeNoteOrientation of
     Nothing -> pure Nothing
-    Just preferredNoteOrientation ->
-      case fromString preferredNoteOrientation of
+    Just noteOrientation ->
+      case fromString noteOrientation of
         Just 0 -> pure $ Just Flat
         Just 1 -> pure $ Just Sharp
         _ -> Console.error ("Could not parse note orientation parameter") *> pure Nothing
@@ -63,15 +63,15 @@ getPreferredNoteOrientationFromUrl = do
 getAppUrlParams :: Effect UrlParams
 getAppUrlParams = do
   maybeTransposition <- getTranspositionFromUrl
-  maybePreferredNoteOrientation <- getPreferredNoteOrientationFromUrl
+  maybeNoteOrientation <- getNoteOrientationFromUrl
   pure $
     { transposition: fromMaybe identityTransposition maybeTransposition
-    , preferredNoteOrientation: fromMaybe Default maybePreferredNoteOrientation
+    , noteOrientation: fromMaybe Default maybeNoteOrientation
     }
 
 setAppQueryString :: UrlParams -> Effect Unit
 setAppQueryString params = setQueryComponents $ mapMaybe identity
-  [ case params.preferredNoteOrientation of
+  [ case params.noteOrientation of
       Default -> Nothing
       Flat -> Just "o=0"
       Sharp -> Just "o=1"

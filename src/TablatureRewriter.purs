@@ -21,10 +21,12 @@ type RewriteSettings =
   , normalizeTabs :: Boolean
   , transposition :: Transposition
   , upperCaseNotes :: Boolean
-  , preferredNoteOrientation :: NoteOrientation
+  , noteOrientation :: NoteOrientation
   }
 
 data NoteOrientation = Flat | Sharp | Default
+
+derive instance Eq NoteOrientation
 
 type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> TablatureDocument
 
@@ -90,13 +92,13 @@ transposeChords :: TablatureDocumentRewriter
 transposeChords settings = applyChordMapping $ chordMapping
   where
   chordMapping = over _root noteMapping >>> over (_bass <<< _Just) noteMapping
-  noteMapping = transposeNote settings >>> canonicalizeNote settings
+  noteMapping = transposeNote settings
 
 transposeTuning :: TablatureDocumentRewriter
 transposeTuning settings = map rewriteLine
   where
   rewriteLine = over (_TablatureLine <<< traversed <<< _Tuning) (liftMappingSpaced noteMapping)
-  noteMapping = transposeNote settings >>> canonicalizeNote settings
+  noteMapping = transposeNote settings
 
 transposeNote :: RewriteSettings -> Note -> Note
 transposeNote settings =
@@ -129,7 +131,7 @@ canonicalizeNote settings =
       Nothing -> note
       Just newMod -> note # set _mod newMod # over _primitive pred'
   toPreferredOrientation note =
-    case settings.preferredNoteOrientation of
+    case settings.noteOrientation of
       Default ->
         case view _mod note of
           "#" -> case view _primitive note of

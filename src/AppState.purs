@@ -67,7 +67,7 @@ initialState _ = State
   , chordDozenalizationEnabled: buildCache false
   , upperCaseNotes: buildCache true
   , ignoreDozenalization: buildCache false
-  , urlParams: buildCache { transposition: Transposition 0, preferredNoteOrientation: Default }
+  , urlParams: buildCache { transposition: Transposition 0, noteOrientation: Default }
   }
 
 _mode :: Lens' State Mode
@@ -156,7 +156,7 @@ rewriteResultCache =
         , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
         , normalizeTabs: tabNormalizationEnabled
         , transposition: urlParams.transposition
-        , preferredNoteOrientation: urlParams.preferredNoteOrientation
+        , noteOrientation: urlParams.noteOrientation
         , upperCaseNotes: false -- TODO: make configurable
         }
       pure $ Just $ rewriteTablatureDocument renderingOptions parseResult

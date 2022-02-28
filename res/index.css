@@ -2,10 +2,12 @@
   font-family: Cascadia Tablature;
   src: url("CascadiaTablature.woff2");
 }
+
 @font-face {
   font-family: Cascadia Mono;
   src: url("CascadiaMono.woff2");
 }
+
 @font-face {
   font-family: Cascadia Mono Italic;
   src: url("CascadiaMonoItalic.woff2");
@@ -16,8 +18,8 @@ html {
 }
 
 :root {
-  --shadow: rgba(0, 0, 0, 0.2);
-  
+  --shadow: rgba(0, 0, 0, 0.5);
+
   --title-width: 260px;
   --controls-max-width: 665px;
   --app-height: 100vh;
@@ -108,9 +110,11 @@ html {
   .smallViewport {
     display: inline;
   }
+
   .largeViewport {
     display: none;
   }
+
   :root {
     --tablature-font-size: 10px;
     --tablature-sup-font-size: 8px;
@@ -130,22 +134,28 @@ html {
   background-color: var(--button-hover-bg);
   cursor: pointer;
 }
+
 ::-webkit-scrollbar-button {
   height: 0;
   width: 0;
 }
+
 ::-webkit-scrollbar-corner {
   background-color: var(--tab-bg);
 }
+
 ::-webkit-scrollbar-track-piece {
   background-color: var(--tab-bg);
 }
+
 ::-webkit-scrollbar-thumb {
   background-color: var(--button-hover-bg);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--button-active-bg);
 }
+
 ::-webkit-scrollbar-thumb:active {
   background-color: var(--button-active-bg);
 }
@@ -180,14 +190,17 @@ body {
   box-shadow: 0 0 6px 0 var(--shadow);
   background-color: var(--header-bg);
 }
+
 .title {
   margin: auto 0;
   padding: 0 10px;
   width: var(--title-width);
 }
+
 .title a {
   text-decoration: none;
 }
+
 .title h1 {
   margin: auto auto;
 
@@ -195,6 +208,10 @@ body {
   font-family: Cascadia Mono;
   font-size: 24px;
 }
+
+/**************/
+/** CONTROLS **/
+/**************/
 
 .controls {
   display: flex;
@@ -210,43 +227,63 @@ body {
   color: var(--fg);
 }
 
-.controls > button, .controls > a > button, .dropdown-header, .dropdown-item {
-  box-shadow: 0 0 2px 0 var(--shadow);
-}
-.controls > button, .controls > a > button, button.dropdown-header, button.dropdown-item {
+button.header-button,
+.header-button button {
+  /* border: 1px solid var(--shadow); */
+  /* padding: 1px;
+  margin: 1px; */
+  box-shadow: 0 0 3px 0 var(--shadow);
   height: 100%;
   border: 0;
   cursor: pointer;
-}
-.controls > button, .controls > a > button, button.dropdown-header {
   padding: 10px 20px;
 }
 
 .controls button:hover {
   background-color: var(--button-hover-bg);
 }
+
 .controls button:focus {
   background-color: var(--button-hover-bg);
 }
+
 .controls button:active {
   background-color: var(--button-active-bg);
 }
+
+.controls .selected {
+  background-color: var(--button-hover-bg);
+}
+
 .controls button.disabled {
   color: var(--fg-disabled);
 }
-.controls button > * {
+
+.controls button>* {
   background-color: inherit;
   color: inherit;
 }
 
-button.dropdown-item, .dropdown-item > button {
+button.dropdown-item,
+.dropdown-item button {
+  /* box-shadow: 0 0 3px 0 var(--shadow); */
   height: 100%;
   border: 0;
+  border-right: 1px solid var(--shadow);
+  cursor: pointer;
   padding: 10px 10px;
+  min-width: 50px;
+  text-align: center;
 }
 
-.dropdown-item > span {
+.dropdown-item {
+  border-bottom: 1px solid var(--shadow);
+}
+
+.dropdown-item>span {
   padding: 0 10px 0 0;
+  text-align: right;
+  font-style: italic;
 }
 
 .dropdown-menu {
@@ -254,10 +291,6 @@ button.dropdown-item, .dropdown-item > button {
   position: absolute;
   box-shadow: 0 0 2px 0 var(--shadow);
   z-index: 1;
-}
-
-.dropdown-menu button {
-  text-align: left;
 }
 
 .dropdown-container:focus-within .dropdown-menu {
@@ -270,11 +303,16 @@ button.dropdown-item, .dropdown-item > button {
   width: 50px;
 }
 
+/***************/
+/** TABLATURE **/
+/***************/
+
 .tablatureViewer {
   display: flex;
   overflow: auto;
   background-color: var(--tab-bg);
 }
+
 .tablatureViewer pre {
   margin: auto;
   border: 0;
@@ -287,21 +325,26 @@ button.dropdown-item, .dropdown-item > button {
   color: var(--fg);
 }
 
-.tablature sup, .tablature sub {
+.tablature sup,
+.tablature sub {
   vertical-align: baseline;
   position: relative;
 }
+
 .tablature sup {
   font-size: var(--tablature-sup-font-size);
   top: var(--tablature-sup-top);
 }
+
 .tablature sup .fontsize-compensation {
   font-size: calc(var(--tablature-font-size) - var(--tablature-sup-font-size));
 }
+
 .tablature sub {
   font-size: var(--tablature-sub-font-size);
   top: var(--tablature-sub-top);
 }
+
 .tablature sub .fontsize-compensation {
   font-size: calc(var(--tablature-font-size) - var(--tablature-sub-font-size));
 }
@@ -345,6 +388,7 @@ button.dropdown-item, .dropdown-item > button {
   .app {
     display: none;
   }
+
   .tablaturePrinter {
     display: block;
   }

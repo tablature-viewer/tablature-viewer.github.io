@@ -19,6 +19,7 @@ import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import LocationString (getQueryParam)
+import TablatureRewriter (NoteOrientation(..))
 import Web.HTML (window)
 import Web.HTML.HTMLDocument (setTitle)
 import Web.HTML.Window (document)
@@ -88,6 +89,9 @@ doAction action = do
     DecreaseAutoscrollSpeed -> decreaseAutoscrollSpeed
     IncreaseTransposition -> increaseTransposition
     DecreaseTransposition -> decreaseTransposition
+    FlatNoteOrientation -> setNoteOrientation Flat
+    SharpNoteOrientation -> setNoteOrientation Sharp
+    DefaultNoteOrientation -> setNoteOrientation Default
 
   updateAutoscroll action
   updateDocumentTitle

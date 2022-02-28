@@ -12,6 +12,7 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import LocationString (getLocationString)
 import TablatureDocument (predTransposition, succTransposition)
+import TablatureRewriter (NoteOrientation)
 import UrlShortener (createShortUrl)
 
 data Action
@@ -26,6 +27,9 @@ data Action
   | DecreaseAutoscrollSpeed
   | IncreaseTransposition
   | DecreaseTransposition
+  | FlatNoteOrientation
+  | SharpNoteOrientation
+  | DefaultNoteOrientation
 
 -- TODO: store scrollspeed somewhere external?
 increaseAutoscrollSpeed :: forall m. MonadEffect m => MonadState State m => m Unit
@@ -86,3 +90,8 @@ decreaseTransposition :: forall m. MonadEffect m => MonadState State m => m Unit
 decreaseTransposition = do
   urlParams <- Cache.read urlParamsCache
   Cache.write urlParamsCache $ urlParams { transposition = predTransposition urlParams.transposition }
+
+setNoteOrientation :: forall m. MonadEffect m => NoteOrientation -> MonadState State m => m Unit
+setNoteOrientation noteOrientation = do
+  urlParams <- Cache.read urlParamsCache
+  Cache.write urlParamsCache $ urlParams { noteOrientation = noteOrientation }
