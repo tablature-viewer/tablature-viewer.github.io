@@ -18,7 +18,8 @@ html {
 }
 
 :root {
-  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow: rgba(0, 0, 0, 0.2);
+  --border: rgba(0, 0, 0, 0.1);
 
   --title-width: 260px;
   --controls-max-width: 665px;
@@ -47,6 +48,8 @@ html {
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --shadow: rgba(0, 0, 0, 0.5);
+    --border: rgba(0, 0, 0, 0.3);
     --tab-bg: #262335;
     --header-bg: #241B2F;
     --button-bg: var(--header-bg);
@@ -229,9 +232,6 @@ body {
 
 button.header-button,
 .header-button button {
-  /* border: 1px solid var(--shadow); */
-  /* padding: 1px;
-  margin: 1px; */
   box-shadow: 0 0 3px 0 var(--shadow);
   height: 100%;
   border: 0;
@@ -266,10 +266,9 @@ button.header-button,
 
 button.dropdown-item,
 .dropdown-item button {
-  /* box-shadow: 0 0 3px 0 var(--shadow); */
   height: 100%;
   border: 0;
-  border-right: 1px solid var(--shadow);
+  border-right: 1px solid var(--border);
   cursor: pointer;
   padding: 10px 10px;
   min-width: 50px;
@@ -277,13 +276,16 @@ button.dropdown-item,
 }
 
 .dropdown-item {
-  border-bottom: 1px solid var(--shadow);
+  border-bottom: 1px solid var(--border);
+  flex-direction: row;
+  display: flex;
 }
 
-.dropdown-item>span {
-  padding: 0 10px 0 0;
-  text-align: right;
+.dropdown-item>div {
+  padding: 10px 10px;
   font-style: italic;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .dropdown-menu {

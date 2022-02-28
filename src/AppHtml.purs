@@ -98,7 +98,7 @@ render state = HH.div_
                     [ if Cache.peek _tabNormalizationEnabled state then fontAwesome "fa-toggle-on"
                       else fontAwesome "fa-toggle-off"
                     ]
-                , HH.span_ [ HH.text $ " Normalize tabs " ]
+                , HH.div_ [ HH.text $ "Normalize tabs " ]
                 ]
             , HH.div
                 [ classString "dropdown-item" ]
@@ -114,7 +114,7 @@ render state = HH.div_
                     [ if Cache.peek _tabDozenalizationEnabled state then fontAwesome "fa-toggle-on"
                       else fontAwesome "fa-toggle-off"
                     ]
-                , HH.span_ [ HH.text $ " Dozenalize tabs " ]
+                , HH.div_ [ HH.text $ "Dozenalize tabs " ]
                 ]
             , HH.div
                 [ classString "dropdown-item" ]
@@ -130,7 +130,7 @@ render state = HH.div_
                     [ if Cache.peek _chordDozenalizationEnabled state then fontAwesome "fa-toggle-on"
                       else fontAwesome "fa-toggle-off"
                     ]
-                , HH.span_ [ HH.text $ " Dozenalize chords " ]
+                , HH.div_ [ HH.text $ " Dozenalize chords " ]
                 ]
             , HH.div
                 [ HP.title "Transpose the tablature"
@@ -146,7 +146,7 @@ render state = HH.div_
                     , HE.onClick \_ -> IncreaseTransposition
                     ]
                     [ fontAwesome "fa-caret-up" ]
-                , HH.span_ [ HH.text $ " Transpose " <> show (Cache.peek _urlParams state).transposition ]
+                , HH.div_ [ HH.text $ "Transpose " <> show (Cache.peek _urlParams state).transposition ]
                 ]
             , HH.div
                 [ HP.title "Preferred note orientation"
@@ -156,27 +156,27 @@ render state = HH.div_
                   noteOrientation = (Cache.peek _urlParams state).noteOrientation
                 in
                   [ HH.button
-                      [ HP.title "Default"
+                      [ HP.title "default"
                       , HE.onClick \_ -> DefaultNoteOrientation
                       , if noteOrientation == Default then classString "selected" else classString ""
                       ]
                       [ HH.text "default"
                       ]
                   , HH.button
-                      [ HP.title "Prefer flats"
+                      [ HP.title "Prefer flat"
                       , HE.onClick \_ -> FlatNoteOrientation
                       , if noteOrientation == Flat then classString "selected" else classString ""
                       ]
-                      [ HH.text "flats"
+                      [ HH.text "flat"
                       ]
                   , HH.button
-                      [ HP.title "Prefer sharps"
+                      [ HP.title "Prefer sharp"
                       , HE.onClick \_ -> SharpNoteOrientation
                       , if noteOrientation == Sharp then classString "selected" else classString ""
                       ]
-                      [ HH.text "sharps"
+                      [ HH.text "sharp"
                       ]
-                  , HH.span [ classString "description" ] [ HH.text $ " Note orientation " ]
+                  , HH.div_ [ HH.text $ "Note orientation" ]
                   ]
             , HH.div
                 [ HP.title "Change the autoscroll speed"
@@ -192,7 +192,7 @@ render state = HH.div_
                     , HE.onClick \_ -> IncreaseAutoscrollSpeed
                     ]
                     [ fontAwesome "fa-forward" ]
-                , HH.span_ [ HH.text $ " Autoscroll speed " <> show (view _autoscrollSpeed state) ]
+                , HH.div_ [ HH.text $ " Autoscroll speed " <> show (view _autoscrollSpeed state) ]
                 ]
             ]
         ]
