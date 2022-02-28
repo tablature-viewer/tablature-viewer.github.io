@@ -20,6 +20,7 @@ data Action
   | ToggleEditMode
   | ToggleTabNormalization
   | ToggleTabDozenalization
+  | ToggleChordNormalization
   | ToggleChordDozenalization
   | CreateShortUrl
   | ToggleAutoscroll
@@ -64,6 +65,11 @@ toggleTabDozenalization = do
   else do
     tabDozenalizationEnabled <- Cache.read tabDozenalizationEnabledCache
     Cache.write tabDozenalizationEnabledCache (not tabDozenalizationEnabled)
+
+toggleChordNormalization :: forall m. MonadEffect m => MonadState State m => m Unit
+toggleChordNormalization = do
+  chordNormalizationEnabled <- Cache.read chordNormalizationEnabledCache
+  Cache.write chordNormalizationEnabledCache (not chordNormalizationEnabled)
 
 toggleChordDozenalization :: forall m. MonadEffect m => MonadState State m => m Unit
 toggleChordDozenalization = do

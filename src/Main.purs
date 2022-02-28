@@ -83,6 +83,7 @@ doAction action = do
     ToggleTabNormalization -> toggleTabNormalization
     ToggleTabDozenalization -> toggleTabDozenalization
     ToggleChordDozenalization -> toggleChordDozenalization
+    ToggleChordNormalization -> toggleChordNormalization
     CreateShortUrl -> createAndCopyShortUrl
     ToggleAutoscroll -> pure unit -- Done in updateAutoscroll
     IncreaseAutoscrollSpeed -> increaseAutoscrollSpeed

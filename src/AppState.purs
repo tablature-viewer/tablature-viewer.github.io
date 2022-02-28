@@ -41,6 +41,7 @@ type StateRecord =
   , tablatureTitle :: CacheEntry State String
   , tabNormalizationEnabled :: CacheEntry State Boolean
   , tabDozenalizationEnabled :: CacheEntry State Boolean
+  , chordNormalizationEnabled :: CacheEntry State Boolean
   , chordDozenalizationEnabled :: CacheEntry State Boolean
   , upperCaseNotes :: CacheEntry State Boolean
   -- For tabs that are already dozenal themselves we want to ignore any dozenalization settings
@@ -64,6 +65,7 @@ initialState _ = State
   , tablatureTitle: buildCache "Tab viewer"
   , tabNormalizationEnabled: buildCache true
   , tabDozenalizationEnabled: buildCache false
+  , chordNormalizationEnabled: buildCache false
   , chordDozenalizationEnabled: buildCache false
   , upperCaseNotes: buildCache true
   , ignoreDozenalization: buildCache false
@@ -147,6 +149,7 @@ rewriteResultCache =
       parseResult <- subscribe entryKey parseResultCache
       tabNormalizationEnabled <- subscribe entryKey tabNormalizationEnabledCache
       tabDozenalizationEnabled <- subscribe entryKey tabDozenalizationEnabledCache
+      chordNormalizationEnabled <- subscribe entryKey chordNormalizationEnabledCache
       chordDozenalizationEnabled <- subscribe entryKey chordDozenalizationEnabledCache
       ignoreDozenalization <- subscribe entryKey ignoreDozenalizationCache
       urlParams <- subscribe entryKey urlParamsCache
@@ -155,9 +158,9 @@ rewriteResultCache =
         { dozenalizeTabs: tabDozenalizationEnabled && not ignoreDozenalization
         , dozenalizeChords: chordDozenalizationEnabled && not ignoreDozenalization
         , normalizeTabs: tabNormalizationEnabled
+        , normalizeChords: chordNormalizationEnabled
         , transposition: urlParams.transposition
         , noteOrientation: urlParams.noteOrientation
-        , upperCaseNotes: false -- TODO: make configurable
         }
       pure $ Just $ rewriteTablatureDocument renderingOptions parseResult
   }
@@ -204,6 +207,12 @@ chordDozenalizationEnabledCache = localStorageBooleanCache "chordDozenalizationE
 
 _chordDozenalizationEnabled :: EntryKey State Boolean
 _chordDozenalizationEnabled = EntryKey (barlow (key :: _ "!.chordDozenalizationEnabled"))
+
+chordNormalizationEnabledCache :: AppStateReadWriteCacheUnit Boolean
+chordNormalizationEnabledCache = localStorageBooleanCache "chordNormalizationEnabled" _chordNormalizationEnabled
+
+_chordNormalizationEnabled :: EntryKey State Boolean
+_chordNormalizationEnabled = EntryKey (barlow (key :: _ "!.chordNormalizationEnabled"))
 
 ignoreDozenalizationCache :: AppStateReadCacheUnit Boolean
 ignoreDozenalizationCache =

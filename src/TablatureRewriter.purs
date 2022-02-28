@@ -12,15 +12,15 @@ import Data.String.CodePoints (stripPrefix)
 import Data.String.CodeUnits (charAt, length)
 import Data.String.Utils (repeat)
 import Data.Tuple (Tuple(..))
-import TablatureDocument (Chord(..), ChordMod(..), Note, NoteLetterPrimitive(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _mod, _primitive, _root)
+import TablatureDocument (Chord(..), ChordMod(..), Note, NoteLetterPrimitive(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), Transposition(..), _ChordLine, _ChordLineChord, _TablatureLine, _TextLine, _TextLineChord, _Tuning, _bass, _lowercase, _mod, _primitive, _root)
 import Utils (class Print, applyUntilIdempotent, foreach, pred', print, succ', unsafeTestRegex)
 
 type RewriteSettings =
   { dozenalizeTabs :: Boolean
   , dozenalizeChords :: Boolean
   , normalizeTabs :: Boolean
+  , normalizeChords :: Boolean
   , transposition :: Transposition
-  , upperCaseNotes :: Boolean
   , noteOrientation :: NoteOrientation
   }
 
@@ -92,13 +92,13 @@ transposeChords :: TablatureDocumentRewriter
 transposeChords settings = applyChordMapping $ chordMapping
   where
   chordMapping = over _root noteMapping >>> over (_bass <<< _Just) noteMapping
-  noteMapping = transposeNote settings
+  noteMapping = transposeNote settings >>> if settings.normalizeChords then canonicalizeNote settings else identity
 
 transposeTuning :: TablatureDocumentRewriter
 transposeTuning settings = map rewriteLine
   where
   rewriteLine = over (_TablatureLine <<< traversed <<< _Tuning) (liftMappingSpaced noteMapping)
-  noteMapping = transposeNote settings
+  noteMapping = transposeNote settings >>> if settings.normalizeChords then canonicalizeNote settings else identity
 
 transposeNote :: RewriteSettings -> Note -> Note
 transposeNote settings =
@@ -116,6 +116,7 @@ canonicalizeNote settings =
     >>> applyUntilIdempotent reduceSharps
     >>> applyUntilIdempotent reduceFlats
     >>> toPreferredOrientation
+    >>> toUpperCase
   where
   collapseRedundants note = note # over _mod (replace (Pattern "#b") (Replacement "") >>> replace (Pattern "b#") (Replacement ""))
   reduceSharps note =
@@ -164,6 +165,7 @@ canonicalizeNote settings =
             G -> note # set _mod "#" # set _primitive F
             _ -> note
           _ -> note
+  toUpperCase note = note # set _lowercase false
 
 fixEmDashes :: TablatureDocumentRewriter
 fixEmDashes settings doc = if not settings.normalizeTabs then doc else map rewriteLine doc

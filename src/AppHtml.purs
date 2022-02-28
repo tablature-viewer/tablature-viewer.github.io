@@ -98,7 +98,7 @@ render state = HH.div_
                     [ if Cache.peek _tabNormalizationEnabled state then fontAwesome "fa-toggle-on"
                       else fontAwesome "fa-toggle-off"
                     ]
-                , HH.div_ [ HH.text $ "Normalize tabs " ]
+                , HH.div_ [ HH.text $ "Normalize tabs" ]
                 ]
             , HH.div
                 [ classString "dropdown-item" ]
@@ -114,7 +114,18 @@ render state = HH.div_
                     [ if Cache.peek _tabDozenalizationEnabled state then fontAwesome "fa-toggle-on"
                       else fontAwesome "fa-toggle-off"
                     ]
-                , HH.div_ [ HH.text $ "Dozenalize tabs " ]
+                , HH.div_ [ HH.text $ "Dozenalize tabs" ]
+                ]
+            , HH.div
+                [ classString "dropdown-item" ]
+                [ HH.button
+                    [ HP.title "Toggle normalization for chords on or off"
+                    , HE.onClick \_ -> ToggleChordNormalization
+                    ]
+                    [ if Cache.peek _chordNormalizationEnabled state then fontAwesome "fa-toggle-on"
+                      else fontAwesome "fa-toggle-off"
+                    ]
+                , HH.div_ [ HH.text $ "Normalize chords" ]
                 ]
             , HH.div
                 [ classString "dropdown-item" ]
@@ -130,7 +141,7 @@ render state = HH.div_
                     [ if Cache.peek _chordDozenalizationEnabled state then fontAwesome "fa-toggle-on"
                       else fontAwesome "fa-toggle-off"
                     ]
-                , HH.div_ [ HH.text $ " Dozenalize chords " ]
+                , HH.div_ [ HH.text $ " Dozenalize chords" ]
                 ]
             , HH.div
                 [ HP.title "Transpose the tablature"
@@ -192,7 +203,7 @@ render state = HH.div_
                     , HE.onClick \_ -> IncreaseAutoscrollSpeed
                     ]
                     [ fontAwesome "fa-forward" ]
-                , HH.div_ [ HH.text $ " Autoscroll speed " <> show (view _autoscrollSpeed state) ]
+                , HH.div_ [ HH.text $ " Autoscroll speed" <> show (view _autoscrollSpeed state) ]
                 ]
             ]
         ]
