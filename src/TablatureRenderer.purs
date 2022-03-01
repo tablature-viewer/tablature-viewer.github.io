@@ -6,7 +6,7 @@ import TablatureDocument
 import Data.Array (fromFoldable)
 import Data.Filterable (filterMap)
 import Data.Foldable (foldr)
-import Data.Lens (view)
+import Data.Lens (Traversal', minimumOf, traversed, view)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (length)
@@ -51,15 +51,23 @@ renderTablatureDocument doc = map renderLine doc
   renderChordLegendElem (ChordFret string) = renderWithClass string "tabFret"
   renderChordLegendElem (ChordSpecial string) = renderWithClass string "tabSpecial"
 
+  _tuningSpaceSuffixes :: Traversal' TablatureDocument Int
+  _tuningSpaceSuffixes = traversed <<< _TablatureLine <<< traversed <<< _Tuning <<< _spaceSuffix
+
+  minTuningSpace :: Int
+  minTuningSpace = minimumOf _tuningSpaceSuffixes doc # fromMaybe 0
+
+  -- This accounts for negative space suffixes by subtracting the smallest occurring space suffix from all tuning suffixes
   renderTuning :: (Spaced Note) -> HH.HTML w i
   renderTuning spacedNote =
     HH.span [ classString "tabChord" ]
       [ HH.text $ print $ view (_elem <<< _letter) spacedNote
       , HH.sub_ [ HH.text $ view (_elem <<< _mod) spacedNote ]
-      , HH.text $ fromMaybe "" $ repeat (view _spaceSuffix spacedNote) " "
+      , HH.text $ fromMaybe "" $ repeat (view _spaceSuffix spacedNote - minTuningSpace) " "
       , HH.sub_ [ createFontSizeCompensation $ view (_elem <<< _mod) spacedNote ]
       ]
 
+  -- This accounts for negative space suffixes because the white space is included in the chord when parsing
   renderChord :: (Spaced Chord) -> HH.HTML w i
   renderChord chord =
     HH.span [ classString "tabChord" ] $
@@ -77,6 +85,6 @@ renderTablatureDocument doc = map renderLine doc
         ]
     where
     chordMods = foldr (<>) "" $ map print (view (_elem <<< _mods) chord)
-  createFontSizeCompensation string = HH.span [ classString "fontsize-compensation" ] [ HH.text $ fromMaybe "" $ repeat (length string) " " ]
 
+  createFontSizeCompensation string = HH.span [ classString "fontsize-compensation" ] [ HH.text $ fromMaybe "" $ repeat (length string) " " ]
   renderWithClass string klass = HH.span [ classString klass ] [ HH.text string ]

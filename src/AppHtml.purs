@@ -203,7 +203,7 @@ render state = HH.div_
                     , HE.onClick \_ -> IncreaseAutoscrollSpeed
                     ]
                     [ fontAwesome "fa-forward" ]
-                , HH.div_ [ HH.text $ " Autoscroll speed" <> show (view _autoscrollSpeed state) ]
+                , HH.div_ [ HH.text $ "Autoscroll speed " <> show (view _autoscrollSpeed state) ]
                 ]
             ]
         ]
