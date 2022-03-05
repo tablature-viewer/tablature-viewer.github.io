@@ -11,12 +11,13 @@ import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (length)
 import Data.String.Utils (repeat)
+import Debug (spy)
 import Halogen.HTML as HH
 import HalogenUtils (classString, renderLineEnding)
 import Utils (print)
 
 renderTablatureDocument :: forall w i. TablatureDocument -> List (HH.HTML w i)
-renderTablatureDocument doc = map renderLine doc
+renderTablatureDocument doc = map renderLine (spy "asdf " doc)
   where
   renderLine :: TablatureDocumentLine -> HH.HTML w i
   renderLine (TitleLine line) = renderLine' line renderTitleLineElem

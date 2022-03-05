@@ -14,6 +14,7 @@ to generate this file without the comments in this block.
 , dependencies =
   [ "aff"
   , "affjax"
+  , "argonaut-core"
   , "arrays"
   , "assert"
   , "barlow-lens"
@@ -27,6 +28,7 @@ to generate this file without the comments in this block.
   , "filterable"
   , "foldable-traversable"
   , "foreign"
+  , "foreign-object"
   , "functors"
   , "halogen"
   , "http-methods"
@@ -49,6 +51,7 @@ to generate this file without the comments in this block.
   , "tuples"
   , "typelevel-prelude"
   , "web-dom"
+  , "web-dom-parser"
   , "web-html"
   ]
 , packages = ./packages.dhall

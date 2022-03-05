@@ -22,7 +22,7 @@ html {
   --border: rgba(0, 0, 0, 0.1);
 
   --title-width: 260px;
-  --controls-max-width: 665px;
+  --controls-max-width: 900px;
   --app-height: 100vh;
 
   --tablature-font-size: 13px;
@@ -109,7 +109,7 @@ html {
 }
 
 /* max-width must be larger that sum of --title-width and --controls-max-width */
-@media only screen and (max-width: 950px) {
+@media only screen and (max-width: 1060px) {
   .smallViewport {
     display: inline;
   }

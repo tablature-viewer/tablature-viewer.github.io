@@ -242,6 +242,12 @@ render state = HH.div_
         , classString "header-button"
         ]
         toggleAutoscrollContent
+    , HH.button
+        [ HP.title "Import URL"
+        , HE.onClick \_ -> ImportFromUrl
+        , classString "header-button"
+        ]
+        [ fontAwesome "fa-folder-open", optionalText " Import" ]
     ]
     where
     toggleButtonContent = case view _mode state of

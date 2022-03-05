@@ -93,6 +93,7 @@ doAction action = do
     FlatNoteOrientation -> setNoteOrientation Flat
     SharpNoteOrientation -> setNoteOrientation Sharp
     DefaultNoteOrientation -> setNoteOrientation Default
+    ImportFromUrl -> importFromUrl
 
   updateAutoscroll action
   updateDocumentTitle

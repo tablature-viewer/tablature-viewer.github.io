@@ -8,8 +8,9 @@ import Data.Enum (class Enum)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList)
 import Data.Maybe (fromJust)
-import Data.String.Regex (regex, test)
-import Data.String.Regex.Flags (noFlags)
+import Data.String.Regex (Regex, regex, test)
+import Data.String.Regex.Flags (RegexFlags(..), noFlags)
+import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple, fst, snd)
 import Partial.Unsafe (unsafePartial)
 import Text.Parsing.StringParser (Parser(..), try, unParser)
@@ -47,7 +48,7 @@ applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent 
   result = f x
 
 unsafeTestRegex :: String -> String -> Boolean
-unsafeTestRegex patternString text = test (unsafePartial $ fromJust $ hush $ regex patternString noFlags) text
+unsafeTestRegex patternString text = test (unsafeRegex patternString noFlags) text
 
 -- NOTES
 -- many p will get stuck in a loop if p possibly doesn't consume any input but still succeeds

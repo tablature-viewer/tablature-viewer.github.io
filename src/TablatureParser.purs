@@ -2,16 +2,19 @@ module TablatureParser where
 
 import Prelude hiding (between)
 
-import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromJust, fromMaybe)
 import Data.String (drop, length, toLower, toUpper)
+import Data.String.Regex as Regex
+import Data.String.Regex.Flags (global)
+import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
+import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 import Text.Parsing.StringParser (Parser, try, unParser)
 import Text.Parsing.StringParser.CodePoints (eof, regex, string)
 import Text.Parsing.StringParser.Combinators (option, optionMaybe)
@@ -29,14 +32,14 @@ parseTablatureDocument = do
 
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
-  prefix <- regex """[^\w\n\r]*"""
-  title <- regex """[^\n\r]*[\w)!?"']"""
-  suffix <- regex """[^\n\r]*""" <* parseEndOfLine
+  prefix <- regex """[^\w\n]*"""
+  title <- regex """[^\n]*[\w)!?"']"""
+  suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
-  prefix <- safeManyTill (regex """[^\n\r]""") (safeLookAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
+  prefix <- safeManyTill (regex """[^\n]""") (safeLookAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
   maybeTuning <- optionMaybe $ parseSpacedNote <* (safeLookAhead (string "|")) <#> \result -> Tuning result
   tabLine <- safeLookAhead (regex """\|\|?""") *> safeMany
     (
@@ -47,7 +50,7 @@ parseTablatureLine = do
           (regex ("""[^\s|\-—\d↊↋]+""") <#> \result -> Special result)
     )
   tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
-  suffix <- regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> Suffix result
+  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> \result -> Suffix result
   pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> tabLine <> tabLineClose : Nil <> suffix : Nil)
   where
   getTuning = case _ of
@@ -56,8 +59,8 @@ parseTablatureLine = do
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
-  header <- regex """[^\S\n\r]*\[[^\n\r]*\w{2}[^\n\r]*\]"""
-  suffix <- regex """[^\r\n]*""" <* parseEndOfLine
+  header <- regex """[^\S\n]*\[[^\n]*\w{2}[^\n]*\]"""
+  suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ HeaderLine ((Header header) : (HeaderSuffix suffix) : Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
@@ -104,14 +107,14 @@ parseSpacedNote = do
 
 -- A chord comment is a non chord string that is either a series of dots, a series of spaces, a xN expression or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
-parseChordComment = regex """[^\S\n\r]*(\([^\n\r()]*\)|\.\.+|[^\S\n\r]+|x\d+)[^\S\n\r]*""" <#> \result -> ChordComment result
+parseChordComment = regex """[^\S\n]*(\([^\n()]*\)|\.\.+|[^\S\n]+|x\d+)[^\S\n]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
 parseTextLine = safeManyTill (parseTextLineSpace <|> try (parseChord <#> \chord -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
   <#> \result -> TextLine result
 
 parseTextLineSpace :: Parser TextLineElem
-parseTextLineSpace = regex """[^\S\n\r]+""" <#> \result -> Spaces result
+parseTextLineSpace = regex """[^\S\n]+""" <#> \result -> Spaces result
 
 parseSpaces :: Parser String
 parseSpaces = regex """[ ]*"""
@@ -129,21 +132,19 @@ parseChordLegend =
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine
-parseAnyLine = regex """[^\n\r]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result) : Nil)
+parseAnyLine = regex """[^\n]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result) : Nil)
 
--- | We are as flexible as possible when it comes to line endings.
--- | Any of the following forms are considered valid: \n \r \n\r eof
 parseEndOfLine :: Parser Unit
 parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 
 parseEndOfLineString :: Parser String
-parseEndOfLineString = regex """\n\r?|\r"""
+parseEndOfLineString = regex """\n"""
 
 tryParseTablature :: String -> Maybe TablatureDocument
 tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
 
 parseTablature :: String -> TablatureDocument
-parseTablature text = tryParseTablature text # fromMaybe Nil
+parseTablature text = tryParseTablature (Regex.replace (unsafeRegex "\r" global) "" text) # fromMaybe Nil
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString =
