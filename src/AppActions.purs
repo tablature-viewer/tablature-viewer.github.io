@@ -54,11 +54,9 @@ decreaseAutoscrollSpeed = do
 
 initialize :: forall m. MonadEffect m => MonadState State m => m Unit
 initialize = do
-  setState _mode SearchMode
-
--- tablatureText <- Cache.read tablatureTextCache
--- if tablatureText == "" then setState _mode EditMode
--- else setState _mode ViewMode
+  tablatureText <- Cache.read tablatureTextCache
+  if tablatureText == "" then setState _mode SearchMode
+  else setState _mode ViewMode
 
 toggleTabNormalization :: forall m. MonadEffect m => MonadState State m => m Unit
 toggleTabNormalization = do
