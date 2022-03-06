@@ -33,6 +33,8 @@ import Web.DOM.Document (toParentNode)
 import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
 
+foreign import _htmlDecode :: String -> String
+
 fetchTabFromUrl :: forall m. MonadAff m => MonadState State m => Url -> MaybeT m String
 fetchTabFromUrl url = do
   dataContent <- fetchUrlDataContent url
@@ -123,4 +125,4 @@ extractTab :: forall m. MonadEffect m => Json -> MaybeT m String
 extractTab json = do
   rawTab <- json # child "store" >>= child "page" >>= child "data" >>= child "tab_view" >>= child "wiki_tab" >>= child "content" >>= string # hoistMaybe
   -- when (Maybe.isNothing rawTab) $ liftEffect $ Console.error $ "Could not retrieve tablature data from json " <> stringify json
-  pure $ Regex.replace (unsafeRegex """\[\/?(ch|tab)\]""" global) "" rawTab
+  pure $ _htmlDecode $ Regex.replace (unsafeRegex """\[\/?(ch|tab)\]""" global) "" rawTab

@@ -57,12 +57,16 @@ html {
     --button-active-bg: #4f3d6a;
 
     --fg: #acb3b3;
-    --fg-alt: #ecd13a;
-    --fg-alt2: #09c7e0;
+    --fg-alt: #ffcb6b;
+    --fg-alt2: #91f5f8;
+    /* --fg-alt2: #94afeb; */
     --fg-disabled: #585858;
 
-    --accent: #e25ac5;
-    --accent-alt: #fa8900;
+    --accent: #f78c6c;
+    --accent: #f07178;
+    /* --accent-alt: #94afeb; */
+    /* --accent-alt: #c792ea; */
+    --accent-alt: #f78c6c;
   }
 }
 
