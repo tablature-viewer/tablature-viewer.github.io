@@ -97,11 +97,7 @@ doAction action = do
     SharpNoteOrientation -> setNoteOrientation Sharp
     DefaultNoteOrientation -> setNoteOrientation Default
     ImportFromUrl url -> importFromUrl url
-    SearchInput event -> do
-      maybeInput <- lift getSearchInputElement
-      case maybeInput of
-        Nothing -> pure unit
-        Just input -> liftEffect (HTMLInputElement.value input) >>= searchInput event
+    SearchInput value -> searchInput value
     OpenSearch -> do
       openSearch
       lift focusSearchInput

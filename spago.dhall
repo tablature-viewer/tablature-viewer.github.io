@@ -37,6 +37,7 @@ to generate this file without the comments in this block.
   , "lists"
   , "maybe"
   , "newtype"
+  , "numbers"
   , "partial"
   , "prelude"
   , "profunctor-lenses"

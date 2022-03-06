@@ -10,6 +10,8 @@ import Control.Monad.State (class MonadState)
 import Data.Array (fromFoldable)
 import Data.Lens (view)
 import Data.Maybe (Maybe(..))
+import Data.Maybe as Maybe
+import Data.Number.Format (precision, toStringWith)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console as Console
 import Effect.Timer (clearInterval, setInterval)
@@ -72,20 +74,26 @@ render state = HH.div_
   renderSearchBar =
     HH.input
       [ HP.ref refTablatureSearchInput
-      , HE.onKeyDown \event -> SearchInput event
+      , HE.onValueChange SearchInput
       ]
   renderSearchResults = HH.div []
     [ case view _searchResults state of
         Nothing -> HH.span [] [ HH.text "Type something in the search bar" ]
         Just [] -> HH.span [] [ HH.text "No search results" ]
-        Just searchResults -> HH.table [] (searchResults <#> renderSearchResult)
+        Just searchResults -> HH.table []
+          ( [ HH.th [] [ HH.text "Song" ]
+            , HH.th [] [ HH.text "Artist" ]
+            , HH.th [] [ HH.text "Rating" ]
+            , HH.th [] [ HH.text "Type" ]
+            ] <> (searchResults <#> renderSearchResult)
+          )
     ]
   renderSearchResult searchResult = HH.tr
-    [ HE.onClick \_ -> ImportFromUrl searchResult.url
-    ]
+    [ HE.onClick \_ -> ImportFromUrl searchResult.url ]
     [ HH.td [] [ HH.text searchResult.name ]
-    , HH.td [] [ HH.text $ show searchResult.rating ]
-    , HH.td [] [ HH.text $ show searchResult.contentType ]
+    , HH.td [] [ HH.text searchResult.artist ]
+    , HH.td [] [ HH.text $ Maybe.fromMaybe "" $ searchResult.rating <#> toStringWith (precision 3) ]
+    , HH.td [] [ HH.text $ Maybe.fromMaybe "" searchResult.contentType ]
     ]
   renderHeader = HH.div
     [ classString "header" ]

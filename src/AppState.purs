@@ -28,7 +28,14 @@ data Mode = ViewMode | EditMode | SearchMode
 type Url = String
 
 -- TODO: add artist name
-type SearchResult = { url :: Url, name :: String, rating :: Maybe Number, contentType :: Maybe String, marketingType :: Maybe String }
+type SearchResult =
+  { url :: Url
+  , name :: String
+  , artist :: String
+  , rating :: Maybe Number
+  , contentType :: Maybe String
+  , marketingType :: Maybe String
+  }
 
 newtype State = State StateRecord
 
