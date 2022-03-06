@@ -1,58 +1,48 @@
 module UGScraper where
 
+import JsonUtils
 import Prelude
-import AppState
 
 import Affjax as AX
 import Affjax.ResponseFormat as ResponseFormat
-import Cache as Cache
-import Clipboard (copyToClipboard)
+import AppState (SearchResult, State, Url, _searchResults, setState)
+import Control.Error.Util (hoistMaybe)
+import Control.Monad.Cont (lift)
+import Control.Monad.Except (ExceptT(..), except, runExcept)
+import Control.Monad.List.Trans (scanl)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
-import Data.Argonaut.Core (Json, caseJsonArray, caseJsonNumber, caseJsonObject, caseJsonString)
+import Data.Argonaut.Core (Json, caseJsonArray, caseJsonNumber, caseJsonObject, caseJsonString, stringify)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array (mapMaybe)
 import Data.Array as Array
-import Data.Either (Either(..), hush)
-import Data.Enum (pred, succ)
+import Data.Either (Either(..), hush, note)
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
-import Data.Traversable (traverse)
+import Data.Traversable (class Traversable, traverse)
 import Debug (spy)
-import DebugUtils (debugM_)
-import Effect (Effect)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console as Console
 import Foreign.Object (lookup)
-import LocationString (getLocationString)
-import Partial (crashWith)
-import Partial.Unsafe (unsafePartial)
-import TablatureDocument (predTransposition, succTransposition)
-import TablatureRewriter (NoteOrientation)
-import UrlShortener (createShortUrl)
 import Web.DOM.DOMParser (makeDOMParser, parseHTMLFromString)
 import Web.DOM.Document (toParentNode)
 import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
-import Web.Event.Event as Event
-import Web.UIEvent.KeyboardEvent (KeyboardEvent)
-import Web.UIEvent.KeyboardEvent as KeyboardEvent
-import Web.UIEvent.KeyboardEvent as UIEvent
 
-fetchTabFromUrl :: forall m. MonadAff m => MonadState State m => Url -> m (Maybe String)
-fetchTabFromUrl url = runMaybeT do
+fetchTabFromUrl :: forall m. MonadAff m => MonadState State m => Url -> MaybeT m String
+fetchTabFromUrl url = do
   dataContent <- fetchUrlDataContent url
-  MaybeT $ liftAff $ pure $ extractTab dataContent
+  extractTab dataContent
 
 execSearch :: forall m. MonadAff m => MonadState State m => String -> m Unit
 execSearch phrase = map (const unit) $ runMaybeT do
   let url = """https://www.ultimate-guitar.com/search.php?search_type=title&value=""" <> phrase
   dataContent <- fetchUrlDataContent url
-  searchResults <- MaybeT $ liftAff $ pure $ extractSearchResults dataContent
+  searchResults <- extractSearchResults dataContent
   setState _searchResults (Just $ filterSearchResults searchResults)
   pure unit
 
@@ -65,48 +55,46 @@ filterSearchResults = Array.filter pred
       && Maybe.isNothing marketingType
       && not Array.elem contentType [ Just "Pro", Just "Video", Just "Power" ]
 
-extractSearchResults :: Json -> Maybe (Array SearchResult)
-extractSearchResults input = do
-  input # child "store" >>= child "page" >>= child "data" >>= child "results" >>= array <#> mapMaybe toSearchResult
-  where
-  -- TODO: move to json utils
-  child :: String -> Json -> Maybe Json
-  child name json = caseJsonObject Nothing (lookup name) json
+-- traverse in the base monad, then filter the results
+mapMaybeT :: forall m a b. Monad m => (a -> MaybeT m b) -> Array a -> m (Array b)
+mapMaybeT f array = do
+  maybes <- traverse (runMaybeT <<< f) array
+  values <- pure $ mapMaybe identity maybes
+  pure values
 
-  array :: Json -> Maybe (Array Json)
-  array json = caseJsonArray Nothing Just json
+extractSearchResults :: forall m. MonadEffect m => Json -> MaybeT m (Array SearchResult)
+extractSearchResults json = do
+  jsonSearchResults <- json # child "store" >>= child "page" >>= child "data" >>= child "results" >>= array # hoistMaybe
+  -- when (Maybe.isNothing jsonSearchResults) $ liftEffect $ Console.error $ "Could not retrieve data from json " <> stringify json
+  -- FIXNOW: this is wrong, traverse will not filter but stop on the first Nothing
+  mapMaybeT toSearchResult jsonSearchResults
 
-  string :: Json -> Maybe String
-  string json = caseJsonString Nothing Just json
-
-  number :: Json -> Maybe Number
-  number json = caseJsonNumber Nothing Just json
-
-  toSearchResult :: Json -> Maybe SearchResult
-  toSearchResult json =
-    case
-      do
-        url <- child "tab_url" json >>= string
-        name <- child "song_name" json >>= string
-        artist <- child "artist_name" json >>= string
-        let rating = child "rating" json >>= number
-        let contentType = child "type" json >>= string
-        let marketingType = child "marketing_type" json >>= string
-        Just
-          { url
-          , rating
-          , name
-          , artist
-          , contentType
-          , marketingType
-          }
-      of
+toSearchResult :: forall m. MonadEffect m => Json -> MaybeT m SearchResult
+toSearchResult json =
+  let
+    maybeResult = do
+      url <- child "tab_url" json >>= string
+      name <- child "song_name" json >>= string
+      artist <- child "artist_name" json >>= string
+      let rating = child "rating" json >>= number
+      let contentType = child "type" json >>= string
+      let marketingType = child "marketing_type" json >>= string
+      Just
+        { url
+        , rating
+        , name
+        , artist
+        , contentType
+        , marketingType
+        }
+  in
+    MaybeT case maybeResult of
       Nothing -> do
-        _ <- Just $ spy "Could not parse " json
-        Nothing
-      x -> do
-        _ <- Just $ spy " " json
-        x
+        liftEffect $ Console.error $ "Could not parse " <> stringify json
+        pure Nothing
+      justResult -> do
+        -- _ <- Just $ spy " " json
+        pure justResult
 
 fetchUrlDataContent :: forall m. MonadAff m => Url -> MaybeT m Json
 fetchUrlDataContent url = do
@@ -131,13 +119,8 @@ extractDataContent input = do
   jsonString <- MaybeT $ liftEffect $ getAttribute "data-content" elem
   MaybeT $ pure $ hush $ jsonParser jsonString
 
-extractTab :: Json -> Maybe String
-extractTab input = do
-  rawTab <- input # child "store" >>= child "page" >>= child "data" >>= child "tab_view" >>= child "wiki_tab" >>= child "content" >>= string
+extractTab :: forall m. MonadEffect m => Json -> MaybeT m String
+extractTab json = do
+  rawTab <- json # child "store" >>= child "page" >>= child "data" >>= child "tab_view" >>= child "wiki_tab" >>= child "content" >>= string # hoistMaybe
+  -- when (Maybe.isNothing rawTab) $ liftEffect $ Console.error $ "Could not retrieve tablature data from json " <> stringify json
   pure $ Regex.replace (unsafeRegex """\[\/?(ch|tab)\]""" global) "" rawTab
-  where
-  child :: String -> Json -> Maybe Json
-  child name json = caseJsonObject Nothing (\object -> lookup name object) json
-
-  string :: Json -> Maybe String
-  string json = caseJsonString Nothing Just json

@@ -120,9 +120,6 @@ searchInput phrase = do
 
 importFromUrl :: forall m. MonadAff m => MonadState State m => Url -> m Unit
 importFromUrl url = map (const unit) $ runMaybeT do
-  maybeTablatureText <- fetchTabFromUrl url
-  case maybeTablatureText of
-    Nothing -> pure unit
-    Just tablatureText -> do
-      Cache.write tablatureTextCache tablatureText
-      setState _mode ViewMode
+  tablatureText <- fetchTabFromUrl url
+  Cache.write tablatureTextCache tablatureText
+  setState _mode ViewMode
