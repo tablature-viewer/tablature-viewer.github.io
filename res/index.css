@@ -305,6 +305,66 @@ button.dropdown-item,
   width: 50px;
 }
 
+/************/
+/** SEARCH **/
+/************/
+
+.tablatureSearch * {
+  font-family: Cascadia Tablature;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.tablatureSearch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 5px;
+}
+
+.searchBar {
+  padding: 10px 30px;
+  background-color: var(--button-hover-bg);
+  border: 1px solid;
+  border-color: var(--shadow);
+  width: 300px;
+}
+
+.searchBar:focus {
+  border-color: var(--fg);
+}
+
+.searchResults table,
+.searchResults th,
+.searchResults tr,
+.searchResults td {
+  border: 0;
+  border-collapse: collapse;
+}
+
+.searchResults tr:hover {
+  background-color: var(--button-hover-bg);
+  cursor: pointer;
+}
+
+.searchResults tr:focus {
+  background-color: var(--button-hover-bg);
+}
+
+.searchResults tr:active {
+  background-color: var(--button-active-bg);
+}
+
+.searchResults .selected {
+  background-color: var(--button-hover-bg);
+}
+
+.searchResults td,
+.searchResults th {
+  padding: 10px 30px;
+}
+
 /***************/
 /** TABLATURE **/
 /***************/

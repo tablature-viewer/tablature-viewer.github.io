@@ -75,8 +75,11 @@ render state = HH.div_
     HH.input
       [ HP.ref refTablatureSearchInput
       , HE.onValueChange SearchInput
+      , classString "searchBar"
       ]
-  renderSearchResults = HH.div []
+  renderSearchResults = HH.div
+    [ classString "searchResults"
+    ]
     [ case view _searchResults state of
         Nothing -> HH.span [] [ HH.text "Type something in the search bar" ]
         Just [] -> HH.span [] [ HH.text "No search results" ]
