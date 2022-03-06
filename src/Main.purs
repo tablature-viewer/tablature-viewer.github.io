@@ -20,8 +20,10 @@ import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import LocationString (getQueryParam)
 import TablatureRewriter (NoteOrientation(..))
+import Web.Event.Event as Event
 import Web.HTML (window)
 import Web.HTML.HTMLDocument (setTitle)
+import Web.HTML.HTMLInputElement as HTMLInputElement
 import Web.HTML.Window (document)
 
 foreign import executeJavascriptHacks :: Effect Unit
@@ -71,6 +73,7 @@ prepareHtml action = do
         ViewMode -> focusTablatureContainer
         -- Don't focus the textarea, as the cursor position will be put at the end (which also sometimes makes the window jump)
         EditMode -> pure unit
+        SearchMode -> pure unit
     _ -> pure unit
 
 -- We don't do the work directly on the halogen monad, to avoid unnecessary rendering triggers.
@@ -93,7 +96,15 @@ doAction action = do
     FlatNoteOrientation -> setNoteOrientation Flat
     SharpNoteOrientation -> setNoteOrientation Sharp
     DefaultNoteOrientation -> setNoteOrientation Default
-    ImportFromUrl -> importFromUrl
+    ImportFromUrl url -> importFromUrl url
+    SearchInput event -> do
+      maybeInput <- lift getSearchInputElement
+      case maybeInput of
+        Nothing -> pure unit
+        Just input -> liftEffect (HTMLInputElement.value input) >>= searchInput event
+    OpenSearch -> do
+      openSearch
+      lift focusSearchInput
 
   updateAutoscroll action
   updateDocumentTitle
@@ -129,6 +140,7 @@ toggleEditMode = do
       Cache.write tablatureTextCache tablatureText
       setState _mode ViewMode
       focusTablatureContainer
+    SearchMode -> pure unit
 
 updateAutoscroll :: forall m. MonadAff m => Action -> StateT State (H.HalogenM State Action () Unit m) Unit
 updateAutoscroll action = do

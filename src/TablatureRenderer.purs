@@ -17,7 +17,7 @@ import HalogenUtils (classString, renderLineEnding)
 import Utils (print)
 
 renderTablatureDocument :: forall w i. TablatureDocument -> List (HH.HTML w i)
-renderTablatureDocument doc = map renderLine (spy "asdf " doc)
+renderTablatureDocument doc = map renderLine doc
   where
   renderLine :: TablatureDocumentLine -> HH.HTML w i
   renderLine (TitleLine line) = renderLine' line renderTitleLineElem

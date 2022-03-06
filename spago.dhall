@@ -52,7 +52,9 @@ to generate this file without the comments in this block.
   , "typelevel-prelude"
   , "web-dom"
   , "web-dom-parser"
+  , "web-events"
   , "web-html"
+  , "web-uievents"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

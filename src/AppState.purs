@@ -23,18 +23,25 @@ import TablatureDocument (TablatureDocument, Transposition(..), getTitle)
 import TablatureParser (tryParseTablature)
 import TablatureRewriter (NoteOrientation(..), rewriteTablatureDocument)
 
-data Mode = ViewMode | EditMode
+data Mode = ViewMode | EditMode | SearchMode
+
+type Url = String
+
+-- TODO: add artist name
+type SearchResult = { url :: Url, name :: String, rating :: Maybe Number, contentType :: Maybe String, marketingType :: Maybe String }
 
 newtype State = State StateRecord
 
 type StateRecord =
   { mode :: Mode
-  , autoscrollTimer :: Maybe IntervalId
-  , autoscrollSpeed :: AutoscrollSpeed
-  , autoscroll :: Boolean
-  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
-  , scrollTop :: Number
   , loading :: Boolean
+  , scrollTop :: Number
+  , searchPhrase :: Maybe String
+  , searchResults :: Maybe (Array SearchResult)
+  , autoscroll :: Boolean
+  , autoscrollSpeed :: AutoscrollSpeed
+  , autoscrollTimer :: Maybe IntervalId
+  -- Store the scrollTop in the state before actions so we can restore the expected scrollTop when switching views
   , tablatureText :: CacheEntry State String
   , parseResult :: CacheEntry State TablatureDocument
   , rewriteResult :: CacheEntry State TablatureDocument
@@ -56,6 +63,8 @@ initialState _ = State
   { mode: EditMode
   , loading: false
   , scrollTop: 0.0
+  , searchPhrase: Nothing
+  , searchResults: Nothing
   , autoscroll: false
   , autoscrollTimer: Nothing
   , autoscrollSpeed: Normal
@@ -80,6 +89,12 @@ _loading = barlow (key :: _ "!.loading")
 
 _scrollTop :: Lens' State Number
 _scrollTop = barlow (key :: _ "!.scrollTop")
+
+_searchPhrase :: Lens' State (Maybe String)
+_searchPhrase = barlow (key :: _ "!.searchPhrase")
+
+_searchResults :: Lens' State (Maybe (Array SearchResult))
+_searchResults = barlow (key :: _ "!.searchResults")
 
 _autoscroll :: Lens' State Boolean
 _autoscroll = barlow (key :: _ "!.autoscroll")
