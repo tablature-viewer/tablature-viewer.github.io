@@ -309,6 +309,7 @@ button.dropdown-item,
 /** SEARCH **/
 /************/
 
+/* TODO: make margins smaller on phone */
 .tablatureSearch * {
   font-family: Cascadia Tablature;
   font-size: 13px;

@@ -120,6 +120,17 @@ render state = HH.div_
     [ HH.div
         [ classString "dropdown-container" ]
         [ HH.button
+            [ HP.title "File"
+            , classString "header-button dropdown-header"
+            ]
+            [ fontAwesome "fa-file"
+            , optionalText " File"
+            ]
+        , renderFileMenu
+        ]
+    , HH.div
+        [ classString "dropdown-container" ]
+        [ HH.button
             [ HP.title "Settings"
             , classString "header-button dropdown-header"
             ]
@@ -135,28 +146,6 @@ render state = HH.div_
         , classString "header-button"
         ]
         [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-question", optionalText " Readme" ] ]
-    , HH.button
-        [ HP.title toggleButtonTitle
-        , HE.onClick \_ -> ToggleEditMode
-        , classString "header-button"
-        ]
-        toggleButtonContent
-    , HH.a
-        [ HP.href "./"
-        , HP.target "_blank"
-        , HP.tabIndex (-1)
-        , classString "header-button"
-        ]
-        [ HH.button
-            [ HP.title "Open an empty tablature in a new browser tab" ]
-            [ fontAwesome "fa-plus", optionalText " New" ]
-        ]
-    , HH.button
-        [ HP.title "Create a short link to the tablature for sharing with other people"
-        , HE.onClick \_ -> CreateShortUrl
-        , classString "header-button"
-        ]
-        [ fontAwesome "fa-share", optionalText " Share" ]
     , HH.button
         [ HP.title "Toggle autoscrolling"
         , HE.onClick \_ -> ToggleAutoscroll
@@ -179,6 +168,40 @@ render state = HH.div_
   toggleAutoscrollContent =
     if view _autoscroll state then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
     else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
+  renderFileMenu =
+    HH.div [ classString "dropdown-menu" ]
+      [ HH.div
+          [ classString "dropdown-item" ]
+          [ HH.button
+              [ HP.title toggleButtonTitle
+              , HE.onClick \_ -> ToggleEditMode
+              , classString "header-button"
+              ]
+              toggleButtonContent
+          ]
+      , HH.div
+          [ classString "dropdown-item" ]
+          [ HH.a
+              [ HP.href "./"
+              , HP.target "_blank"
+              , HP.tabIndex (-1)
+              , classString "header-button"
+              ]
+              [ HH.button
+                  [ HP.title "Open an empty tablature in a new browser tab" ]
+                  [ fontAwesome "fa-plus", optionalText " New" ]
+              ]
+          ]
+      , HH.div
+          [ classString "dropdown-item" ]
+          [ HH.button
+              [ HP.title "Create a short link to the tablature for sharing with other people"
+              , HE.onClick \_ -> CreateShortUrl
+              , classString "header-button"
+              ]
+              [ fontAwesome "fa-share", optionalText " Share" ]
+          ]
+      ]
   renderSettingsMenu =
     HH.div [ classString "dropdown-menu" ]
       [ HH.div
