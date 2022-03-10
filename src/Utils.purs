@@ -2,17 +2,19 @@ module Utils where
 
 import Prelude
 
+import Control.Monad.Maybe.Trans (MaybeT, runMaybeT)
 import Control.Monad.State (class MonadState)
-import Data.Either (Either(..), hush)
+import Data.Array as Array
+import Data.Either (Either(..))
 import Data.Enum (class Enum)
 import Data.List (List(..), (:))
 import Data.List.NonEmpty (NonEmptyList)
-import Data.Maybe (fromJust)
-import Data.String.Regex (Regex, regex, test)
-import Data.String.Regex.Flags (RegexFlags(..), noFlags)
+import Data.Maybe (Maybe)
+import Data.String.Regex (test)
+import Data.String.Regex.Flags (noFlags)
 import Data.String.Regex.Unsafe (unsafeRegex)
+import Data.Traversable (traverse)
 import Data.Tuple (Tuple, fst, snd)
-import Partial.Unsafe (unsafePartial)
 import Text.Parsing.StringParser (Parser(..), try, unParser)
 import Text.Parsing.StringParser.Combinators (lookAhead, many, many1, many1Till, manyTill)
 
@@ -41,6 +43,20 @@ foreachM Nil _ = pure unit
 foreachM (x : xs) loop = do
   loop x
   foreachM xs loop
+
+-- traverse in the base monad, then filter the results
+mapMaybeM :: forall m a b. Monad m => (a -> m (Maybe b)) -> Array a -> m (Array b)
+mapMaybeM f array = do
+  maybes <- traverse f array
+  values <- pure $ Array.mapMaybe identity maybes
+  pure values
+
+-- traverse in the base monad, then filter the results
+mapMaybeT :: forall m a b. Monad m => (a -> MaybeT m b) -> Array a -> m (Array b)
+mapMaybeT f array = do
+  maybes <- traverse (runMaybeT <<< f) array
+  values <- pure $ Array.mapMaybe identity maybes
+  pure values
 
 applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
 applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
