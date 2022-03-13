@@ -17,10 +17,7 @@ import TablatureParser (parseAnyLine, parseEndOfLine, parseTablatureDocument, pa
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.Utils (assertFailed, assertSuccess)
-import Text.Parsing.StringParser (Parser, PosString, unParser)
-import Text.Parsing.StringParser.CodePoints (eof, regex, string)
-import Text.Parsing.StringParser.Combinators (lookAhead)
-import Utils (safeMany, safeManyTill)
+import StringParser (Parser, PosString, unParser, eof, regex, string, lookAhead, many, manyTill)
 
 newtype AsciiString = AsciiString String
 newtype AsciiStringNoCtrl = AsciiStringNoCtrl String
@@ -35,22 +32,22 @@ main :: Effect Unit
 main = do
   log "🍝"
 
-  -- safeMany should make sure that many doesn't hang
-  assertParserSuccess (safeMany eof) ""
-  assertParserSuccess (safeMany ((string "1" *> pure unit) <|> eof)) "1"
+  -- many should make sure that many doesn't hang
+  assertParserSuccess (many eof) ""
+  assertParserSuccess (many ((string "1" *> pure unit) <|> eof)) "1"
 
-  -- safeMany should succeed when parser doesn't consume and stop looping
-  assertParserSuccess ((safeMany (regex "2?")) *> string "1") "1"
-  -- safeManyTill should fail when parser doesn't consume
-  assertParserFailed ((safeManyTill (regex "2?") (string "2")) *> string "1") "1"
+  -- many should succeed when parser doesn't consume and stop looping
+  assertParserSuccess ((many (regex "2?")) *> string "1") "1"
+  -- manyTill should fail when parser doesn't consume
+  assertParserFailed ((manyTill (regex "2?") (string "2")) *> string "1") "1"
 
   -- Check if manyTill works the way we expect it to
-  assertParserFailed (safeManyTill (string "1") (string "2") ) "111111"
-  assertParserSuccess (safeManyTill (string "1") (string "2") ) "1111112"
-  assertParserFailed (safeManyTill (string "1") (lookAhead $ string "2") ) "1111112"
-  assertParserSuccess ( (safeManyTill (string "1") (lookAhead $ string "2")) *> (string "2") ) "1111112"
-  assertParserSuccess ( (safeManyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "1111112"
-  assertParserSuccess ( (safeManyTill (regex ".") (lookAhead $ string "2")) *> (string "2") ) "2"
+  assertParserFailed (manyTill (string "1") (string "2")) "111111"
+  assertParserSuccess (manyTill (string "1") (string "2")) "1111112"
+  assertParserFailed (manyTill (string "1") (lookAhead $ string "2")) "1111112"
+  assertParserSuccess ((manyTill (string "1") (lookAhead $ string "2")) *> (string "2")) "1111112"
+  assertParserSuccess ((manyTill (regex ".") (lookAhead $ string "2")) *> (string "2")) "1111112"
+  assertParserSuccess ((manyTill (regex ".") (lookAhead $ string "2")) *> (string "2")) "2"
 
   -- assertParserSuccess parseEndOfLine ""
   -- assertParserFailed parseEndOfLine "a"
@@ -61,16 +58,16 @@ main = do
   assertParserFailed parseEndOfLine "\n\r\r"
 
   assertParserSuccess parseTextLine "a"
-  assertParserSuccess (safeMany parseTextLine) "a"
-  assertParserSuccess (safeMany parseTextLine) "123\n456"
-  assertParserSuccess (safeMany parseTextLine) testTablature
+  assertParserSuccess (many parseTextLine) "a"
+  assertParserSuccess (many parseTextLine) "123\n456"
+  assertParserSuccess (many parseTextLine) testTablature
 
   assertParserFailed parseTitleLine ""
   assertParserSuccess parseTitleLine "a"
   assertParserFailed parseTitleLine "123\n456"
   assertParserSuccess parseTitleLine "---title---"
-  assertParserSuccess (safeMany parseTitleLine) "a"
-  assertParserSuccess (safeMany parseTitleLine) "123\n456"
+  assertParserSuccess (many parseTitleLine) "a"
+  assertParserSuccess (many parseTitleLine) "123\n456"
 
   assertParserFailed (parseTablatureLine) ""
   assertParserFailed (parseTablatureLine) "a"
@@ -79,12 +76,12 @@ main = do
   assertParserSuccess (parseTablatureLine) "|---|\n"
   assertParserFailed (parseTablatureLine) "|---|\na"
   assertParserFailed (parseTablatureLine) "|---|\n|---|"
-  assertParserSuccess (safeMany (parseTablatureLine)) "|---|\n|---|"
-  assertParserFailed (safeMany (parseTablatureLine)) "|---|\na"
-  assertParserFailed (safeMany (parseTablatureLine)) "a\n|---|"
+  assertParserSuccess (many (parseTablatureLine)) "|---|\n|---|"
+  assertParserFailed (many (parseTablatureLine)) "|---|\na"
+  assertParserFailed (many (parseTablatureLine)) "a\n|---|"
   assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
-  assertParserSuccess (safeMany (parseTablatureLine)) testTabLines
-  assertParserFailed (safeMany (parseTablatureLine)) testTablature
+  assertParserSuccess (many (parseTablatureLine)) testTabLines
+  assertParserFailed (many (parseTablatureLine)) testTablature
 
   assertParserSuccess (parseTablatureDocument) ""
   assertParserSuccess (parseTablatureDocument) "asdf"
@@ -97,21 +94,23 @@ main = do
   assertParserSuccess (parseTablatureDocument) testTablature
 
   quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll (safeMany parseAnyLine) false s)
-  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument ) false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument ) false s)
-  quickCheck $ doParseAll (parseTablatureDocument ) false
+  quickCheck $ (\(AsciiString s) -> doParseAll (many parseAnyLine) false s)
+  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument) false s)
+  quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument) false s)
+  quickCheck $ doParseAll (parseTablatureDocument) false
 
 testTabLines :: String
-testTabLines = """e|---------------------------------------------------------------------------|
+testTabLines =
+  """e|---------------------------------------------------------------------------|
 B|---------------------------------------------------------------------------|
 G|------7-----7h9p7----------------7--7--------9-----------------------------| Some comment
 D|------7-----7-----9p7-9p7--------7--7--------9-----------------------------|
 A|------9-------------------9---/5-------5/7-7-------------------------------|
 E|--/7------7----------------------------------------------------------------|"""
-  
+
 testTablature :: String
-testTablature = """-------------------------------------------------------------------------------
+testTablature =
+  """-------------------------------------------------------------------------------
                              Aftermath - Muse
 -------------------------------------------------------------------------------
 Tabbed by: Muser00
@@ -126,22 +125,21 @@ D|------7-----7-----9p7-9p7--------7--7--------9-----------------------------|
 A|------9-------------------9---/5-------5/7-7-------------------------------|
 E|--/7------7----------------------------------------------------------------|"""
 
-
-endOfInputString :: PosString -> Boolean
-endOfInputString suffix = length suffix.str == suffix.pos
-
 doParseAll :: forall a. Show a => Parser a -> Boolean -> String -> Result
 doParseAll parser verbose inputString = unsafePerformEffect do
   if verbose then log $ "Parsing '" <> inputString <> "'" else pure unit
-  result <- case unParser (parser <* eof) { str: inputString, pos: 0 } of
+  result <- case unParser (parser <* eof) { substring: inputString, position: 0 } of
     Left rec -> do
       if verbose then error $ msg else pure unit
       pure $ Failed msg
       where
       msg = "Position: " <> show rec.pos
-        <> "\nError: " <> show rec.error
-        <> "\nIn input string: " <> inputString
-        <> "\nWith unparsed suffix: " <> (show $ drop rec.pos inputString)
+        <> "\nError: "
+        <> show rec.error
+        <> "\nIn input string: "
+        <> inputString
+        <> "\nWith unparsed suffix: "
+        <> (show $ drop rec.pos inputString)
     Right rec -> do
       if verbose then log $ "Result was: " <> show rec.result <> "; Suffix was: " <> show rec.suffix else pure unit
       pure Success
@@ -160,5 +158,5 @@ assertParserFailed parser testString = doParseAll parser false testString # asse
 assertParserFailed' :: forall a. Show a => Parser a -> String -> Effect Unit
 assertParserFailed' parser testString = doParseAll parser true testString # assertFailed
 
-runParser :: forall a.  Parser a -> String -> Either { error :: String , pos :: Int } a
-runParser p s = map (\parserResult -> parserResult.result) (unParser p { str: s, pos: 0 })
+runParser :: forall a. Parser a -> String -> Either { error :: String, pos :: Int } a
+runParser p s = map (\parserResult -> parserResult.result) (unParser p { substring: s, position: 0 })
