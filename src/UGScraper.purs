@@ -30,6 +30,8 @@ import Web.DOM.Document (toParentNode)
 import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
 
+-- TODO: do we have a timeout for ajax requests?
+
 type LogMaybeT m a = MaybeT (WriterT (Array String) m) a
 
 hoistMaybe' :: forall m a. Monad m => Maybe a -> LogMaybeT m a

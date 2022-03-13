@@ -14,7 +14,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import StringParser (Parser, eof, lookAhead, many, manyTill, option, optionMaybe, regex, string, try, unParser)
+import StringParser (Parser, eof, tryAhead, many, manyTill, option, optionMaybe, regex, string, try, unParser)
 import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 
 -- TODO: Improve the parser code
@@ -22,7 +22,7 @@ import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), Cho
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (lookAhead (parseTitleLine <|> parseTablatureLine)))
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (tryAhead (parseTitleLine <|> parseTablatureLine)))
   title <- option Nil $ (try parseTitleLine) <#> \result -> result : Nil
   body <- many ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
@@ -36,9 +36,9 @@ parseTitleLine = do
 
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
-  prefix <- manyTill (regex """[^\n]""") (lookAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
-  maybeTuning <- optionMaybe $ parseSpacedNote <* (lookAhead (string "|")) <#> \result -> Tuning result
-  tabLine <- lookAhead (regex """\|\|?""") *> many
+  prefix <- manyTill (regex """[^\n]""") (tryAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
+  maybeTuning <- optionMaybe $ parseSpacedNote <* (tryAhead (string "|")) <#> \result -> Tuning result
+  tabLine <- tryAhead (regex """\|\|?""") *> many
     (
       -- We allow normal dashes - and em dashes —
       (regex """(([\-—](?!\|)|([\-—]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> \result -> Timeline result)
@@ -120,11 +120,11 @@ parseWord :: Parser TextLineElem
 parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
 
 assertEndChordBoundary :: Parser Unit
-assertEndChordBoundary = eof <|> lookAhead (regex """\s""") *> pure unit
+assertEndChordBoundary = eof <|> tryAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
 parseChordLegend =
-  lookAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
+  tryAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
     *> many ((regex """[1234567890↊↋]""" <#> ChordFret) <|> (regex """[xX-]""" <#> ChordSpecial)) <#> ChordLegend
 
 -- This is a backup in case the other parsers fail
