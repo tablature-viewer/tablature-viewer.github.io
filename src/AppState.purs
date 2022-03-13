@@ -3,7 +3,7 @@ module AppState where
 import Cache
 import Prelude
 
-import AppUrl (UrlParams, getAppUrlParams, getTablatureTextFromUrl, getTranspositionFromUrl, saveTablatureToUrl, setAppQueryString)
+import AppUrl (UrlParams, getAppUrlParams, getTablatureTextFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
 import Control.Monad.State (class MonadState)
 import Control.Monad.State as MonadState
@@ -15,7 +15,6 @@ import Data.Newtype (class Newtype)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
-import Debug (spy)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
@@ -29,7 +28,6 @@ derive instance Eq Mode
 
 type Url = String
 
--- TODO: add artist name
 type SearchResult =
   { url :: Url
   , name :: String
@@ -132,7 +130,6 @@ overState _key f = do
 type AppStateReadWriteCacheUnit a = forall m. MonadEffect m => MonadState State m => ReadWriteCacheUnit State a () m
 type AppStateReadCacheUnit a = forall m. MonadEffect m => MonadState State m => ReadableCacheUnit State a () m
 
--- TODO make a single query params cache unit so we can flush the whole thing easily
 urlParamsCache :: AppStateReadWriteCacheUnit UrlParams
 urlParamsCache =
   { entry: _urlParams

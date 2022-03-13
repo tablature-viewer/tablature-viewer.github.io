@@ -20,10 +20,8 @@ import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
 import LocationString (getQueryParam)
 import TablatureRewriter (NoteOrientation(..))
-import Web.Event.Event as Event
 import Web.HTML (window)
 import Web.HTML.HTMLDocument (setTitle)
-import Web.HTML.HTMLInputElement as HTMLInputElement
 import Web.HTML.Window (document)
 
 foreign import executeJavascriptHacks :: Effect Unit

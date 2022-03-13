@@ -18,7 +18,6 @@ import StringParser (Parser, eof, tryAhead, many, manyTill, option, optionMaybe,
 import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 
 -- TODO: Improve the parser code
--- TODO: Improve parser performance
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do

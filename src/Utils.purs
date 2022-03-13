@@ -2,7 +2,7 @@ module Utils where
 
 import Prelude
 
-import Control.Monad.Maybe.Trans (MaybeT, runMaybeT)
+import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
 import Data.Array as Array
 import Data.Enum (class Enum)
@@ -12,7 +12,8 @@ import Data.String.Regex (test)
 import Data.String.Regex.Flags (noFlags)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple, fst, snd)
+import Data.Tuple (Tuple(..), fst, snd)
+import Control.Monad.Writer (WriterT(..))
 
 -- Show is for debugging, Print has to give a string that is actually how it is supposed to be presented to the user.
 class Print a where
@@ -21,6 +22,14 @@ class Print a where
 class Enum a <= CyclicEnum a where
   succ' :: a -> a
   pred' :: a -> a
+
+applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
+applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
+  where
+  result = f x
+
+unsafeTestRegex :: String -> String -> Boolean
+unsafeTestRegex patternString text = test (unsafeRegex patternString noFlags) text
 
 foreach :: forall a b s. s -> List a -> (s -> a -> Tuple s b) -> List b
 foreach _ Nil _ = Nil
@@ -54,10 +63,12 @@ mapMaybeT f array = do
   values <- pure $ Array.mapMaybe identity maybes
   pure values
 
-applyUntilIdempotent :: forall a. (Eq a) => (a -> a) -> a -> a
-applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent f result
-  where
-  result = f x
+type LogMaybeT m a = MaybeT (WriterT (Array String) m) a
 
-unsafeTestRegex :: String -> String -> Boolean
-unsafeTestRegex patternString text = test (unsafeRegex patternString noFlags) text
+hoistMaybe' :: forall m a. Monad m => Maybe a -> LogMaybeT m a
+hoistMaybe' maybe = MaybeT $ WriterT $ pure $ Tuple maybe mempty
+
+hoistMaybeT' :: forall m a. Monad m => MaybeT m a -> LogMaybeT m a
+hoistMaybeT' maybeT = MaybeT $ WriterT $ do
+  maybeA <- runMaybeT maybeT
+  pure (Tuple maybeA mempty)

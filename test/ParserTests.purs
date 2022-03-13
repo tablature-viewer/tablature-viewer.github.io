@@ -5,7 +5,7 @@ import Prelude
 import Control.Alt ((<|>))
 import Data.Array.Partial (head)
 import Data.Either (Either(..))
-import Data.String (drop, length)
+import Data.String (drop)
 import Data.String.Gen (genAsciiString, genAsciiString')
 import Data.String.Utils (lines)
 import Effect (Effect)
@@ -17,7 +17,9 @@ import TablatureParser (parseAnyLine, parseEndOfLine, parseTablatureDocument, pa
 import Test.QuickCheck (Result(..), quickCheck)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.Utils (assertFailed, assertSuccess)
-import StringParser (Parser, PosString, unParser, eof, regex, string, lookAhead, many, manyTill)
+import StringParser (Parser, eof, lookAhead, many, manyTill, regex, string, unParser)
+
+-- TODO: improve tests
 
 newtype AsciiString = AsciiString String
 newtype AsciiStringNoCtrl = AsciiStringNoCtrl String

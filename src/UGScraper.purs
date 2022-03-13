@@ -5,10 +5,10 @@ import Prelude
 import Affjax as AX
 import Affjax.ResponseFormat as ResponseFormat
 import AppState (SearchResult, State, Url, _searchResults, setState)
-import Control.Error.Util as Error
+import Control.Error.Util (hoistMaybe)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
-import Control.Monad.Writer (WriterT(..), runWriterT, tell)
+import Control.Monad.Writer (runWriterT, tell)
 import Data.Argonaut.Core (Json, stringify)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
@@ -24,27 +24,13 @@ import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import JsonUtils (array, child, number, string)
-import Utils (mapMaybeT)
+import Utils (LogMaybeT, hoistMaybe', mapMaybeT)
 import Web.DOM.DOMParser (makeDOMParser, parseHTMLFromString)
 import Web.DOM.Document (toParentNode)
 import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
 
 -- TODO: do we have a timeout for ajax requests?
-
-type LogMaybeT m a = MaybeT (WriterT (Array String) m) a
-
-hoistMaybe' :: forall m a. Monad m => Maybe a -> LogMaybeT m a
-hoistMaybe' maybe = MaybeT $ WriterT $ pure $ case maybe of
-  Nothing -> Tuple Nothing mempty
-  Just a -> Tuple (Just a) mempty
-
-hoistMaybeT' :: forall m a. Monad m => MaybeT m a -> LogMaybeT m a
-hoistMaybeT' maybeT = MaybeT $ WriterT $ do
-  maybeA <- runMaybeT maybeT
-  case maybeA of
-    Nothing -> pure (Tuple Nothing mempty)
-    Just a -> pure (Tuple (Just a) mempty)
 
 foreign import _htmlDecode :: String -> String
 
@@ -54,7 +40,7 @@ execSearch phrase = map (const unit) $ runMaybeT do
   dataContent <- fetchUrlDataContent url
   (Tuple maybeSearchResults log) <- runWriterT $ runMaybeT $ extractSearchResults dataContent
   _ <- liftEffect $ traverse Console.error log
-  searchResults <- Error.hoistMaybe maybeSearchResults
+  searchResults <- hoistMaybe maybeSearchResults
   setState _searchResults (Just $ filterSearchResults searchResults)
 
 filterSearchResults :: Array SearchResult -> Array SearchResult
@@ -69,7 +55,7 @@ filterSearchResults = Array.filter pred
 extractSearchResults :: forall m. Monad m => Json -> LogMaybeT m (Array SearchResult)
 extractSearchResults json = do
   let maybeJsonSearchResults = json # child "store" >>= child "page" >>= child "data" >>= child "results" >>= array
-  when (Maybe.isNothing maybeJsonSearchResults) $ tell $ [ "Could not find search results in json " <> stringify json ]
+  when (Maybe.isNothing maybeJsonSearchResults) $ tell [ "Could not find search results in json " <> stringify json ]
   jsonSearchResults <- hoistMaybe' maybeJsonSearchResults
   MaybeT $ mapMaybeT toSearchResult jsonSearchResults <#> Just -- TODO: this looks not so streamlined
 
@@ -93,7 +79,7 @@ toSearchResult json =
         }
   in
     do
-      when (Maybe.isNothing maybeResult) $ tell $ [ "Could not find search results in json " <> stringify json ]
+      when (Maybe.isNothing maybeResult) $ tell [ "Could not find search results in json " <> stringify json ]
       hoistMaybe' maybeResult
 
 fetchTabFromUrl :: forall m. MonadAff m => MonadState State m => Url -> MaybeT m String
@@ -101,7 +87,7 @@ fetchTabFromUrl url = do
   dataContent <- fetchUrlDataContent url
   (Tuple maybeSearchResults log) <- runWriterT $ runMaybeT $ extractTab dataContent
   _ <- liftEffect $ traverse Console.error log
-  Error.hoistMaybe maybeSearchResults
+  hoistMaybe maybeSearchResults
 
 extractTab :: forall m. Monad m => Json -> LogMaybeT m String
 extractTab json = do
