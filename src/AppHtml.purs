@@ -177,9 +177,9 @@ render state = HH.div_
           [ HH.button
               [ HP.title toggleButtonTitle
               , HE.onClick \_ -> ToggleEditMode
-              , classString "header-button"
               ]
-              [ fontAwesome "fa-edit", optionalText " Edit" ]
+              [ fontAwesome "fa-edit" ]
+          , HH.div_ [ HH.text "Edit tablature" ]
           ]
       , HH.div
           [ classString "dropdown-item" ]
@@ -187,21 +187,21 @@ render state = HH.div_
               [ HP.href "./"
               , HP.target "_blank"
               , HP.tabIndex (-1)
-              , classString "header-button"
               ]
               [ HH.button
                   [ HP.title "Open an empty tablature in a new browser tab" ]
-                  [ fontAwesome "fa-plus", optionalText " New" ]
+                  [ fontAwesome "fa-plus" ]
               ]
+          , HH.div_ [ HH.text "New tablature" ]
           ]
       , HH.div
           [ classString "dropdown-item" ]
           [ HH.button
               [ HP.title "Create a short link to the tablature for sharing with other people"
               , HE.onClick \_ -> CreateShortUrl
-              , classString "header-button"
               ]
-              [ fontAwesome "fa-share", optionalText " Share" ]
+              [ fontAwesome "fa-share" ]
+          , HH.div_ [ HH.text "Share tablature" ]
           ]
       ]
   renderViewMenu =
