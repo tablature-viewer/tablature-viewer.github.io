@@ -5,11 +5,11 @@ import Prelude
 import Affjax as AX
 import Affjax.ResponseFormat as ResponseFormat
 import AppState (SearchResult, State, Url, _searchResults, setState)
-import Control.Error.Util (hoistMaybe)
+import Control.Error.Util as Error
 import Control.Monad.Cont (lift)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
-import Control.Monad.Writer (WriterT, runWriterT, tell)
+import Control.Monad.Writer (WriterT(..), runWriterT, tell)
 import Data.Argonaut.Core (Json, stringify)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
@@ -22,14 +22,28 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
 import Effect.Aff.Class (class MonadAff, liftAff)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class (liftEffect)
 import Effect.Console as Console
 import JsonUtils (array, child, number, string)
-import Utils (mapMaybeM, mapMaybeT)
+import Utils (mapMaybeT)
 import Web.DOM.DOMParser (makeDOMParser, parseHTMLFromString)
 import Web.DOM.Document (toParentNode)
 import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
+
+type LogMaybeT m a = MaybeT (WriterT (Array String) m) a
+
+hoistMaybe' :: forall m a. Monad m => Maybe a -> LogMaybeT m a
+hoistMaybe' maybe = MaybeT $ WriterT $ pure $ case maybe of
+  Nothing -> Tuple Nothing mempty
+  Just a -> Tuple (Just a) mempty
+
+hoistMaybeT' :: forall m a. Monad m => MaybeT m a -> LogMaybeT m a
+hoistMaybeT' maybeT = MaybeT $ WriterT $ do
+  maybeA <- runMaybeT maybeT
+  case maybeA of
+    Nothing -> pure (Tuple Nothing mempty)
+    Just a -> pure (Tuple (Just a) mempty)
 
 foreign import _htmlDecode :: String -> String
 
@@ -37,8 +51,9 @@ execSearch :: forall m. MonadAff m => MonadState State m => String -> m Unit
 execSearch phrase = map (const unit) $ runMaybeT do
   let url = """https://www.ultimate-guitar.com/search.php?search_type=title&value=""" <> phrase
   dataContent <- fetchUrlDataContent url
-  (Tuple searchResults log) <- runWriterT $ extractSearchResults dataContent
+  (Tuple maybeSearchResults log) <- runWriterT $ runMaybeT $ extractSearchResults dataContent
   _ <- liftEffect $ traverse Console.error log
+  searchResults <- Error.hoistMaybe maybeSearchResults
   setState _searchResults (Just $ filterSearchResults searchResults)
 
 filterSearchResults :: Array SearchResult -> Array SearchResult
@@ -50,38 +65,14 @@ filterSearchResults = Array.filter pred
       && Maybe.isNothing marketingType
       && not Array.elem contentType [ Just "Pro", Just "Video", Just "Power" ]
 
-onNothing :: forall m a. Monad m => m Unit -> MaybeT m a -> MaybeT m a
-onNothing action maybeT = MaybeT do
-  maybeValue <- runMaybeT maybeT
-  case maybeValue of
-    Nothing -> do
-      _ <- action
-      pure Nothing
-    _ -> pure maybeValue
-
-withErrorLog :: forall m a. MonadEffect m => String -> MaybeT m a -> MaybeT m a
-withErrorLog msg maybeT = MaybeT do
-  maybeValue <- runMaybeT maybeT
-  case maybeValue of
-    Nothing -> do
-      _ <- liftEffect $ Console.error msg
-      pure Nothing
-    _ -> pure maybeValue
-
-extractSearchResults :: forall m. Monad m => Json -> WriterT (Array String) (MaybeT m) (Array SearchResult)
+extractSearchResults :: forall m. Monad m => Json -> LogMaybeT m (Array SearchResult)
 extractSearchResults json = do
   let maybeJsonSearchResults = json # child "store" >>= child "page" >>= child "data" >>= child "results" >>= array
   when (Maybe.isNothing maybeJsonSearchResults) $ tell $ [ "Could not find search results in json " <> stringify json ]
-  jsonSearchResults <- lift $ hoistMaybe maybeJsonSearchResults
-  result <- mapMaybeM toSearchResult jsonSearchResults
-  pure $ result
+  jsonSearchResults <- hoistMaybe' maybeJsonSearchResults
+  MaybeT $ mapMaybeT toSearchResult jsonSearchResults <#> Just -- TODO: this looks not so streamlined
 
--- (json # child "store" >>= child "page" >>= child "data" >>= child "results" >>= array # hoistMaybe)
--- # onNothing (liftEffect $ Console.error $ "Could not find search results in json " <> stringify json)
--- # withErrorLog ("Could not find search results in json " <> stringify json)
--- >>= \jsonSearchResults -> mapMaybeT toSearchResult jsonSearchResults
-
-toSearchResult :: forall m. Monad m => Json -> WriterT (Array String) m (Maybe SearchResult)
+toSearchResult :: forall m. Monad m => Json -> LogMaybeT m SearchResult
 toSearchResult json =
   let
     maybeResult = do
@@ -102,25 +93,20 @@ toSearchResult json =
   in
     do
       when (Maybe.isNothing maybeResult) $ tell $ [ "Could not find search results in json " <> stringify json ]
-      pure maybeResult
-
--- $ case maybeResult of
---     Nothing -> do
---       tell $ "Could not parse " <> stringify json
---       MaybeT $ pure Nothing
---     justResult -> do
---       -- _ <- Just $ spy " " json
---       MaybeT $ pure justResult
+      hoistMaybe' maybeResult
 
 fetchTabFromUrl :: forall m. MonadAff m => MonadState State m => Url -> MaybeT m String
 fetchTabFromUrl url = do
   dataContent <- fetchUrlDataContent url
-  extractTab dataContent
+  (Tuple maybeSearchResults log) <- runWriterT $ runMaybeT $ extractTab dataContent
+  _ <- liftEffect $ traverse Console.error log
+  Error.hoistMaybe maybeSearchResults
 
-extractTab :: forall m. MonadEffect m => Json -> MaybeT m String
+extractTab :: forall m. Monad m => Json -> LogMaybeT m String
 extractTab json = do
-  rawTab <- json # child "store" >>= child "page" >>= child "data" >>= child "tab_view" >>= child "wiki_tab" >>= child "content" >>= string # hoistMaybe
-  -- when (Maybe.isNothing rawTab) $ liftEffect $ Console.error $ "Could not retrieve tablature data from json " <> stringify json
+  let maybeRawTab = json # child "store" >>= child "page" >>= child "data" >>= child "tab_view" >>= child "wiki_tab" >>= child "content" >>= string
+  when (Maybe.isNothing maybeRawTab) $ lift $ tell [ "Could not retrieve tablature data from json " <> stringify json ]
+  rawTab <- MaybeT $ pure $ maybeRawTab
   pure $ _htmlDecode $ Regex.replace (unsafeRegex """\[\/?(ch|tab)\]""" global) "" rawTab
 
 fetchUrlDataContent :: forall m. MonadAff m => Url -> MaybeT m Json
