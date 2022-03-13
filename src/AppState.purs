@@ -25,6 +25,8 @@ import TablatureRewriter (NoteOrientation(..), rewriteTablatureDocument)
 
 data Mode = ViewMode | EditMode | SearchMode
 
+derive instance Eq Mode
+
 type Url = String
 
 -- TODO: add artist name

@@ -98,8 +98,8 @@ doAction action = do
     DefaultNoteOrientation -> setNoteOrientation Default
     ImportFromUrl url -> importFromUrl url
     SearchInput value -> searchInput value
-    OpenSearch -> do
-      openSearch
+    ToggleSearch -> do
+      toggleSearch
       lift focusSearchInput
 
   updateAutoscroll action

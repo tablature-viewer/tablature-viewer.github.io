@@ -8,6 +8,7 @@ import Clipboard (copyToClipboard)
 import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.State (class MonadState)
 import Data.Enum (pred, succ)
+import Data.Lens (view)
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -33,7 +34,7 @@ data Action
   | FlatNoteOrientation
   | SharpNoteOrientation
   | DefaultNoteOrientation
-  | OpenSearch
+  | ToggleSearch
   | SearchInput String
   | ImportFromUrl Url
 
@@ -107,9 +108,10 @@ setNoteOrientation noteOrientation = do
   urlParams <- Cache.read urlParamsCache
   Cache.write urlParamsCache $ urlParams { noteOrientation = noteOrientation }
 
-openSearch :: forall m. MonadAff m => MonadState State m => m Unit
-openSearch = do
-  setState _mode SearchMode
+toggleSearch :: forall m. MonadAff m => MonadState State m => m Unit
+toggleSearch = do
+  currentMode <- viewState _mode
+  setState _mode if currentMode == SearchMode then ViewMode else SearchMode
 
 searchInput :: forall m. MonadAff m => MonadState State m => String -> m Unit
 searchInput phrase = do

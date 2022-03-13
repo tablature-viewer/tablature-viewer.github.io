@@ -460,3 +460,7 @@ button.dropdown-item,
     display: block;
   }
 }
+
+.hidden {
+  display: none
+}

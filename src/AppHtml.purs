@@ -118,7 +118,7 @@ render state = HH.div_
   renderControls = HH.div
     [ classString "controls" ]
     [ HH.div
-        [ classString "dropdown-container" ]
+        [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-container" ]
         [ HH.button
             [ HP.title "File"
             , classString "header-button dropdown-header"
@@ -128,16 +128,22 @@ render state = HH.div_
             ]
         , renderFileMenu
         ]
+    , HH.button
+        [ HP.title toggleButtonTitle
+        , HE.onClick \_ -> ToggleEditMode
+        , classString if view _mode state /= EditMode then "hidden" else "header-button"
+        ]
+        [ fontAwesome "fa-save", optionalText " Save" ]
     , HH.div
-        [ classString "dropdown-container" ]
+        [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-container" ]
         [ HH.button
-            [ HP.title "Settings"
+            [ HP.title "View"
             , classString "header-button dropdown-header"
             ]
             [ fontAwesome "fa-wrench"
-            , optionalText " Settings"
+            , optionalText " View"
             ]
-        , renderSettingsMenu
+        , renderViewMenu
         ]
     , HH.a
         [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
@@ -149,35 +155,31 @@ render state = HH.div_
     , HH.button
         [ HP.title "Toggle autoscrolling"
         , HE.onClick \_ -> ToggleAutoscroll
-        , classString "header-button"
+        , classString if view _mode state /= ViewMode then "hidden" else "header-button"
         ]
-        toggleAutoscrollContent
+        if view _autoscroll state then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
+        else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
     , HH.button
-        [ HP.title "Search tab"
-        , HE.onClick \_ -> OpenSearch
-        , classString "header-button"
+        [ HP.title "Toggle search mode"
+        , HE.onClick \_ -> ToggleSearch
+        , classString if view _mode state == EditMode then "hidden" else "header-button"
         ]
-        [ fontAwesome "fa-search", optionalText " Search" ]
+        [ fontAwesome "fa-search", if view _mode state == SearchMode then optionalText " Exit Search" else optionalText " Search" ]
     ]
-  toggleButtonContent = case view _mode state of
-    EditMode -> [ fontAwesome "fa-save", optionalText " Save" ]
-    _ -> [ fontAwesome "fa-edit", optionalText " Edit" ]
   toggleButtonTitle = case view _mode state of
     EditMode -> "Save tablature"
     _ -> "Edit tablature"
-  toggleAutoscrollContent =
-    if view _autoscroll state then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
-    else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
   renderFileMenu =
-    HH.div [ classString "dropdown-menu" ]
+    HH.div
+      [ classString "dropdown-menu" ]
       [ HH.div
-          [ classString "dropdown-item" ]
+          [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-item" ]
           [ HH.button
               [ HP.title toggleButtonTitle
               , HE.onClick \_ -> ToggleEditMode
               , classString "header-button"
               ]
-              toggleButtonContent
+              [ fontAwesome "fa-edit", optionalText " Edit" ]
           ]
       , HH.div
           [ classString "dropdown-item" ]
@@ -202,7 +204,7 @@ render state = HH.div_
               [ fontAwesome "fa-share", optionalText " Share" ]
           ]
       ]
-  renderSettingsMenu =
+  renderViewMenu =
     HH.div [ classString "dropdown-menu" ]
       [ HH.div
           [ classString "dropdown-item" ]

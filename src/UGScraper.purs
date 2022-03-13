@@ -6,7 +6,6 @@ import Affjax as AX
 import Affjax.ResponseFormat as ResponseFormat
 import AppState (SearchResult, State, Url, _searchResults, setState)
 import Control.Error.Util as Error
-import Control.Monad.Cont (lift)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
 import Control.Monad.Writer (WriterT(..), runWriterT, tell)
@@ -105,7 +104,7 @@ fetchTabFromUrl url = do
 extractTab :: forall m. Monad m => Json -> LogMaybeT m String
 extractTab json = do
   let maybeRawTab = json # child "store" >>= child "page" >>= child "data" >>= child "tab_view" >>= child "wiki_tab" >>= child "content" >>= string
-  when (Maybe.isNothing maybeRawTab) $ lift $ tell [ "Could not retrieve tablature data from json " <> stringify json ]
+  when (Maybe.isNothing maybeRawTab) $ tell [ "Could not retrieve tablature data from json " <> stringify json ]
   rawTab <- MaybeT $ pure $ maybeRawTab
   pure $ _htmlDecode $ Regex.replace (unsafeRegex """\[\/?(ch|tab)\]""" global) "" rawTab
 
