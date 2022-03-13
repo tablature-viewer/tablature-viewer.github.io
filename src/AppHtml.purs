@@ -145,13 +145,12 @@ render state = HH.div_
             ]
         , renderViewMenu
         ]
-    , HH.a
-        [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
-        , HP.target "_blank"
-        , HP.tabIndex (-1)
-        , classString "header-button"
+    , HH.button
+        [ HP.title "Toggle search mode"
+        , HE.onClick \_ -> ToggleSearch
+        , classString if view _mode state == EditMode then "hidden" else "header-button"
         ]
-        [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-question", optionalText " Readme" ] ]
+        [ fontAwesome "fa-search", if view _mode state == SearchMode then optionalText " Exit Search" else optionalText " Search" ]
     , HH.button
         [ HP.title "Toggle autoscrolling"
         , HE.onClick \_ -> ToggleAutoscroll
@@ -159,12 +158,13 @@ render state = HH.div_
         ]
         if view _autoscroll state then [ fontAwesome "fa-stop", optionalText " Autoscroll" ]
         else [ fontAwesome "fa-play", optionalText " Autoscroll" ]
-    , HH.button
-        [ HP.title "Toggle search mode"
-        , HE.onClick \_ -> ToggleSearch
-        , classString if view _mode state == EditMode then "hidden" else "header-button"
+    , HH.a
+        [ HP.href "https://github.com/tablature-viewer/tablature-viewer.github.io"
+        , HP.target "_blank"
+        , HP.tabIndex (-1)
+        , classString "header-button"
         ]
-        [ fontAwesome "fa-search", if view _mode state == SearchMode then optionalText " Exit Search" else optionalText " Search" ]
+        [ HH.button [ HP.title "Open the README in a new browser tab" ] [ fontAwesome "fa-question", optionalText " Readme" ] ]
     ]
   toggleButtonTitle = case view _mode state of
     EditMode -> "Save tablature"
