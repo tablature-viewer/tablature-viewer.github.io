@@ -120,7 +120,7 @@ updateFocus action =
     CreateShortUrl -> focusTablatureContainer
     _ -> pure unit
 
-toggleEditMode :: forall m. MonadEffect m => HaloT m Unit
+toggleEditMode :: forall m. MonadAff m => HaloT m Unit
 toggleEditMode = do
   mode <- viewState _mode
   case mode of

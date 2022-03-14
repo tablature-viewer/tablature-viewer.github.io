@@ -95,6 +95,7 @@ main = do
   assertParserSuccess (parseTablatureDocument) "|---|\r\n\r|---|"
   assertParserSuccess (parseTablatureDocument) testTabLines
   assertParserSuccess (parseTablatureDocument) testTablature
+  assertParserSuccess (parseTablatureDocument) testTab2
 
   quickCheck' 10000 \(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s
   quickCheck' 10000 \(AsciiString s) -> doParseAll (many parseAnyLine) false s
@@ -165,3 +166,10 @@ assertParserFailed' parser testString = doParseAll parser true testString # asse
 
 runParser :: forall a. Parser a -> String -> Either { error :: String, pos :: Int } a
 runParser p s = map (\parserResult -> parserResult.result) (unParser p { substring: s, position: 0 })
+
+testTab2 ∷ String
+testTab2 =
+  """
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+"""

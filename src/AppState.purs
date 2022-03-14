@@ -15,9 +15,12 @@ import Data.Newtype (class Newtype)
 import Data.String.Regex (test)
 import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Class (liftEffect)
+import Effect.Class.Console as Console
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
+import Node.Encoding (Encoding(..))
 import TablatureDocument (TablatureDocument, Transposition(..), getTitle)
 import TablatureParser (tryParseTablature)
 import TablatureRewriter (NoteOrientation(..), rewriteTablatureDocument)
@@ -127,8 +130,8 @@ overState _key f = do
   state <- MonadState.get
   MonadState.put $ over _key f state
 
-type AppStateReadWriteCacheUnit a = forall m. MonadEffect m => MonadState State m => ReadWriteCacheUnit State a () m
-type AppStateReadCacheUnit a = forall m. MonadEffect m => MonadState State m => ReadableCacheUnit State a () m
+type AppStateReadWriteCacheUnit a = forall m. MonadAff m => MonadState State m => ReadWriteCacheUnit State a () m
+type AppStateReadCacheUnit a = forall m. MonadAff m => MonadState State m => ReadableCacheUnit State a () m
 
 urlParamsCache :: AppStateReadWriteCacheUnit UrlParams
 urlParamsCache =
@@ -144,7 +147,10 @@ tablatureTextCache :: AppStateReadWriteCacheUnit String
 tablatureTextCache =
   { entry: _tablatureText
   , flush: Flush \value -> liftEffect $ saveTablatureToUrl value
-  , fetch: Fetch $ liftEffect $ getTablatureTextFromUrl <#> Just
+  , fetch: Fetch $ do
+      text <- liftEffect getTablatureTextFromUrl
+      liftEffect $ Console.log text
+      pure $ Just text
   }
 
 _tablatureText :: EntryKey State String
