@@ -29,7 +29,7 @@ parseTablatureDocument = do
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
   prefix <- regex """[^\w\n]*"""
-  title <- regex """[\w()!?"']+"""
+  title <- regex """[^\n]*[\w)!?"']"""
   suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
