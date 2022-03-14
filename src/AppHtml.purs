@@ -148,7 +148,7 @@ render state = HH.div_
     , HH.button
         [ HP.title "Toggle search mode"
         , HE.onClick \_ -> ToggleSearch
-        , classString if view _mode state == EditMode then "hidden" else "header-button"
+        , classString "header-button"
         ]
         [ fontAwesome "fa-search", if view _mode state == SearchMode then optionalText " Exit Search" else optionalText " Search" ]
     , HH.button

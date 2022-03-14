@@ -56,7 +56,7 @@ decreaseAutoscrollSpeed = do
 initialize :: forall m. MonadAff m => MonadState State m => m Unit
 initialize = do
   tablatureText <- Cache.read tablatureTextCache
-  if tablatureText == "" then setState _mode SearchMode
+  if tablatureText == "" then setState _mode EditMode
   else setState _mode ViewMode
 
 toggleTabNormalization :: forall m. MonadAff m => MonadState State m => m Unit
@@ -111,7 +111,12 @@ setNoteOrientation noteOrientation = do
 toggleSearch :: forall m. MonadAff m => MonadState State m => m Unit
 toggleSearch = do
   currentMode <- viewState _mode
-  setState _mode if currentMode == SearchMode then ViewMode else SearchMode
+  tablatureText <- Cache.read tablatureTextCache
+  setState _mode
+    if currentMode == SearchMode then
+      if tablatureText == "" then EditMode
+      else ViewMode
+    else SearchMode
 
 searchInput :: forall m. MonadAff m => MonadState State m => String -> m Unit
 searchInput phrase = do

@@ -17,7 +17,6 @@ import Data.String.Regex.Flags (ignoreCase)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
-import Effect.Class.Console as Console
 import Effect.Timer (IntervalId)
 import LocalStorage (getLocalStorageBoolean, setLocalStorageBoolean)
 import TablatureDocument (TablatureDocument, Transposition(..), getTitle)
