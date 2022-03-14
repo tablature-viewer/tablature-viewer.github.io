@@ -148,7 +148,6 @@ tablatureTextCache =
   , flush: Flush \value -> liftEffect $ saveTablatureToUrl value
   , fetch: Fetch $ do
       text <- liftEffect getTablatureTextFromUrl
-      liftEffect $ Console.log text
       pure $ Just text
   }
 

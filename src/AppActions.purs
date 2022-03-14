@@ -56,7 +56,6 @@ decreaseAutoscrollSpeed = do
 initialize :: forall m. MonadAff m => MonadState State m => m Unit
 initialize = do
   tablatureText <- Cache.read tablatureTextCache
-  liftEffect $ Console.log (tablatureText)
   if tablatureText == "" then setState _mode SearchMode
   else setState _mode ViewMode
 
