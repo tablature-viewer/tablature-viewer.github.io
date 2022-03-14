@@ -14,7 +14,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import StringParser (Parser, eof, fail, many, manyTill, option, optionMaybe, regex, string, try, tryAhead, unParser)
+import StringParser (Parser, eof, many, manyTill, option, optionMaybe, regex, string, try, tryAhead, unParser)
 import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 
 -- TODO: Improve the parser code
@@ -37,21 +37,26 @@ parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
   prefix <- manyTill (regex """[^\n]""") (tryAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
   maybeTuning <- optionMaybe $ parseSpacedNote <* (tryAhead (string "|")) <#> \result -> Tuning result
+  innerTabLine <- parseInnerTablatureLine
+  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> \result -> Suffix result
+  pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> innerTabLine <> suffix : Nil)
+  where
+  getTuning = case _ of
+    Nothing -> Nil
+    Just t -> t : Nil
+
+parseInnerTablatureLine :: Parser (List TablatureLineElem)
+parseInnerTablatureLine = do
   tabLine <- tryAhead (regex """\|\|?""") *> many
     (
-      -- We allow normal dashes - and em dashes —
-      (regex """(([\-—](?!\|)|([\-—]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> \result -> Timeline result)
+      -- We allow normal dashes - and em dashes — and spaces
+      (regex """(([\-— ](?!\|)|([\-— ]?\|\|?(?=[^\s\-—|]*[\-— |]))))+""" <#> \result -> Timeline result)
         <|> (regex ("""[\d↊↋]+""") <#> \result -> Fret result)
         <|>
           (regex ("""[^\s|\-—\d↊↋]+""") <#> \result -> Special result)
     )
   tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
-  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> \result -> Suffix result
-  pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> tabLine <> tabLineClose : Nil <> suffix : Nil)
-  where
-  getTuning = case _ of
-    Nothing -> Nil
-    Just t -> t : Nil
+  pure $ tabLine <> tabLineClose : Nil
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do

@@ -14,7 +14,7 @@ import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 import StringParser (Parser, eof, lookAhead, many, manyTill, regex, string, unParser)
-import TablatureParser (parseAnyLine, parseChordLegend, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
+import TablatureParser (parseAnyLine, parseChordLegend, parseEndOfLine, parseInnerTablatureLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
 import Test.QuickCheck (Result(..), quickCheck, quickCheck')
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.Utils (assertFailed, assertSuccess)
@@ -73,18 +73,19 @@ main = do
   assertParserSuccess (many parseTitleLine) "a"
   assertParserSuccess (many parseTitleLine) "123\n456"
 
-  assertParserFailed (parseTablatureLine) ""
-  assertParserFailed (parseTablatureLine) "a"
+  assertParserSuccess (parseInnerTablatureLine) "|-- --|"
   assertParserSuccess (parseTablatureLine) "B|----------------------||o-------------------------|-----------7h8p7-----------|"
   assertParserSuccess (parseTablatureLine) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
   assertParserSuccess (parseTablatureLine) "|---|\n"
+  assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
+  assertParserFailed (parseTablatureLine) ""
+  assertParserFailed (parseTablatureLine) "a"
   assertParserFailed (parseTablatureLine) "|---|\na"
   assertParserFailed (parseTablatureLine) "|---|\n|---|"
   assertParserSuccess (many (parseTablatureLine)) "|---|\n|---|"
+  assertParserSuccess (many (parseTablatureLine)) testTabLines
   assertParserFailed (many (parseTablatureLine)) "|---|\na"
   assertParserFailed (many (parseTablatureLine)) "a\n|---|"
-  assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
-  assertParserSuccess (many (parseTablatureLine)) testTabLines
   assertParserFailed (many (parseTablatureLine)) testTablature
 
   assertParserSuccess (parseTablatureDocument) ""
