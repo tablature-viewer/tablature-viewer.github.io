@@ -74,8 +74,8 @@ main = do
   assertParserSuccess (many parseTitleLine) "123\n456"
 
   assertParserSuccess (parseInnerTablatureLine) "|-- --|"
+  assertParserSuccess (parseInnerTablatureLine) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
   assertParserSuccess (parseTablatureLine) "B|----------------------||o-------------------------|-----------7h8p7-----------|"
-  assertParserSuccess (parseTablatureLine) "||o-4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0h|=4p0h7p0h4p0h7p0h4p0h7p0h4p0h7p0--|"
   assertParserSuccess (parseTablatureLine) "|---|\n"
   assertParserSuccess (parseTablatureLine) (lines testTabLines # unsafePartial head)
   assertParserFailed (parseTablatureLine) ""

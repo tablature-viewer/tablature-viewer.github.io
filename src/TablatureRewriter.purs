@@ -36,7 +36,7 @@ type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> Tablatu
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument settings =
   revertFalsePositiveChords
-    >>> fixEmDashes settings
+    >>> fixTimeLine settings
     >>> addMissingClosingPipe settings
     >>> dozenalizeChords settings
     >>> dozenalizeFrets settings
@@ -167,15 +167,19 @@ canonicalizeNote settings =
           _ -> note
   toUpperCase note = note # set _lowercase false
 
-fixEmDashes :: TablatureDocumentRewriter
-fixEmDashes settings doc = if not settings.normalizeTabs then doc else map rewriteLine doc
+fixTimeLine :: TablatureDocumentRewriter
+fixTimeLine settings doc = if not settings.normalizeTabs then doc else map rewriteLine doc
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine (TablatureLine line) = TablatureLine $ (map rewriteTablatureLineElem line)
   rewriteLine x = x
 
   rewriteTablatureLineElem :: TablatureLineElem -> TablatureLineElem
-  rewriteTablatureLineElem (Timeline string) = Timeline $ replaceAll (Pattern "—") (Replacement "-") string
+  rewriteTablatureLineElem (Timeline string) =
+    Timeline
+      $ replaceAll (Pattern "—") (Replacement "-")
+      $ replaceAll (Pattern " ") (Replacement "-")
+      $ string
   rewriteTablatureLineElem x = x
 
 addMissingClosingPipe :: TablatureDocumentRewriter
