@@ -14,7 +14,7 @@ import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 import StringParser (Parser, eof, lookAhead, many, manyTill, regex, string, unParser)
-import TablatureParser (parseAnyLine, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
+import TablatureParser (parseAnyLine, parseChordLegend, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
 import Test.QuickCheck (Result(..), quickCheck, quickCheck')
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.Utils (assertFailed, assertSuccess)
@@ -37,6 +37,9 @@ instance Arbitrary AsciiStringNoCtrl where
 main :: Effect Unit
 main = do
   log "🍝"
+
+  -- This used to hang
+  assertParserFailed (parseChordLegend) "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
   -- many should make sure that many doesn't hang
   assertParserSuccess (many eof) ""
@@ -95,7 +98,6 @@ main = do
   assertParserSuccess (parseTablatureDocument) "|---|\r\n\r|---|"
   assertParserSuccess (parseTablatureDocument) testTabLines
   assertParserSuccess (parseTablatureDocument) testTablature
-  assertParserSuccess (parseTablatureDocument) testTab2
 
   quickCheck' 10000 \(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s
   quickCheck' 10000 \(AsciiString s) -> doParseAll (many parseAnyLine) false s
@@ -166,10 +168,3 @@ assertParserFailed' parser testString = doParseAll parser true testString # asse
 
 runParser :: forall a. Parser a -> String -> Either { error :: String, pos :: Int } a
 runParser p s = map (\parserResult -> parserResult.result) (unParser p { substring: s, position: 0 })
-
-testTab2 ∷ String
-testTab2 =
-  """
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-"""

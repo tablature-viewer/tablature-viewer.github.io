@@ -14,7 +14,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import StringParser (Parser, eof, tryAhead, many, manyTill, option, optionMaybe, regex, string, try, unParser)
+import StringParser (Parser, eof, fail, many, manyTill, option, optionMaybe, regex, string, try, tryAhead, unParser)
 import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 
 -- TODO: Improve the parser code
@@ -29,7 +29,7 @@ parseTablatureDocument = do
 parseTitleLine :: Parser TablatureDocumentLine
 parseTitleLine = do
   prefix <- regex """[^\w\n]*"""
-  title <- regex """[^\n]*[\w)!?"']"""
+  title <- regex """[\w()!?"']+"""
   suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
@@ -60,7 +60,8 @@ parseHeaderLine = do
   pure $ HeaderLine ((Header header) : (HeaderSuffix suffix) : Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = (many parseChordComment <> (parseChordLineChord <#> \c -> c : Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
+parseChordLine = do
+  (many parseChordComment <> (parseChordLineChord <#> \c -> c : Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
 
 parseChordLineChord :: Parser ChordLineElem
 parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
@@ -106,11 +107,13 @@ parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[^\S\n]*(\([^\n()]*\)|\.\.+|[^\S\n]+|x\d+)[^\S\n]*""" <#> \result -> ChordComment result
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = manyTill (parseTextLineSpace <|> try (parseChord <#> \chord -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
-  <#> \result -> TextLine result
+parseTextLine = do
+  manyTill (parseTextLineSpace <|> try (parseChord <#> \chord -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
+    <#> \result -> TextLine result
 
 parseTextLineSpace :: Parser TextLineElem
-parseTextLineSpace = regex """[^\S\n]+""" <#> \result -> Spaces result
+parseTextLineSpace = do
+  regex """[^\S\n]+""" <#> \result -> Spaces result
 
 parseSpaces :: Parser String
 parseSpaces = regex """[ ]*"""
@@ -122,13 +125,15 @@ assertEndChordBoundary :: Parser Unit
 assertEndChordBoundary = eof <|> tryAhead (regex """\s""") *> pure unit
 
 parseChordLegend :: Parser TextLineElem
-parseChordLegend =
-  tryAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,30})(?!\S)""")
+parseChordLegend = do
+  -- Watch out for catastrophic backtracking.
+  tryAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,12})(?!\S)""")
     *> many ((regex """[1234567890↊↋]""" <#> ChordFret) <|> (regex """[xX-]""" <#> ChordSpecial)) <#> ChordLegend
 
 -- This is a backup in case the other parsers fail
 parseAnyLine :: Parser TablatureDocumentLine
-parseAnyLine = regex """[^\n]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result) : Nil)
+parseAnyLine = do
+  regex """[^\n]*""" <* parseEndOfLine <#> \result -> TextLine ((Text result) : Nil)
 
 parseEndOfLine :: Parser Unit
 parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
