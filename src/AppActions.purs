@@ -11,6 +11,7 @@ import Data.Enum (pred, succ)
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Console as Console
 import LocationString (getLocationString)
 import TablatureDocument (predTransposition, succTransposition)
 import TablatureRewriter (NoteOrientation)
@@ -55,6 +56,7 @@ decreaseAutoscrollSpeed = do
 initialize :: forall m. MonadEffect m => MonadState State m => m Unit
 initialize = do
   tablatureText <- Cache.read tablatureTextCache
+  liftEffect $ Console.log (tablatureText)
   if tablatureText == "" then setState _mode SearchMode
   else setState _mode ViewMode
 

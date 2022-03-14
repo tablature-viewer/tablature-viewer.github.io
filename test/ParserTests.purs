@@ -6,28 +6,32 @@ import Control.Alt ((<|>))
 import Data.Array.Partial (head)
 import Data.Either (Either(..))
 import Data.String (drop)
-import Data.String.Gen (genAsciiString, genAsciiString')
+import Data.String.Gen (genAsciiString, genAsciiString', genUnicodeString)
 import Data.String.Utils (lines)
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Effect.Console (error)
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
+import StringParser (Parser, eof, lookAhead, many, manyTill, regex, string, unParser)
 import TablatureParser (parseAnyLine, parseEndOfLine, parseTablatureDocument, parseTablatureLine, parseTextLine, parseTitleLine)
-import Test.QuickCheck (Result(..), quickCheck)
+import Test.QuickCheck (Result(..), quickCheck, quickCheck')
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.Utils (assertFailed, assertSuccess)
-import StringParser (Parser, eof, lookAhead, many, manyTill, regex, string, unParser)
 
 -- TODO: improve tests
 
 newtype AsciiString = AsciiString String
+newtype UnicodeString = UnicodeString String
 newtype AsciiStringNoCtrl = AsciiStringNoCtrl String
 
-instance arbitraryAsciiString :: Arbitrary AsciiString where
+instance Arbitrary UnicodeString where
+  arbitrary = genUnicodeString <#> UnicodeString
+
+instance Arbitrary AsciiString where
   arbitrary = genAsciiString' <#> AsciiString
 
-instance arbitraryAsciiStringNoCtrl :: Arbitrary AsciiStringNoCtrl where
+instance Arbitrary AsciiStringNoCtrl where
   arbitrary = genAsciiString <#> AsciiStringNoCtrl
 
 main :: Effect Unit
@@ -51,13 +55,8 @@ main = do
   assertParserSuccess ((manyTill (regex ".") (lookAhead $ string "2")) *> (string "2")) "1111112"
   assertParserSuccess ((manyTill (regex ".") (lookAhead $ string "2")) *> (string "2")) "2"
 
-  -- assertParserSuccess parseEndOfLine ""
-  -- assertParserFailed parseEndOfLine "a"
+  assertParserSuccess parseEndOfLine ""
   assertParserSuccess parseEndOfLine "\n"
-  assertParserSuccess parseEndOfLine "\r"
-  assertParserSuccess parseEndOfLine "\n\r"
-  assertParserFailed parseEndOfLine "\r\r"
-  assertParserFailed parseEndOfLine "\n\r\r"
 
   assertParserSuccess parseTextLine "a"
   assertParserSuccess (many parseTextLine) "a"
@@ -92,14 +91,18 @@ main = do
   assertParserSuccess (parseTablatureDocument) "|---|"
   assertParserSuccess (parseTablatureDocument) "|---|\na"
   assertParserSuccess (parseTablatureDocument) "|---|\n|---|"
+  assertParserSuccess (parseTablatureDocument) "|---|\r\n|---|"
+  assertParserSuccess (parseTablatureDocument) "|---|\r\n\r|---|"
   assertParserSuccess (parseTablatureDocument) testTabLines
   assertParserSuccess (parseTablatureDocument) testTablature
 
-  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll (many parseAnyLine) false s)
-  quickCheck $ (\(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument) false s)
-  quickCheck $ (\(AsciiString s) -> doParseAll (parseTablatureDocument) false s)
-  quickCheck $ doParseAll (parseTablatureDocument) false
+  quickCheck' 10000 \(AsciiStringNoCtrl s) -> doParseAll (parseTextLine) false s
+  quickCheck' 10000 \(AsciiString s) -> doParseAll (many parseAnyLine) false s
+  quickCheck' 10000 \(UnicodeString s) -> doParseAll (many parseAnyLine) false s
+  quickCheck' 10000 \(AsciiStringNoCtrl s) -> doParseAll (parseTablatureDocument) false s
+  quickCheck' 10000 \(AsciiString s) -> doParseAll (parseTablatureDocument) false s
+  quickCheck' 10000 \(UnicodeString s) -> doParseAll (parseTablatureDocument) false s
+  quickCheck' 10000 $ doParseAll parseTablatureDocument false
 
 testTabLines :: String
 testTabLines =

@@ -38,7 +38,7 @@ execSearch :: forall m. MonadAff m => MonadState State m => String -> m Unit
 execSearch phrase = map (const unit) $ runMaybeT do
   let url = """https://www.ultimate-guitar.com/search.php?search_type=title&value=""" <> phrase
   dataContent <- fetchUrlDataContent url
-  (Tuple maybeSearchResults log) <- runWriterT $ runMaybeT $ extractSearchResults dataContent
+  Tuple maybeSearchResults log <- runWriterT $ runMaybeT $ extractSearchResults dataContent
   _ <- liftEffect $ traverse Console.error log
   searchResults <- hoistMaybe maybeSearchResults
   setState _searchResults (Just $ filterSearchResults searchResults)
@@ -85,7 +85,7 @@ toSearchResult json =
 fetchTabFromUrl :: forall m. MonadAff m => MonadState State m => Url -> MaybeT m String
 fetchTabFromUrl url = do
   dataContent <- fetchUrlDataContent url
-  (Tuple maybeSearchResults log) <- runWriterT $ runMaybeT $ extractTab dataContent
+  Tuple maybeSearchResults log <- runWriterT $ runMaybeT $ extractTab dataContent
   _ <- liftEffect $ traverse Console.error log
   hoistMaybe maybeSearchResults
 

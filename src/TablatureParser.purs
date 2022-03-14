@@ -6,7 +6,7 @@ import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.Foldable (foldr)
 import Data.List (List(..), (:))
-import Data.Maybe (Maybe(..), fromJust, fromMaybe)
+import Data.Maybe (Maybe(..), fromJust)
 import Data.String (drop, length, toLower, toUpper)
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags (global)
@@ -137,10 +137,7 @@ parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n"""
 
 tryParseTablature :: String -> Maybe TablatureDocument
-tryParseTablature inputString = tryRunParser parseTablatureDocument inputString
-
-parseTablature :: String -> TablatureDocument
-parseTablature text = tryParseTablature (Regex.replace (unsafeRegex "\r" global) "" text) # fromMaybe Nil
+tryParseTablature inputString = tryRunParser parseTablatureDocument (Regex.replace (unsafeRegex "\r" global) "" inputString)
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString =
