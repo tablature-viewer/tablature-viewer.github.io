@@ -31,6 +31,7 @@ applyUntilIdempotent f x = if result == x then result else applyUntilIdempotent 
 unsafeTestRegex :: String -> String -> Boolean
 unsafeTestRegex patternString text = test (unsafeRegex patternString noFlags) text
 
+-- Map with state
 foreach :: forall a b s. s -> List a -> (s -> a -> Tuple s b) -> List b
 foreach _ Nil _ = Nil
 foreach state (x : xs) loop = snd next : (foreach (fst next) xs loop)

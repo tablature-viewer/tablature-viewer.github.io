@@ -129,7 +129,7 @@ html {
     --tablature-font-size: 10px;
     --tablature-sup-font-size: 8px;
     --tablature-sub-font-size: 10px;
-    --search-result-padding-vertical: 5px;
+    --search-result-padding-vertical: 7px;
     --search-result-padding-horizontal: 15px;
   }
 }

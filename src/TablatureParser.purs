@@ -4,17 +4,18 @@ import Prelude hiding (between)
 
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
-import Data.Foldable (fold, foldr)
+import Data.Foldable (fold, foldr, sum)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromJust)
 import Data.String (drop, length, toLower, toUpper)
+import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
-import StringParser (Parser, eof, many, manyTill, option, optionMaybe, regex, string, try, tryAhead, unParser)
+import StringParser (Parser, eof, fail, many, manyTill, option, optionMaybe, regex, string, try, tryAhead, unParser)
 import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
 
 -- TODO: Improve the parser code
@@ -33,10 +34,25 @@ parseTitleLine = do
   suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
+parseTimeLineSep :: Parser TablatureLineElem
+parseTimeLineSep = regex """[|\[\]]{1,2}""" <#> TimelineSep
+
+parseTimeLineConnection :: Parser TablatureLineElem
+parseTimeLineConnection = regex """[\-— ]+""" <#> TimelineConnection
+
+parseTimeLine :: Parser TablatureLineElem
+parseTimeLine = parseTimeLineConnection <|> parseTimeLineSep
+
+parseFret :: Parser TablatureLineElem
+parseFret = regex ("""[\d↊↋]+""") <#> Fret
+
+parseMaybeTuning :: Parser (Maybe TablatureLineElem)
+parseMaybeTuning = optionMaybe $ parseSpacedNote <* (tryAhead parseTimeLineSep) <#> Tuning
+
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
-  prefix <- manyTill (regex """[^\n]""") (tryAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
-  maybeTuning <- optionMaybe $ parseSpacedNote <* (tryAhead (string "|")) <#> Tuning
+  prefix <- manyTill (regex """[^\n]""") (tryAhead parseMaybeTuning) <#> \result -> Prefix (foldr (<>) "" result)
+  maybeTuning <- parseMaybeTuning
   innerTabLine <- parseInnerTablatureLine
   suffix <- regex """[^\n]*""" <* parseEndOfLine <#> Suffix
   pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> innerTabLine <> suffix : Nil)
@@ -45,18 +61,20 @@ parseTablatureLine = do
     Nothing -> Nil
     Just t -> t : Nil
 
+-- TODO: treating the space as first class timeline is problematic. We probably want a separate type for it
 parseInnerTablatureLine :: Parser (List TablatureLineElem)
 parseInnerTablatureLine = do
-  tabLine <- tryAhead (regex """\|\|?""") *> many
-    (
-      -- We allow normal dashes - and em dashes — and spaces
-      (regex """(([\-— ](?!\|)|([\-— ]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> Timeline)
-        <|> (regex ("""[\d↊↋]+""") <#> Fret)
+  result <- tryAhead parseTimeLineSep *> many
+    ( parseTimeLine
+        <|> parseFret
         <|>
-          (regex ("""[^\s|\-—\d↊↋]+""") <#> Special)
+          try (regex ("""[^\s|\[\]\-—\d↊↋]+""") <* tryAhead (parseTimeLine <|> parseFret) <#> Special)
     )
-  tabLineClose <- regex """[\-—]?\|?\|?""" <#> Timeline
-  pure $ tabLine <> tabLineClose : Nil
+  -- Do a post check to see if there are enough dashes
+  if (result <#> countDashes # sum) > 4 then pure result else fail "Not enough dashes to qualify as tab line"
+  where
+  countDashes (TimelineConnection s) = String.length s
+  countDashes _ = 0
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = do
@@ -152,8 +170,13 @@ parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n"""
 
+sanitizeInput :: String -> String
+sanitizeInput inputString = inputString
+  # Regex.replace (unsafeRegex "\r" global) ""
+  # Regex.replace (unsafeRegex "[ \t]+\n" global) "\n"
+
 tryParseTablature :: String -> Maybe TablatureDocument
-tryParseTablature inputString = tryRunParser parseTablatureDocument (Regex.replace (unsafeRegex "\r" global) "" inputString)
+tryParseTablature inputString = tryRunParser parseTablatureDocument (sanitizeInput inputString)
 
 tryRunParser :: forall a. Show a => Parser a -> String -> Maybe a
 tryRunParser parser inputString =

@@ -79,7 +79,8 @@ data HeaderLineElem
 data TablatureLineElem
   = Prefix String
   | Tuning (Spaced Note)
-  | Timeline String
+  | TimelineConnection String
+  | TimelineSep String
   | Fret String
   | Special String
   | Suffix String
@@ -269,7 +270,8 @@ instance Show TablatureDocumentLine where
 instance Show TablatureLineElem where
   show (Prefix string) = string
   show (Tuning spacedNote) = print spacedNote
-  show (Timeline string) = string
+  show (TimelineSep string) = string
+  show (TimelineConnection string) = string
   show (Fret string) = string
   show (Special string) = string
   show (Suffix string) = string

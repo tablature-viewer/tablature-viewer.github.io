@@ -35,8 +35,9 @@ type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> Tablatu
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument settings =
-  -- It is important that this goes first
-  revertFalsePositiveChords
+  -- The order of the operations is important
+  identity
+    >>> revertFalsePositiveChords
     >>> fixTimeLine settings
     >>> addMissingClosingPipe settings
     >>> dozenalizeChords settings
@@ -45,7 +46,6 @@ rewriteTablatureDocument settings =
     >>>
       transposeTuning settings
 
--- It is important that this goes first
 revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
 revertFalsePositiveChords = map rewriteLine
   where
@@ -187,10 +187,15 @@ fixTimeLine settings doc = if not settings.normalizeTabs then doc else map rewri
   rewriteLine x = x
 
   rewriteTablatureLineElem :: TablatureLineElem -> TablatureLineElem
-  rewriteTablatureLineElem (Timeline string) =
-    Timeline
+  rewriteTablatureLineElem (TimelineConnection string) =
+    TimelineConnection
       $ replaceAll (Pattern "—") (Replacement "-")
       $ replaceAll (Pattern " ") (Replacement "-")
+      $ string
+  rewriteTablatureLineElem (TimelineSep string) =
+    TimelineSep
+      $ replaceAll (Pattern "[") (Replacement "|")
+      $ replaceAll (Pattern "]") (Replacement "|")
       $ string
   rewriteTablatureLineElem x = x
 
@@ -206,7 +211,9 @@ addMissingClosingPipe settings doc = if not settings.normalizeTabs then doc else
     foreach false (reverse elems)
       ( \done elem ->
           case elem of
-            Timeline t -> Tuple true (Timeline (if done then t else rewriteLastTimelinePiece t))
+            TimelineSep t -> Tuple true elem
+            -- TODO: this is not entirely correct. We should actually insert a TimelineSep element here
+            TimelineConnection t -> Tuple true ((if done then elem else TimelineSep (rewriteLastTimelinePiece t)))
             _ -> Tuple done elem
       )
 
@@ -237,7 +244,8 @@ dozenalizeFrets settings doc = if not settings.dozenalizeTabs then doc else map 
   rewriteTablatureLineElems elems = foreach 0 elems
     ( \pendingDashes elem ->
         case elem of
-          Timeline string -> Tuple 0 $ Timeline (fromMaybe "" (repeat pendingDashes "-") <> string)
+          -- TODO: this is not entirely correct. We should actually insert a TimelineConnection element here
+          TimelineConnection string -> Tuple 0 $ TimelineConnection (fromMaybe "" (repeat pendingDashes "-") <> string)
           Fret string -> flip Tuple (Fret fretString) $
             if fretString == "↊" || fretString == "↋" then pendingDashes + 1
             else pendingDashes
