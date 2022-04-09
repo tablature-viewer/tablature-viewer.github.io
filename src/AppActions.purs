@@ -3,6 +3,7 @@ module AppActions where
 import AppState
 import Prelude
 
+import AppUrl (resetUrlParams)
 import Cache as Cache
 import Clipboard (copyToClipboard)
 import Control.Monad.Maybe.Trans (runMaybeT)
@@ -127,4 +128,5 @@ importFromUrl :: forall m. MonadAff m => MonadState State m => Url -> m Unit
 importFromUrl url = map (const unit) $ runMaybeT do
   tablatureText <- fetchTabFromUrl url
   Cache.write tablatureTextCache tablatureText
+  liftEffect resetUrlParams
   setState _mode ViewMode

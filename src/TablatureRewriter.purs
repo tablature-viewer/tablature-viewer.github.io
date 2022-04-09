@@ -61,7 +61,7 @@ revertFalsePositiveChords = map rewriteLine
 
   isPotentiallyAmbiguousChord :: TextLineElem -> Boolean
   isPotentiallyAmbiguousChord = case _ of
-    TextLineChord (Spaced ({ elem: chord })) -> unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord
+    TextLineChord (Spaced ({ elem: chord })) -> unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z]|Bob)$" $ print chord
     _ -> false
 
   isUnambiguousChord :: TextLineElem -> Boolean

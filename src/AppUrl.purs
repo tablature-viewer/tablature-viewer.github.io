@@ -79,3 +79,6 @@ setAppQueryString params = setQueryComponents $ mapMaybe identity
       Transposition 0 -> Nothing
       Transposition n -> Just $ "t=" <> show n
   ]
+
+resetUrlParams :: Effect Unit
+resetUrlParams = setQueryComponents []
