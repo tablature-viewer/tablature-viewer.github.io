@@ -4,7 +4,7 @@ import Prelude hiding (between)
 
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
-import Data.Foldable (foldr)
+import Data.Foldable (fold, foldr)
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..), fromJust)
 import Data.String (drop, length, toLower, toUpper)
@@ -36,9 +36,9 @@ parseTitleLine = do
 parseTablatureLine :: Parser TablatureDocumentLine
 parseTablatureLine = do
   prefix <- manyTill (regex """[^\n]""") (tryAhead (optionMaybe parseSpacedNote *> string "|")) <#> \result -> Prefix (foldr (<>) "" result)
-  maybeTuning <- optionMaybe $ parseSpacedNote <* (tryAhead (string "|")) <#> \result -> Tuning result
+  maybeTuning <- optionMaybe $ parseSpacedNote <* (tryAhead (string "|")) <#> Tuning
   innerTabLine <- parseInnerTablatureLine
-  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> \result -> Suffix result
+  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> Suffix
   pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> innerTabLine <> suffix : Nil)
   where
   getTuning = case _ of
@@ -50,12 +50,12 @@ parseInnerTablatureLine = do
   tabLine <- tryAhead (regex """\|\|?""") *> many
     (
       -- We allow normal dashes - and em dashes — and spaces
-      (regex """(([\-— ](?!\|)|([\-— ]?\|\|?(?=[^\s\-—|]*[\-— |]))))+""" <#> \result -> Timeline result)
-        <|> (regex ("""[\d↊↋]+""") <#> \result -> Fret result)
+      (regex """(([\-— ](?!\|)|([\-— ]?\|\|?(?=[^\s\-—|]*[\-—|]))))+""" <#> Timeline)
+        <|> (regex ("""[\d↊↋]+""") <#> Fret)
         <|>
-          (regex ("""[^\s|\-—\d↊↋]+""") <#> \result -> Special result)
+          (regex ("""[^\s|\-—\d↊↋]+""") <#> Special)
     )
-  tabLineClose <- regex """[\-—]?\|?\|?""" <#> \result -> Timeline result
+  tabLineClose <- regex """[\-—]?\|?\|?""" <#> Timeline
   pure $ tabLine <> tabLineClose : Nil
 
 parseHeaderLine :: Parser TablatureDocumentLine
@@ -66,7 +66,7 @@ parseHeaderLine = do
 
 parseChordLine :: Parser TablatureDocumentLine
 parseChordLine = do
-  (many parseChordComment <> (parseChordLineChord <#> \c -> c : Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> \result -> ChordLine result
+  (many parseChordComment <> (parseChordLineChord <#> \c -> c : Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> ChordLine
 
 parseChordLineChord :: Parser ChordLineElem
 parseChordLineChord = (parseChord <#> \chord -> ChordLineChord chord)
@@ -75,7 +75,7 @@ parseChord :: Parser (Spaced Chord)
 parseChord = do
   root <- parseNote
   chordType <- parseChordType
-  mods <- parseChordMods
+  mods <- parseChordMods <#> fold
   maybeBass <- optionMaybe (string "/" *> parseNote)
   assertEndChordBoundary
   spaceSuffix <- parseSpaces
@@ -90,7 +90,9 @@ parseChord = do
     }
   where
   parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|[+]|o)?"""
-  parseChordMods = regex """((sus[24]?)|\(?(o|no|add|dim|dom|augm(?![a-zA-Z])|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?(b|#|[+]|[-])?\)?)*"""
+  parseStackableChordMods = regex """(o|no|add|dim|dom|augm(?![a-zA-Z])|aug|maj|Maj|M|Δ)?([2-9]|10|11|12|13)?(b|#|[+]|[-])?"""
+  parseParenthesizedStackableChordMods = try (string "(" <> parseStackableChordMods <> string ")")
+  parseChordMods = many (regex """sus[24]?""" <|> parseParenthesizedStackableChordMods <|> parseStackableChordMods)
 
 parseNote :: Parser Note
 parseNote = do
@@ -109,25 +111,29 @@ parseSpacedNote = do
 
 -- A chord comment is a non chord string that is either a series of dots, a series of spaces, a xN expression or a parenthesized expression.
 parseChordComment :: Parser ChordLineElem
-parseChordComment = regex """[^\S\n]*(\([^\n()]*\)|\.\.+|[^\S\n]+|x\d+)[^\S\n]*""" <#> \result -> ChordComment result
+parseChordComment = regex """[^\S\n]*(\([^\n()]*\)|\.\.+|[^\S\n]+|x\d+)[^\S\n]*""" <#> ChordComment
 
 parseTextLine :: Parser TablatureDocumentLine
 parseTextLine = do
-  manyTill (parseTextLineSpace <|> try (parseChord <#> \chord -> TextLineChord chord) <|> parseChordLegend <|> parseWord) parseEndOfLine
-    <#> \result -> TextLine result
+  manyTill (parseTextLineSpace <|> (parsePunctuation <#> Text) <|> try (parseChord <#> TextLineChord) <|> parseChordLegend <|> parseWord) parseEndOfLine
+    <#> TextLine
 
 parseTextLineSpace :: Parser TextLineElem
 parseTextLineSpace = do
-  regex """[^\S\n]+""" <#> \result -> Spaces result
+  regex """[^\S\n]+""" <#> Spaces
+
+-- Parse stuff that will not be part of a chord but can still be right next to a chord
+parsePunctuation :: Parser String
+parsePunctuation = regex """[,.?())]"""
+
+assertEndChordBoundary :: Parser Unit
+assertEndChordBoundary = eof <|> tryAhead (regex """\s""" <|> parsePunctuation) *> pure unit
 
 parseSpaces :: Parser String
 parseSpaces = regex """[ ]*"""
 
 parseWord :: Parser TextLineElem
-parseWord = regex """(?<!\S)\S+(?!\S)""" <#> \result -> Text result
-
-assertEndChordBoundary :: Parser Unit
-assertEndChordBoundary = eof <|> tryAhead (regex """\s""") *> pure unit
+parseWord = regex """(?<!\S)\S+(?!\S)""" <#> Text
 
 parseChordLegend :: Parser TextLineElem
 parseChordLegend = do
