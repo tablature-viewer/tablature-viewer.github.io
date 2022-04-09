@@ -31,6 +31,9 @@ html {
   --tablature-sub-font-size: 13px;
   --tablature-sub-top: 0.2em;
 
+  --search-result-padding-vertical: 10px;
+  --search-result-padding-horizontal: 30px;
+
   --tab-bg: #FEF8EC;
   --header-bg: #F9F1E1;
   --button-bg: #f5eddd;
@@ -126,6 +129,8 @@ html {
     --tablature-font-size: 10px;
     --tablature-sup-font-size: 8px;
     --tablature-sub-font-size: 10px;
+    --search-result-padding-vertical: 5px;
+    --search-result-padding-horizontal: 15px;
   }
 }
 
@@ -316,7 +321,7 @@ button.dropdown-item,
 /* TODO: make margins smaller on phone */
 .tablatureSearch * {
   font-family: Cascadia Tablature;
-  font-size: 13px;
+  font-size: var(--tablature-font-size);
   color: var(--fg);
 }
 
@@ -367,7 +372,7 @@ button.dropdown-item,
 
 .searchResults td,
 .searchResults th {
-  padding: 10px 30px;
+  padding: var(--search-result-padding-vertical) var(--search-result-padding-horizontal);
 }
 
 /***************/
