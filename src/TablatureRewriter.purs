@@ -3,7 +3,7 @@ module TablatureRewriter where
 import Prelude
 
 import Data.Int (decimal, fromString, radix, toStringAs)
-import Data.Lens (_Just, allOf, anyOf, over, set, traversed, view)
+import Data.Lens (_Just, allOf, anyOf, filtered, lengthOf, over, set, traversed, view)
 import Data.List (List, reverse)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Ord (abs)
@@ -35,6 +35,7 @@ type TablatureDocumentRewriter = RewriteSettings -> TablatureDocument -> Tablatu
 
 rewriteTablatureDocument :: TablatureDocumentRewriter
 rewriteTablatureDocument settings =
+  -- It is important that this goes first
   revertFalsePositiveChords
     >>> fixTimeLine settings
     >>> addMissingClosingPipe settings
@@ -44,28 +45,39 @@ rewriteTablatureDocument settings =
     >>>
       transposeTuning settings
 
+-- It is important that this goes first
 revertFalsePositiveChords :: TablatureDocument -> TablatureDocument
 revertFalsePositiveChords = map rewriteLine
   where
   rewriteLine :: TablatureDocumentLine -> TablatureDocumentLine
   rewriteLine line =
-    if allOf (_TextLine <<< traversed) (not elemIsChordLegend) line && anyOf (_TextLine <<< traversed) elemIsNaturalLanguage line then over (_TextLine <<< traversed) rewriteElement line
-    else line
+    -- If the line contains at least one unambiguous chord or at least four ambiguous chords or a chord legend we don't revert anything
+    if containsChordLegend line || containsAtLeastFourAmbiguousChords line || containsAtLeastOneUnambiguousChord line then line
+    else over (_TextLine <<< traversed) rewriteElement line
 
-  elemIsNaturalLanguage :: TextLineElem -> Boolean
-  elemIsNaturalLanguage = case _ of
-    Text text -> unsafeTestRegex "^\\w*$" text
+  containsChordLegend line = anyOf (_TextLine <<< traversed) isChordLegend line
+  containsAtLeastFourAmbiguousChords line = lengthOf (_TextLine <<< traversed <<< filtered isPotentiallyAmbiguousChord) line > 3
+  containsAtLeastOneUnambiguousChord line = anyOf (_TextLine <<< traversed) isUnambiguousChord line
+
+  isPotentiallyAmbiguousChord :: TextLineElem -> Boolean
+  isPotentiallyAmbiguousChord = case _ of
+    TextLineChord (Spaced ({ elem: chord })) -> unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord
     _ -> false
 
-  elemIsChordLegend :: TextLineElem -> Boolean
-  elemIsChordLegend = case _ of
+  isUnambiguousChord :: TextLineElem -> Boolean
+  isUnambiguousChord elem = case elem of
+    TextLineChord _ -> not (isPotentiallyAmbiguousChord elem)
+    _ -> false
+
+  isChordLegend :: TextLineElem -> Boolean
+  isChordLegend = case _ of
     ChordLegend _ -> true
     _ -> false
 
   rewriteElement :: TextLineElem -> TextLineElem
   rewriteElement = case _ of
-    x@(TextLineChord spacedChord@(Spaced ({ elem: chord }))) ->
-      if unsafeTestRegex "^([Aa][Mm]?|[DdGg]o|[a-z])$" $ print chord then Text $ print spacedChord
+    x@(TextLineChord spacedChord) ->
+      if isPotentiallyAmbiguousChord x then Text $ print spacedChord
       else x
     x -> x
 
