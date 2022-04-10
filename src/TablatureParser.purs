@@ -22,9 +22,9 @@ import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), Cho
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (tryAhead (parseTitleLine <|> parseTablatureLine)))
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (tryAhead (parseTitleLine <|> parseTablatureLineWithSurroundings)))
   title <- option Nil $ parseTitleLine <#> \result -> result : Nil
-  body <- many (parseTablatureLine <|> parseChordLine <|> parseHeaderLine <|> parseTextLine <|> parseAnyLine)
+  body <- many (parseTablatureLineWithSurroundings <|> parseChordLine <|> parseHeaderLine <|> parseTextLine <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -34,46 +34,56 @@ parseTitleLine = try do
   suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
-parseTimeLineSep :: Parser TablatureLineElem
-parseTimeLineSep = regex """[|\[\]]{1,2}""" <#> TimelineSep
+parseTimelineSep :: Parser TablatureLineElem
+parseTimelineSep = regex """[|\[\]]{1,2}""" <#> TimelineSep
 
-parseTimeLineConnection :: Parser TablatureLineElem
-parseTimeLineConnection = regex """[\-—]+""" <#> TimelineConnection
+parseTimelineConnection :: Parser TablatureLineElem
+parseTimelineConnection = regex """[\-—]+""" <#> TimelineConnection
 
-parseTimeLineSpace :: Parser TablatureLineElem
-parseTimeLineSpace = regex """[ ]+""" <#> TimelineSpace
+-- Something is a timeline space if there is still another timeline sep or connection down the line somwhere
+-- In other words, a timeline space cannot be at the end of a timeline
+parseTimelineSpace :: Parser TablatureLineElem
+parseTimelineSpace = try (regex """[ ]+""" <* assertTimelineNotEnded) <#> TimelineSpace
+
+assertTimelineNotEnded :: Parser Unit
+assertTimelineNotEnded = pure unit <* tryAhead (manyTill parseAnyChar (parseTimelineConnection <|> parseTimelineSep))
 
 parseFret :: Parser TablatureLineElem
-parseFret = regex ("""[\d↊↋]+""") <#> Fret
+parseFret = try (regex ("""[\d↊↋]+""") <* assertTimelineNotEnded) <#> Fret
 
 parseSpecial :: Parser TablatureLineElem
-parseSpecial = try (regex ("""[^\s|\[\]\-—\d↊↋]+""") <* tryAhead (parseTimeLineConnection <|> parseTimeLineSep <|> parseFret) <#> Special)
+parseSpecial = try (regex ("""[^\s|\[\]\-—\d↊↋]+""") <* assertTimelineNotEnded <#> Special)
 
 parseMaybeTuning :: Parser (Maybe TablatureLineElem)
-parseMaybeTuning = optionMaybe $ parseSpacedNote <* (tryAhead parseTimeLineSep) <#> Tuning
+parseMaybeTuning = optionMaybe $ parseSpacedNote <* (tryAhead parseTimelineSep) <#> Tuning
 
-parseTablatureLine :: Parser TablatureDocumentLine
-parseTablatureLine = try do
-  prefix <- manyTill (regex """[^\n]""") (tryAhead parseMaybeTuning) <#> \result -> Prefix (foldr (<>) "" result)
-  maybeTuning <- parseMaybeTuning
-  innerTabLine <- parseInnerTablatureLine
+parseTablatureLineWithSurroundings :: Parser TablatureDocumentLine
+parseTablatureLineWithSurroundings = try do
+  prefix <- manyTill (regex """[^\n]""") (tryAhead parseTablatureLineWithOptionalTuning) <#> \result -> Prefix (fold result)
+  tabLine <- parseTablatureLineWithOptionalTuning
   suffix <- regex """[^\n]*""" <* parseEndOfLine <#> Suffix
-  pure $ TablatureLine (prefix : Nil <> (getTuning maybeTuning) <> innerTabLine <> suffix : Nil)
+  pure $ TablatureLine $ prefix : Nil <> tabLine <> suffix : Nil
+
+parseTablatureLineWithOptionalTuning :: Parser (List TablatureLineElem)
+parseTablatureLineWithOptionalTuning = try do
+  maybeTuning <- parseMaybeTuning
+  tabLine <- parseInnerTablatureLine
+  pure $ getTuning maybeTuning <> tabLine
   where
   getTuning = case _ of
     Nothing -> Nil
     Just t -> t : Nil
 
--- TODO: treating the space as first class timeline is problematic. We probably want a separate type for it
 parseInnerTablatureLine :: Parser (List TablatureLineElem)
-parseInnerTablatureLine = do
-  result <- tryAhead parseTimeLineSep *> many
-    (parseTimeLineConnection <|> parseTimeLineSep <|> parseTimeLineSpace <|> parseFret <|> parseSpecial)
+parseInnerTablatureLine = try do
+  result <- tryAhead parseTimelineSep *> many
+    (parseTimelineConnection <|> parseTimelineSep <|> parseTimelineSpace <|> parseFret <|> parseSpecial)
   -- Do a post check to see if there are enough dashes
-  if (result <#> countDashes # sum) > 4 then pure result else fail "Not enough dashes to qualify as tab line"
+  if (result <#> countTimeLineElems # sum) > 4 then pure result else fail "Not enough dashes to qualify as tab line"
   where
-  countDashes (TimelineConnection s) = String.length s
-  countDashes _ = 0
+  countTimeLineElems (TimelineConnection s) = String.length s
+  countTimeLineElems (TimelineSep s) = String.length s
+  countTimeLineElems _ = 0
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = try do
@@ -168,6 +178,9 @@ parseEndOfLine = parseEndOfLineString *> pure unit <|> eof
 
 parseEndOfLineString :: Parser String
 parseEndOfLineString = regex """\n"""
+
+parseAnyChar :: Parser String
+parseAnyChar = regex """[^\n]"""
 
 sanitizeInput :: String -> String
 sanitizeInput inputString = inputString
