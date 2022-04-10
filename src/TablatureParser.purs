@@ -23,12 +23,12 @@ import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), Cho
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
   commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (tryAhead (parseTitleLine <|> parseTablatureLine)))
-  title <- option Nil $ (try parseTitleLine) <#> \result -> result : Nil
-  body <- many ((try parseTablatureLine) <|> (try parseChordLine) <|> (try parseHeaderLine) <|> (try parseTextLine) <|> parseAnyLine)
+  title <- option Nil $ parseTitleLine <#> \result -> result : Nil
+  body <- many (parseTablatureLine <|> parseChordLine <|> parseHeaderLine <|> parseTextLine <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
-parseTitleLine = do
+parseTitleLine = try do
   prefix <- regex """[^\w\n]*"""
   title <- regex """[^\n]*[\w)!?"']"""
   suffix <- regex """[^\n]*""" <* parseEndOfLine
@@ -38,19 +38,22 @@ parseTimeLineSep :: Parser TablatureLineElem
 parseTimeLineSep = regex """[|\[\]]{1,2}""" <#> TimelineSep
 
 parseTimeLineConnection :: Parser TablatureLineElem
-parseTimeLineConnection = regex """[\-— ]+""" <#> TimelineConnection
+parseTimeLineConnection = regex """[\-—]+""" <#> TimelineConnection
 
-parseTimeLine :: Parser TablatureLineElem
-parseTimeLine = parseTimeLineConnection <|> parseTimeLineSep
+parseTimeLineSpace :: Parser TablatureLineElem
+parseTimeLineSpace = regex """[ ]+""" <#> TimelineSpace
 
 parseFret :: Parser TablatureLineElem
 parseFret = regex ("""[\d↊↋]+""") <#> Fret
+
+parseSpecial :: Parser TablatureLineElem
+parseSpecial = try (regex ("""[^\s|\[\]\-—\d↊↋]+""") <* tryAhead (parseTimeLineConnection <|> parseTimeLineSep <|> parseFret) <#> Special)
 
 parseMaybeTuning :: Parser (Maybe TablatureLineElem)
 parseMaybeTuning = optionMaybe $ parseSpacedNote <* (tryAhead parseTimeLineSep) <#> Tuning
 
 parseTablatureLine :: Parser TablatureDocumentLine
-parseTablatureLine = do
+parseTablatureLine = try do
   prefix <- manyTill (regex """[^\n]""") (tryAhead parseMaybeTuning) <#> \result -> Prefix (foldr (<>) "" result)
   maybeTuning <- parseMaybeTuning
   innerTabLine <- parseInnerTablatureLine
@@ -65,11 +68,7 @@ parseTablatureLine = do
 parseInnerTablatureLine :: Parser (List TablatureLineElem)
 parseInnerTablatureLine = do
   result <- tryAhead parseTimeLineSep *> many
-    ( parseTimeLine
-        <|> parseFret
-        <|>
-          try (regex ("""[^\s|\[\]\-—\d↊↋]+""") <* tryAhead (parseTimeLine <|> parseFret) <#> Special)
-    )
+    (parseTimeLineConnection <|> parseTimeLineSep <|> parseTimeLineSpace <|> parseFret <|> parseSpecial)
   -- Do a post check to see if there are enough dashes
   if (result <#> countDashes # sum) > 4 then pure result else fail "Not enough dashes to qualify as tab line"
   where
@@ -77,13 +76,13 @@ parseInnerTablatureLine = do
   countDashes _ = 0
 
 parseHeaderLine :: Parser TablatureDocumentLine
-parseHeaderLine = do
+parseHeaderLine = try do
   header <- regex """[^\S\n]*\[[^\n]*\w{2}[^\n]*\]"""
   suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ HeaderLine ((Header header) : (HeaderSuffix suffix) : Nil)
 
 parseChordLine :: Parser TablatureDocumentLine
-parseChordLine = do
+parseChordLine = try do
   (many parseChordComment <> (parseChordLineChord <#> \c -> c : Nil) <> many (parseChordLineChord <|> parseChordComment) <* parseEndOfLine) <#> ChordLine
 
 parseChordLineChord :: Parser ChordLineElem
@@ -132,7 +131,7 @@ parseChordComment :: Parser ChordLineElem
 parseChordComment = regex """[^\S\n]*(\([^\n()]*\)|\.\.+|[^\S\n]+|x\d+)[^\S\n]*""" <#> ChordComment
 
 parseTextLine :: Parser TablatureDocumentLine
-parseTextLine = do
+parseTextLine = try do
   manyTill (parseTextLineSpace <|> (parsePunctuation <#> Text) <|> try (parseChord <#> TextLineChord) <|> parseChordLegend <|> parseWord) parseEndOfLine
     <#> TextLine
 

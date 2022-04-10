@@ -211,7 +211,7 @@ addMissingClosingPipe settings doc = if not settings.normalizeTabs then doc else
     foreach false (reverse elems)
       ( \done elem ->
           case elem of
-            TimelineSep t -> Tuple true elem
+            TimelineSep _ -> Tuple true elem
             -- TODO: this is not entirely correct. We should actually insert a TimelineSep element here
             TimelineConnection t -> Tuple true ((if done then elem else TimelineSep (rewriteLastTimelinePiece t)))
             _ -> Tuple done elem

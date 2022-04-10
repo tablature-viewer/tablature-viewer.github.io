@@ -43,6 +43,7 @@ renderTablatureDocument doc = map renderLine doc
   renderTablatureLineElem (Special string) = renderWithClass string "tabSpecial"
   renderTablatureLineElem (TimelineSep string) = renderWithClass string "tabTimeline"
   renderTablatureLineElem (TimelineConnection string) = renderWithClass string "tabTimeline"
+  renderTablatureLineElem (TimelineSpace string) = renderWithClass string "tabTimeline"
   renderTablatureLineElem (Fret string) = renderWithClass string "tabFret"
   renderHeaderLineElem (Header string) = renderWithClass string "tabHeader"
   renderHeaderLineElem (HeaderSuffix string) = renderWithClass string "tabText"
