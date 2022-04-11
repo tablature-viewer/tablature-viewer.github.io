@@ -269,14 +269,17 @@ instance Show TablatureDocumentLine where
   show (HeaderLine elems) = "Header: " <> show elems
 
 instance Show TablatureLineElem where
-  show (Prefix string) = string
-  show (Tuning spacedNote) = print spacedNote
-  show (TimelineSep string) = string
-  show (TimelineConnection string) = string
-  show (TimelineSpace string) = string
-  show (Fret string) = string
-  show (Special string) = string
-  show (Suffix string) = string
+  show = print
+
+instance Print TablatureLineElem where
+  print (Prefix string) = string
+  print (Tuning spacedNote) = print spacedNote
+  print (TimelineSep string) = string
+  print (TimelineConnection string) = string
+  print (TimelineSpace string) = string
+  print (Fret string) = string
+  print (Special string) = string
+  print (Suffix string) = string
 
 instance Show TextLineElem where
   show (Text string) = string

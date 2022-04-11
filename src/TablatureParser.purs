@@ -6,6 +6,7 @@ import Control.Alt ((<|>))
 import Data.Either (Either(..))
 import Data.Foldable (fold, foldr, sum)
 import Data.List (List(..), (:))
+import Data.List as List
 import Data.Maybe (Maybe(..), fromJust)
 import Data.String (drop, length, toLower, toUpper)
 import Data.String as String
@@ -17,6 +18,7 @@ import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
 import StringParser (Parser, eof, fail, many, manyTill, option, optionMaybe, regex, string, try, tryAhead, unParser)
 import TablatureDocument (Chord(..), ChordLegendElem(..), ChordLineElem(..), ChordMod(..), HeaderLineElem(..), Note(..), NoteLetter(..), Spaced(..), TablatureDocument, TablatureDocumentLine(..), TablatureLineElem(..), TextLineElem(..), TitleLineElem(..), fromString)
+import Utils (print)
 
 -- TODO: Improve the parser code
 
@@ -34,25 +36,25 @@ parseTitleLine = try do
   suffix <- regex """[^\n]*""" <* parseEndOfLine
   pure $ TitleLine $ TitleOther prefix : Title title : TitleOther suffix : Nil
 
-parseTimelineSep :: Parser TablatureLineElem
-parseTimelineSep = regex """[|\[\]]{1,2}""" <#> TimelineSep
+parseTimelineSep :: Parser (List TablatureLineElem)
+parseTimelineSep = regex """[|\[\]]{1,2}""" <#> TimelineSep <#> List.singleton
 
-parseTimelineConnection :: Parser TablatureLineElem
-parseTimelineConnection = regex """[\-—]+""" <#> TimelineConnection
+parseTimelineConnection :: Parser (List TablatureLineElem)
+parseTimelineConnection = regex """[\-—]+""" <#> TimelineConnection <#> List.singleton
 
 -- Something is a timeline space if there is still another timeline sep or connection down the line somwhere
 -- In other words, a timeline space cannot be at the end of a timeline
-parseTimelineSpace :: Parser TablatureLineElem
-parseTimelineSpace = try (regex """[ ]+""" <* assertTimelineNotEnded) <#> TimelineSpace
+parseTimelineSpace :: Parser (List TablatureLineElem)
+parseTimelineSpace = try (regex """[ ]+""" <* assertTimelineNotEnded) <#> TimelineSpace <#> List.singleton
 
 assertTimelineNotEnded :: Parser Unit
 assertTimelineNotEnded = pure unit <* tryAhead (manyTill parseAnyChar (parseTimelineConnection <|> parseTimelineSep))
 
-parseFret :: Parser TablatureLineElem
-parseFret = try (regex ("""[\d↊↋]+""") <* assertTimelineNotEnded) <#> Fret
+parseFret :: Parser (List TablatureLineElem)
+parseFret = regex ("""[\d↊↋]+""") <#> Fret <#> List.singleton
 
-parseSpecial :: Parser TablatureLineElem
-parseSpecial = try (regex ("""[^\s|\[\]\-—\d↊↋]+""") <* assertTimelineNotEnded <#> Special)
+parseSpecial :: Parser (List TablatureLineElem)
+parseSpecial = regex ("""[^\s|\[\]\-—\d↊↋]+""") <#> Special <#> List.singleton
 
 parseMaybeTuning :: Parser (Maybe TablatureLineElem)
 parseMaybeTuning = optionMaybe $ parseSpacedNote <* (tryAhead parseTimelineSep) <#> Tuning
@@ -69,21 +71,39 @@ parseTablatureLineWithOptionalTuning = try do
   maybeTuning <- parseMaybeTuning
   tabLine <- parseInnerTablatureLine
   pure $ getTuning maybeTuning <> tabLine
+  -- If the tablature starts with [ then we require a tuning to make sure we don't label a header as a tab line
+  -- TODO
   where
   getTuning = case _ of
     Nothing -> Nil
     Just t -> t : Nil
 
+-- A timeline can end with a fret or special if there were no spaces or sep right before
+-- Since we cannot do a lookbehind we do it like this
+parseParseTimelineConnectionWithSubsequentFretsAndSpecials :: Parser (List TablatureLineElem)
+parseParseTimelineConnectionWithSubsequentFretsAndSpecials = try do
+  timeline <- parseTimelineConnection
+  fretsAndSpecials <- many (parseFret <|> parseSpecial)
+  pure $ timeline <> List.concat fretsAndSpecials
+
 parseInnerTablatureLine :: Parser (List TablatureLineElem)
 parseInnerTablatureLine = try do
-  result <- tryAhead parseTimelineSep *> many
-    (parseTimelineConnection <|> parseTimelineSep <|> parseTimelineSpace <|> parseFret <|> parseSpecial)
+  result <-
+    tryAhead parseTimelineSep *> many
+      (parseParseTimelineConnectionWithSubsequentFretsAndSpecials <|> parseTimelineSep <|> parseTimelineSpace <|> try (parseFret <* assertTimelineNotEnded) <|> try (parseSpecial <* assertTimelineNotEnded))
+      <#> List.concat
   -- Do a post check to see if there are enough dashes
-  if (result <#> countTimeLineElems # sum) > 4 then pure result else fail "Not enough dashes to qualify as tab line"
+  let nrSpaces = result <#> countTimeLineSpaces # sum
+  let nrTimelineChars = result <#> countTimeLineChars # sum
+  let nrTablineChars = result <#> countChars # sum
+  if nrSpaces < nrTimelineChars && 10 < nrTablineChars then pure result else fail "Not enough tablature line characters"
   where
-  countTimeLineElems (TimelineConnection s) = String.length s
-  countTimeLineElems (TimelineSep s) = String.length s
-  countTimeLineElems _ = 0
+  countChars s = String.length (print s)
+  countTimeLineSpaces (TimelineSpace s) = String.length s
+  countTimeLineSpaces _ = 0
+  countTimeLineChars (TimelineConnection s) = String.length s
+  countTimeLineChars (TimelineSep s) = String.length s
+  countTimeLineChars _ = 0
 
 parseHeaderLine :: Parser TablatureDocumentLine
 parseHeaderLine = try do
@@ -165,7 +185,7 @@ parseWord = regex """(?<!\S)\S+(?!\S)""" <#> Text
 parseChordLegend :: Parser TextLineElem
 parseChordLegend = do
   -- Watch out for catastrophic backtracking.
-  tryAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){3,12})(?!\S)""")
+  tryAhead (regex """(?<!\S)(([\dxX↊↋]{1,2}[-]*){4,12})(?!\S)""")
     *> many ((regex """[1234567890↊↋]""" <#> ChordFret) <|> (regex """[xX-]""" <#> ChordSpecial)) <#> ChordLegend
 
 -- This is a backup in case the other parsers fail
@@ -184,8 +204,8 @@ parseAnyChar = regex """[^\n]"""
 
 sanitizeInput :: String -> String
 sanitizeInput inputString = inputString
-  # Regex.replace (unsafeRegex "\r" global) ""
-  # Regex.replace (unsafeRegex "[ \t]+\n" global) "\n"
+  # Regex.replace (unsafeRegex "\r" global) "" --universal line endings
+  # Regex.replace (unsafeRegex "[ \t]+\n" global) "\n" -- trim lines
 
 tryParseTablature :: String -> Maybe TablatureDocument
 tryParseTablature inputString = tryRunParser parseTablatureDocument (sanitizeInput inputString)
