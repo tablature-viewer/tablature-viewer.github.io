@@ -33,6 +33,7 @@ to generate this file without the comments in this block.
   , "http-methods"
   , "integers"
   , "js-timers"
+  , "js-uri"
   , "lists"
   , "maybe"
   , "newtype"

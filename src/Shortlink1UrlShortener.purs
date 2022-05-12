@@ -1,4 +1,4 @@
-module UrlShortener where
+module Shortlink1UrlShortener where
 
 import Prelude
 

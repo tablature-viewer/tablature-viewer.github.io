@@ -12,12 +12,11 @@ import Data.Enum (pred, succ)
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
 import LocationString (getLocationString)
 import TablatureDocument (predTransposition, succTransposition)
 import TablatureRewriter (NoteOrientation)
 import UGScraper (execSearch, fetchTabFromUrl)
-import UrlShortener (createShortUrl)
+import CuttlyUrlShortener (createShortUrl)
 
 data Action
   = Initialize
@@ -89,7 +88,7 @@ toggleChordDozenalization = do
 createAndCopyShortUrl :: forall m. MonadAff m => MonadState State m => m Unit
 createAndCopyShortUrl = do
   longUrl <- liftEffect getLocationString
-  maybeShortUrl <- liftAff $ createShortUrl longUrl
+  maybeShortUrl <- liftAff $ runMaybeT (createShortUrl longUrl)
   liftEffect $ case maybeShortUrl of
     Just shortUrl -> copyToClipboard shortUrl
     Nothing -> pure unit

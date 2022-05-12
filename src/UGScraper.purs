@@ -2,17 +2,16 @@ module UGScraper where
 
 import Prelude
 
-import Affjax as AX
-import Affjax.ResponseFormat as ResponseFormat
 import AppState (SearchResult, State, Url, _searchResults, setState)
 import Control.Error.Util (hoistMaybe)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
 import Control.Monad.Writer (runWriterT, tell)
+import CorsProxy (fetchThroughProxy)
 import Data.Argonaut.Core (Json, stringify)
 import Data.Argonaut.Parser (jsonParser)
 import Data.Array as Array
-import Data.Either (Either(..), hush)
+import Data.Either (hush)
 import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
 import Data.String.Regex as Regex
@@ -20,7 +19,7 @@ import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..))
-import Effect.Aff.Class (class MonadAff, liftAff)
+import Effect.Aff.Class (class MonadAff)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import JsonUtils (array, child, number, string)
@@ -100,16 +99,6 @@ fetchUrlDataContent :: forall m. MonadAff m => Url -> MaybeT m Json
 fetchUrlDataContent url = do
   result <- fetchThroughProxy url
   extractDataContent result
-
-fetchThroughProxy :: forall m. MonadAff m => Url -> MaybeT m String
-fetchThroughProxy url = MaybeT do
-  let corsUrl = "https://api.codetabs.com/v1/proxy?quest=" <> url
-  response <- liftAff $ AX.get ResponseFormat.string corsUrl
-  liftEffect case response of
-    Left err -> do
-      Console.error $ "GET UG response failed to decode: " <> AX.printError err
-      pure Nothing
-    Right result -> pure $ Just result.body
 
 extractDataContent :: forall m. MonadAff m => String -> MaybeT m Json
 extractDataContent input = do
