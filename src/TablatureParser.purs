@@ -4,15 +4,16 @@ import Prelude hiding (between)
 
 import Control.Alt ((<|>))
 import Data.Either (Either(..))
-import Data.Foldable (fold, foldr, sum)
+import Data.Foldable (fold, sum)
 import Data.List (List(..), (:))
 import Data.List as List
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(..), fromJust, isNothing)
 import Data.String (drop, length, toLower, toUpper)
 import Data.String as String
 import Data.String.Regex as Regex
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
+import Data.String.Utils (startsWith)
 import Effect.Console as Console
 import Effect.Unsafe (unsafePerformEffect)
 import Partial.Unsafe (unsafePartial)
@@ -24,9 +25,9 @@ import Utils (print)
 
 parseTablatureDocument :: Parser TablatureDocument
 parseTablatureDocument = do
-  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (tryAhead (parseTitleLine <|> parseTablatureLineWithSurroundings)))
+  commentLinesBeforeTitle <- option Nil $ (try $ manyTill parseTextLine (tryAhead (parseTitleLine <|> parseTablatureLinesWithSurroundings)))
   title <- option Nil $ parseTitleLine <#> \result -> result : Nil
-  body <- many (parseTablatureLineWithSurroundings <|> parseChordLine <|> parseHeaderLine <|> parseTextLine <|> parseAnyLine)
+  body <- many (parseTablatureLinesWithSurroundings <|> parseChordLine <|> parseHeaderLine <|> parseTextLine <|> parseAnyLine)
   pure $ commentLinesBeforeTitle <> title <> body
 
 parseTitleLine :: Parser TablatureDocumentLine
@@ -45,7 +46,7 @@ parseTimelineConnection = regex """[\-—]+""" <#> TimelineConnection <#> List.s
 -- Something is a timeline space if there is still another timeline sep or connection down the line somwhere
 -- In other words, a timeline space cannot be at the end of a timeline
 parseTimelineSpace :: Parser (List TablatureLineElem)
-parseTimelineSpace = try (regex """[ ]+""" <* assertTimelineNotEnded) <#> TimelineSpace <#> List.singleton
+parseTimelineSpace = try (regex """[ ]{1,2}""" <* tryAhead (regex """[^\s]""") <* assertTimelineNotEnded) <#> TimelineSpace <#> List.singleton
 
 assertTimelineNotEnded :: Parser Unit
 assertTimelineNotEnded = pure unit <* tryAhead (manyTill parseAnyChar (parseTimelineConnection <|> parseTimelineSep))
@@ -59,20 +60,31 @@ parseSpecial = regex ("""[^\s|\[\]\-—\d↊↋]+""") <#> Special <#> List.singl
 parseMaybeTuning :: Parser (Maybe TablatureLineElem)
 parseMaybeTuning = optionMaybe $ parseSpacedNote <* (tryAhead parseTimelineSep) <#> Tuning
 
-parseTablatureLineWithSurroundings :: Parser TablatureDocumentLine
-parseTablatureLineWithSurroundings = try do
+parseTablatureLinesWithSurroundings :: Parser TablatureDocumentLine
+parseTablatureLinesWithSurroundings = try do
+  tabLine <- parseTablatureLinesWithPrefix
+  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> Suffix
+  pure $ TablatureLine $ tabLine <> suffix : Nil
+
+-- We can parse multiple subsequence tablines on the same line
+-- This is because sometimes systems are positioned side by side
+parseTablatureLinesWithPrefix :: Parser (List TablatureLineElem)
+parseTablatureLinesWithPrefix = try do
   prefix <- manyTill (regex """[^\n]""") (tryAhead parseTablatureLineWithOptionalTuning) <#> \result -> Prefix (fold result)
   tabLine <- parseTablatureLineWithOptionalTuning
-  suffix <- regex """[^\n]*""" <* parseEndOfLine <#> Suffix
-  pure $ TablatureLine $ prefix : Nil <> tabLine <> suffix : Nil
+  subsequentTabLine <- option Nil parseTablatureLinesWithPrefix
+  pure $ prefix : Nil <> tabLine <> subsequentTabLine
 
 parseTablatureLineWithOptionalTuning :: Parser (List TablatureLineElem)
 parseTablatureLineWithOptionalTuning = try do
   maybeTuning <- parseMaybeTuning
   tabLine <- parseInnerTablatureLine
-  pure $ getTuning maybeTuning <> tabLine
-  -- If the tablature starts with [ then we require a tuning to make sure we don't label a header as a tab line
-  -- TODO
+  startsWithBracket <- pure
+    case List.head tabLine of
+      Just (TimelineSep x) -> if startsWith "[" x then true else false
+      _ -> false
+  if startsWithBracket && isNothing maybeTuning then fail "If the tablature starts with [ then we require a tuning to make sure we don't label a header as a tab line"
+  else pure $ getTuning maybeTuning <> tabLine
   where
   getTuning = case _ of
     Nothing -> Nil
