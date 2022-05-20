@@ -2,12 +2,13 @@ Tablature Viewer
 ================
 
 Available at [https://tabviewer.app](https://tabviewer.app).
-Here is a [demo tablature](https://tabviewer.app/?u#BYFxAcC4HpoZ2AewE4gDYEsB2BrAhuBgHTACmyiOArgeEQMaIC20A7AMwCcnrAjO0A).
+Here is a [demo tablature](https://tabviewer.app/?u#BYFxAcGcC4HpYMYFcwDoA2BPW6AS4BbEALQGEg).
 
 - Paste a regular plain text tablature or chord sheet and then view it in a nicely formatted and colorized way.
 - Transpose chords
 - Autoscroll feature
 - All the tablature information is stored in the URL, so you easily can bookmark and save your tabs. No more dealing with all them ad-heavy tablature sites :)
+- Search for tabs and chords in third party databases. Currently we only search the database from ultimate-guitar.com, but more may follow.
 - Optionally view the tablature in the base twelve numerical system. (Turn option `dozenalization` on)
 
 ## Can I print the sheets on paper?
