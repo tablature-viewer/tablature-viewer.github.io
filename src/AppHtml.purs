@@ -1,9 +1,9 @@
 module AppHtml where
 
-import AppActions
-import AppState
 import Prelude
 
+import AppActions (Action(..))
+import AppState (ActiveMenu(..), Mode(..), State, _activeMenu, _autoscroll, _autoscrollSpeed, _autoscrollTimer, _chordDozenalizationEnabled, _chordNormalizationEnabled, _ignoreDozenalization, _loading, _mode, _rewriteResult, _scrollTop, _searchResults, _tabDozenalizationEnabled, _tabNormalizationEnabled, _urlParams, setState, viewState)
 import AutoscrollSpeed (speedToIntervalMs, speedToIntervalPixelDelta)
 import Cache as Cache
 import Control.Monad.State (class MonadState)
@@ -16,6 +16,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Console as Console
 import Effect.Timer (clearInterval, setInterval)
 import Halogen as H
+import Halogen.HTML (IProp)
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
@@ -28,6 +29,7 @@ import Web.HTML as WH
 import Web.HTML.HTMLElement (focus, toElement)
 import Web.HTML.HTMLInputElement as WH.HTMLInputElement
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
+import Web.UIEvent.MouseEvent (MouseEvent)
 
 type HaloT m a = H.HalogenM State Action () Unit m a
 
@@ -43,7 +45,8 @@ refTablatureSearchInput = H.RefLabel "tablatureSearchInput"
 render :: forall m. State -> H.ComponentHTML Action () m
 render state = HH.div_
   [ HH.div
-      [ classString "app" ]
+      [ classString "app"
+      ]
       [ renderHeader
       , renderBody
       ]
@@ -52,25 +55,33 @@ render state = HH.div_
       [ HH.pre_ $ renderTablature ]
   ]
   where
+  clickNoMenuEvent :: forall a. Array (IProp (onClick :: MouseEvent | a) Action)
+  clickNoMenuEvent = if view _activeMenu state /= NoMenu then [ (HE.onClick \_ -> ClickNoMenu) ] else []
   renderTablature = fromFoldable $ renderTablatureDocument (Cache.peek _rewriteResult state)
   renderBody = case view _mode state of
-    ViewMode -> HH.div
-      [ classString "tablatureViewer tablature"
-      , HP.ref refTablatureViewer
-      , HP.tabIndex 0
-      ]
-      [ HH.pre_ $ renderTablature ]
-    EditMode -> HH.textarea
-      [ HP.ref refTablatureEditor
-      , classString "tablatureEditor"
-      , HP.placeholder "Paste your plaintext tablature or chord sheet here, click 'Save' and bookmark it"
-      , HP.spellcheck false
-      ]
-    SearchMode -> HH.div
-      [ classString "tablatureSearch"
-      -- , HP.tabIndex 0
-      ]
-      [ renderSearchBar, renderSearchResults ]
+    ViewMode ->
+      HH.div
+        ( [ classString "tablatureViewer tablature"
+          , HP.ref refTablatureViewer
+          , HP.tabIndex 0
+          ] <> clickNoMenuEvent
+        )
+        [ HH.pre_ $ renderTablature ]
+    EditMode ->
+      HH.textarea
+        ( [ HP.ref refTablatureEditor
+          , classString "tablatureEditor"
+          , HP.placeholder "Paste your plaintext tablature or chord sheet here, click 'Save' and bookmark it"
+          , HP.spellcheck false
+          ] <> clickNoMenuEvent
+        )
+    SearchMode ->
+      HH.div
+        ( [ classString "tablatureSearch"
+          -- , HP.tabIndex 0
+          ] <> clickNoMenuEvent
+        )
+        [ renderSearchBar, renderSearchResults ]
   renderSearchBar =
     HH.input
       [ HP.ref refTablatureSearchInput
@@ -121,6 +132,7 @@ render state = HH.div_
         [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-container" ]
         [ HH.button
             [ HP.title "File"
+            , HE.onClick \_ -> ClickFileMenu
             , classString "header-button dropdown-header"
             ]
             [ fontAwesome "fa-file"
@@ -138,6 +150,7 @@ render state = HH.div_
         [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-container" ]
         [ HH.button
             [ HP.title "View"
+            , HE.onClick \_ -> ClickSettingsMenu
             , classString "header-button dropdown-header"
             ]
             [ fontAwesome "fa-wrench"
@@ -170,159 +183,163 @@ render state = HH.div_
     EditMode -> "Save tablature"
     _ -> "Edit tablature"
   renderFileMenu =
-    HH.div
-      [ classString "dropdown-menu" ]
-      [ HH.div
-          [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-item" ]
-          [ HH.button
-              [ HP.title toggleButtonTitle
-              , HE.onClick \_ -> ToggleEditMode
-              ]
-              [ fontAwesome "fa-edit" ]
-          , HH.div_ [ HH.text "Edit tablature" ]
-          ]
-      , HH.div
-          [ classString "dropdown-item" ]
-          [ HH.a
-              [ HP.href "./"
-              , HP.target "_blank"
-              , HP.tabIndex (-1)
-              ]
-              [ HH.button
-                  [ HP.title "Open an empty tablature in a new browser tab" ]
-                  [ fontAwesome "fa-plus" ]
-              ]
-          , HH.div_ [ HH.text "New tablature" ]
-          ]
-      , HH.div
-          [ classString "dropdown-item" ]
-          [ HH.button
-              [ HP.title "Create a short link to the tablature for sharing with other people"
-              , HE.onClick \_ -> CreateShortUrl
-              ]
-              [ fontAwesome "fa-share" ]
-          , HH.div_ [ HH.text "Share tablature" ]
-          ]
-      ]
-  renderViewMenu =
-    HH.div [ classString "dropdown-menu" ]
-      [ HH.div
-          [ classString "dropdown-item" ]
-          [ HH.button
-              [ HP.title "Toggle normalization for tabs on or off"
-              , HE.onClick \_ -> ToggleTabNormalization
-              ]
-              [ if Cache.peek _tabNormalizationEnabled state then fontAwesome "fa-toggle-on"
-                else fontAwesome "fa-toggle-off"
-              ]
-          , HH.div_ [ HH.text $ "Normalize tabs" ]
-          ]
-      , HH.div
-          [ classString "dropdown-item" ]
-          [ if Cache.peek _ignoreDozenalization state then HH.button
-              [ HP.title "Tablature is already dozenal"
-              , classString "disabled"
-              ]
-              [ fontAwesome "fa-toggle-off" ]
-            else HH.button
-              [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
-              , HE.onClick \_ -> ToggleTabDozenalization
-              ]
-              [ if Cache.peek _tabDozenalizationEnabled state then fontAwesome "fa-toggle-on"
-                else fontAwesome "fa-toggle-off"
-              ]
-          , HH.div_ [ HH.text $ "Dozenalize tabs" ]
-          ]
-      , HH.div
-          [ classString "dropdown-item" ]
-          [ HH.button
-              [ HP.title "Toggle normalization for chords on or off"
-              , HE.onClick \_ -> ToggleChordNormalization
-              ]
-              [ if Cache.peek _chordNormalizationEnabled state then fontAwesome "fa-toggle-on"
-                else fontAwesome "fa-toggle-off"
-              ]
-          , HH.div_ [ HH.text $ "Normalize chords" ]
-          ]
-      , HH.div
-          [ classString "dropdown-item" ]
-          [ if Cache.peek _ignoreDozenalization state then HH.button
-              [ HP.title "Tablature is already dozenal"
-              , classString "disabled"
-              ]
-              [ fontAwesome "fa-toggle-off" ]
-            else HH.button
-              [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
-              , HE.onClick \_ -> ToggleChordDozenalization
-              ]
-              [ if Cache.peek _chordDozenalizationEnabled state then fontAwesome "fa-toggle-on"
-                else fontAwesome "fa-toggle-off"
-              ]
-          , HH.div_ [ HH.text $ " Dozenalize chords" ]
-          ]
-      , HH.div
-          [ HP.title "Transpose the tablature"
-          , classString "dropdown-item"
-          ]
-          [ HH.button
-              [ HP.title "Transpose down"
-              , HE.onClick \_ -> DecreaseTransposition
-              ]
-              [ fontAwesome "fa-caret-down" ]
-          , HH.button
-              [ HP.title "Transpose up"
-              , HE.onClick \_ -> IncreaseTransposition
-              ]
-              [ fontAwesome "fa-caret-up" ]
-          , HH.div_ [ HH.text $ "Transpose " <> show (Cache.peek _urlParams state).transposition ]
-          ]
-      , HH.div
-          [ HP.title "Preferred note orientation"
-          , classString "dropdown-item"
-          ]
-          let
-            noteOrientation = (Cache.peek _urlParams state).noteOrientation
-          in
+    if view _activeMenu state /= FileMenu then HH.div [] []
+    else
+      HH.div
+        [ classString "dropdown-menu" ]
+        [ HH.div
+            [ classString if view _mode state /= ViewMode then "hidden" else "dropdown-item" ]
             [ HH.button
-                [ HP.title "default"
-                , HE.onClick \_ -> DefaultNoteOrientation
-                , if noteOrientation == Default then classString "selected" else classString ""
+                [ HP.title toggleButtonTitle
+                , HE.onClick \_ -> ToggleEditMode
                 ]
-                [ HH.text "default"
-                ]
-            , HH.button
-                [ HP.title "Prefer flat"
-                , HE.onClick \_ -> FlatNoteOrientation
-                , if noteOrientation == Flat then classString "selected" else classString ""
-                ]
-                [ HH.text "flat"
-                ]
-            , HH.button
-                [ HP.title "Prefer sharp"
-                , HE.onClick \_ -> SharpNoteOrientation
-                , if noteOrientation == Sharp then classString "selected" else classString ""
-                ]
-                [ HH.text "sharp"
-                ]
-            , HH.div_ [ HH.text $ "Note orientation" ]
+                [ fontAwesome "fa-edit" ]
+            , HH.div_ [ HH.text "Edit tablature" ]
             ]
-      , HH.div
-          [ HP.title "Change the autoscroll speed"
-          , classString "dropdown-item"
-          ]
-          [ HH.button
-              [ HP.title "Decrease the autoscroll speed"
-              , HE.onClick \_ -> DecreaseAutoscrollSpeed
+        , HH.div
+            [ classString "dropdown-item" ]
+            [ HH.a
+                [ HP.href "./"
+                , HP.target "_blank"
+                , HP.tabIndex (-1)
+                ]
+                [ HH.button
+                    [ HP.title "Open an empty tablature in a new browser tab" ]
+                    [ fontAwesome "fa-plus" ]
+                ]
+            , HH.div_ [ HH.text "New tablature" ]
+            ]
+        , HH.div
+            [ classString "dropdown-item" ]
+            [ HH.button
+                [ HP.title "Create a short link to the tablature for sharing with other people"
+                , HE.onClick \_ -> CreateShortUrl
+                ]
+                [ fontAwesome "fa-share" ]
+            , HH.div_ [ HH.text "Share tablature" ]
+            ]
+        ]
+  renderViewMenu =
+    if view _activeMenu state /= SettingsMenu then HH.div [] []
+    else
+      HH.div [ classString "dropdown-menu" ]
+        [ HH.div
+            [ classString "dropdown-item" ]
+            [ HH.button
+                [ HP.title "Toggle normalization for tabs on or off"
+                , HE.onClick \_ -> ToggleTabNormalization
+                ]
+                [ if Cache.peek _tabNormalizationEnabled state then fontAwesome "fa-toggle-on"
+                  else fontAwesome "fa-toggle-off"
+                ]
+            , HH.div_ [ HH.text $ "Normalize tabs" ]
+            ]
+        , HH.div
+            [ classString "dropdown-item" ]
+            [ if Cache.peek _ignoreDozenalization state then HH.button
+                [ HP.title "Tablature is already dozenal"
+                , classString "disabled"
+                ]
+                [ fontAwesome "fa-toggle-off" ]
+              else HH.button
+                [ HP.title "Toggle decimal to dozenal conversion for tabs on or off"
+                , HE.onClick \_ -> ToggleTabDozenalization
+                ]
+                [ if Cache.peek _tabDozenalizationEnabled state then fontAwesome "fa-toggle-on"
+                  else fontAwesome "fa-toggle-off"
+                ]
+            , HH.div_ [ HH.text $ "Dozenalize tabs" ]
+            ]
+        , HH.div
+            [ classString "dropdown-item" ]
+            [ HH.button
+                [ HP.title "Toggle normalization for chords on or off"
+                , HE.onClick \_ -> ToggleChordNormalization
+                ]
+                [ if Cache.peek _chordNormalizationEnabled state then fontAwesome "fa-toggle-on"
+                  else fontAwesome "fa-toggle-off"
+                ]
+            , HH.div_ [ HH.text $ "Normalize chords" ]
+            ]
+        , HH.div
+            [ classString "dropdown-item" ]
+            [ if Cache.peek _ignoreDozenalization state then HH.button
+                [ HP.title "Tablature is already dozenal"
+                , classString "disabled"
+                ]
+                [ fontAwesome "fa-toggle-off" ]
+              else HH.button
+                [ HP.title "Toggle decimal to dozenal conversion for chords on or off"
+                , HE.onClick \_ -> ToggleChordDozenalization
+                ]
+                [ if Cache.peek _chordDozenalizationEnabled state then fontAwesome "fa-toggle-on"
+                  else fontAwesome "fa-toggle-off"
+                ]
+            , HH.div_ [ HH.text $ " Dozenalize chords" ]
+            ]
+        , HH.div
+            [ HP.title "Transpose the tablature"
+            , classString "dropdown-item"
+            ]
+            [ HH.button
+                [ HP.title "Transpose down"
+                , HE.onClick \_ -> DecreaseTransposition
+                ]
+                [ fontAwesome "fa-caret-down" ]
+            , HH.button
+                [ HP.title "Transpose up"
+                , HE.onClick \_ -> IncreaseTransposition
+                ]
+                [ fontAwesome "fa-caret-up" ]
+            , HH.div_ [ HH.text $ "Transpose " <> show (Cache.peek _urlParams state).transposition ]
+            ]
+        , HH.div
+            [ HP.title "Preferred note orientation"
+            , classString "dropdown-item"
+            ]
+            let
+              noteOrientation = (Cache.peek _urlParams state).noteOrientation
+            in
+              [ HH.button
+                  [ HP.title "default"
+                  , HE.onClick \_ -> DefaultNoteOrientation
+                  , if noteOrientation == Default then classString "selected" else classString ""
+                  ]
+                  [ HH.text "default"
+                  ]
+              , HH.button
+                  [ HP.title "Prefer flat"
+                  , HE.onClick \_ -> FlatNoteOrientation
+                  , if noteOrientation == Flat then classString "selected" else classString ""
+                  ]
+                  [ HH.text "flat"
+                  ]
+              , HH.button
+                  [ HP.title "Prefer sharp"
+                  , HE.onClick \_ -> SharpNoteOrientation
+                  , if noteOrientation == Sharp then classString "selected" else classString ""
+                  ]
+                  [ HH.text "sharp"
+                  ]
+              , HH.div_ [ HH.text $ "Note orientation" ]
               ]
-              [ fontAwesome "fa-backward" ]
-          , HH.button
-              [ HP.title "Increase the autoscroll speed"
-              , HE.onClick \_ -> IncreaseAutoscrollSpeed
-              ]
-              [ fontAwesome "fa-forward" ]
-          , HH.div_ [ HH.text $ "Autoscroll speed " <> show (view _autoscrollSpeed state) ]
-          ]
-      ]
+        , HH.div
+            [ HP.title "Change the autoscroll speed"
+            , classString "dropdown-item"
+            ]
+            [ HH.button
+                [ HP.title "Decrease the autoscroll speed"
+                , HE.onClick \_ -> DecreaseAutoscrollSpeed
+                ]
+                [ fontAwesome "fa-backward" ]
+            , HH.button
+                [ HP.title "Increase the autoscroll speed"
+                , HE.onClick \_ -> IncreaseAutoscrollSpeed
+                ]
+                [ fontAwesome "fa-forward" ]
+            , HH.div_ [ HH.text $ "Autoscroll speed " <> show (view _autoscrollSpeed state) ]
+            ]
+        ]
 
 getSearchInputHtmlElement :: forall m. MonadEffect m => HaloT m (Maybe WH.HTMLElement)
 getSearchInputHtmlElement = H.getHTMLElementRef refTablatureSearchInput

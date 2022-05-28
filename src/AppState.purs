@@ -1,8 +1,8 @@
 module AppState where
 
-import Cache
 import Prelude
 
+import Cache (CacheEntry, EntryKey(..), Fetch(..), Flush(..), ReadWriteCacheUnit, ReadableCacheUnit, buildCache, subscribe)
 import AppUrl (UrlParams, getAppUrlParams, getTablatureTextFromUrl, saveTablatureToUrl, setAppQueryString)
 import AutoscrollSpeed (AutoscrollSpeed(..))
 import Control.Monad.State (class MonadState)
@@ -27,6 +27,10 @@ data Mode = ViewMode | EditMode | SearchMode
 
 derive instance Eq Mode
 
+data ActiveMenu = NoMenu | FileMenu | SettingsMenu
+
+derive instance Eq ActiveMenu
+
 type Url = String
 
 type SearchResult =
@@ -42,6 +46,7 @@ newtype State = State StateRecord
 
 type StateRecord =
   { mode :: Mode
+  , activeMenu :: ActiveMenu
   , loading :: Boolean
   , scrollTop :: Number
   , searchPhrase :: Maybe String
@@ -69,6 +74,7 @@ derive instance Newtype State _
 initialState :: forall input. input -> State
 initialState _ = State
   { mode: EditMode
+  , activeMenu: NoMenu
   , loading: false
   , scrollTop: 0.0
   , searchPhrase: Nothing
@@ -91,6 +97,9 @@ initialState _ = State
 
 _mode :: Lens' State Mode
 _mode = barlow (key :: _ "!.mode")
+
+_activeMenu :: Lens' State ActiveMenu
+_activeMenu = barlow (key :: _ "!.activeMenu")
 
 _loading :: Lens' State Boolean
 _loading = barlow (key :: _ "!.loading")

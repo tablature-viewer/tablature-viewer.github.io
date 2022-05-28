@@ -1,10 +1,10 @@
 module Main where
 
-import AppActions
-import AppHtml
-import AppState
 import Prelude
 
+import AppActions (Action(..), clickFileMenu, clickNoMenu, clickSettingsMenu, createAndCopyShortUrl, decreaseAutoscrollSpeed, decreaseTransposition, importFromUrl, increaseAutoscrollSpeed, increaseTransposition, initialize, searchInput, setNoteOrientation, toggleChordDozenalization, toggleChordNormalization, toggleSearch, toggleTabDozenalization, toggleTabNormalization)
+import AppHtml (HaloT, focusSearchInput, focusTablatureContainer, getTablatureContainerElement, getTablatureTextFromEditor, loadScrollTop, render, saveScrollTop, setTablatureTextInEditor, startAutoscrollOnElement, stopAutoscroll)
+import AppState (Mode(..), State, _autoscroll, _loading, _mode, initialState, rewriteResultCache, setState, tablatureTextCache, tablatureTitleCache, viewState)
 import AppUrl (redirectToUrlInFragment)
 import Cache as Cache
 import Control.Monad.State (class MonadState, StateT, execStateT)
@@ -14,7 +14,7 @@ import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Aff (Milliseconds(..), delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
-import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Class (liftEffect)
 import Halogen as H
 import Halogen.Aff as HA
 import Halogen.VDom.Driver (runUI)
@@ -80,6 +80,9 @@ doAction :: forall m. MonadAff m => Action -> StateT State (H.HalogenM State Act
 doAction action = do
   case action of
     Initialize -> initialize
+    ClickFileMenu -> clickFileMenu
+    ClickSettingsMenu -> clickSettingsMenu
+    ClickNoMenu -> clickNoMenu
     ToggleEditMode -> pure unit -- Done in prepareHtml
     ToggleTabNormalization -> toggleTabNormalization
     ToggleTabDozenalization -> toggleTabDozenalization

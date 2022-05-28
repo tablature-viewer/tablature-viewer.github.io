@@ -1,13 +1,14 @@
 module AppActions where
 
-import AppState
 import Prelude
 
+import AppState (ActiveMenu(..), Mode(..), State, Url, _activeMenu, _autoscrollSpeed, _mode, _searchPhrase, chordDozenalizationEnabledCache, chordNormalizationEnabledCache, ignoreDozenalizationCache, setState, tabDozenalizationEnabledCache, tabNormalizationEnabledCache, tablatureTextCache, urlParamsCache, viewState)
 import AppUrl (resetUrlParams)
 import Cache as Cache
 import Clipboard (copyToClipboard)
 import Control.Monad.Maybe.Trans (runMaybeT)
 import Control.Monad.State (class MonadState)
+import CuttlyUrlShortener (createShortUrl)
 import Data.Enum (pred, succ)
 import Data.Maybe (Maybe(..))
 import Effect.Aff.Class (class MonadAff, liftAff)
@@ -16,10 +17,12 @@ import LocationString (getLocationString)
 import TablatureDocument (predTransposition, succTransposition)
 import TablatureRewriter (NoteOrientation)
 import UGScraper (execSearch, fetchTabFromUrl)
-import CuttlyUrlShortener (createShortUrl)
 
 data Action
   = Initialize
+  | ClickFileMenu
+  | ClickSettingsMenu
+  | ClickNoMenu
   | ToggleEditMode
   | ToggleTabNormalization
   | ToggleTabDozenalization
@@ -38,6 +41,27 @@ data Action
   | SearchInput String
   | ImportFromUrl Url
 
+initialize :: forall m. MonadAff m => MonadState State m => m Unit
+initialize = do
+  tablatureText <- Cache.read tablatureTextCache
+  if tablatureText == "" then setState _mode EditMode
+  else setState _mode ViewMode
+
+clickNoMenu :: forall m. MonadAff m => MonadState State m => m Unit
+clickNoMenu = setState _activeMenu NoMenu
+
+clickSettingsMenu :: forall m. MonadAff m => MonadState State m => m Unit
+clickSettingsMenu = do
+  activeMenu <- viewState _activeMenu
+  if activeMenu == SettingsMenu then setState _activeMenu NoMenu
+  else setState _activeMenu SettingsMenu
+
+clickFileMenu :: forall m. MonadAff m => MonadState State m => m Unit
+clickFileMenu = do
+  activeMenu <- viewState _activeMenu
+  if activeMenu == FileMenu then setState _activeMenu NoMenu
+  else setState _activeMenu FileMenu
+
 -- TODO: store scrollspeed somewhere external?
 increaseAutoscrollSpeed :: forall m. MonadAff m => MonadState State m => m Unit
 increaseAutoscrollSpeed = do
@@ -52,12 +76,6 @@ decreaseAutoscrollSpeed = do
   case pred currentSpeed of
     Nothing -> pure unit
     Just speed -> setState _autoscrollSpeed speed
-
-initialize :: forall m. MonadAff m => MonadState State m => m Unit
-initialize = do
-  tablatureText <- Cache.read tablatureTextCache
-  if tablatureText == "" then setState _mode EditMode
-  else setState _mode ViewMode
 
 toggleTabNormalization :: forall m. MonadAff m => MonadState State m => m Unit
 toggleTabNormalization = do
