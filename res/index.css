@@ -339,7 +339,6 @@ button.dropdown-item,
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* flex-wrap: wrap; */
   background-color: var(--tab-bg);
   overflow: auto;
 }
