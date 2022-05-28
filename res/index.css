@@ -188,6 +188,7 @@ body {
   margin: 0;
   padding: 0;
   height: var(--app-height);
+  position: sticky;
 
   font-family: Cascadia Mono;
 }
