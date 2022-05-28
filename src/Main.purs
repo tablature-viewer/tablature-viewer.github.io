@@ -56,8 +56,8 @@ handleAction action = do
   currentState <- MonadState.get
   newState <- execStateT (doAction action) currentState
   H.put newState
-  updateFocus action
   liftAff $ delay $ Milliseconds 0.0 -- TODO: this shouldn't be necessary to force rerender
+  updateFocus action
 
 prepareHtml :: forall m. MonadAff m => Action -> HaloT m Unit
 prepareHtml action = do
@@ -99,9 +99,7 @@ doAction action = do
     DefaultNoteOrientation -> setNoteOrientation Default
     ImportFromUrl url -> importFromUrl url
     SearchInput value -> searchInput value
-    ToggleSearch -> do
-      toggleSearch
-      lift focusSearchInput
+    ToggleSearch -> toggleSearch
 
   updateAutoscroll action
   updateDocumentTitle
@@ -121,6 +119,9 @@ updateFocus action =
     Initialize -> focusTablatureContainer
     ToggleEditMode -> loadScrollTop
     CreateShortUrl -> focusTablatureContainer
+    ToggleSearch -> do
+      mode <- viewState _mode
+      when (mode == SearchMode) focusSearchInput
     _ -> pure unit
 
 toggleEditMode :: forall m. MonadAff m => HaloT m Unit
