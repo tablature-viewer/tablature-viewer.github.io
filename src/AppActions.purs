@@ -130,6 +130,7 @@ toggleSearch :: forall m. MonadAff m => MonadState State m => m Unit
 toggleSearch = do
   currentMode <- viewState _mode
   tablatureText <- Cache.read tablatureTextCache
+  setState _activeMenu NoMenu
   setState _mode
     if currentMode == SearchMode then
       if tablatureText == "" then EditMode
