@@ -149,7 +149,7 @@ parseChord = do
     }
   where
   parseChordType = regex """(ø|Δ| ?Major| ?major|Maj|maj|Ma| ?Minor| ?minor|Min|min|M|m|[-]|[+]|o)?"""
-  parseStackableChordMods = regex """(o|no|add|dim|dom|augm(?![a-zA-Z])|aug|maj|Maj|M|ø|Δ)?([2-9]|10|11|12|13)?(b|#|[+]|[-])?"""
+  parseStackableChordMods = regex """(o|no|add|dim|dom|augm(?![a-zA-Z])|aug|maj|Maj|M|ø|Δ|*)?([2-9]|10|11|12|13)?(b|#|[+]|[-])?"""
   parseParenthesizedStackableChordMods = try (string "(" <> parseStackableChordMods <> string ")")
   parseChordMods = many (regex """sus[24]?""" <|> parseParenthesizedStackableChordMods <|> parseStackableChordMods)
 

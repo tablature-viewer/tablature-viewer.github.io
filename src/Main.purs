@@ -121,7 +121,7 @@ updateFocus action =
     CreateShortUrl -> focusTablatureContainer
     ToggleSearch -> do
       mode <- viewState _mode
-      when (mode == SearchMode) focusSearchInput
+      if (mode == SearchMode) then focusSearchInput else focusTablatureContainer
     _ -> pure unit
 
 toggleEditMode :: forall m. MonadAff m => HaloT m Unit

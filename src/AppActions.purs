@@ -2,7 +2,7 @@ module AppActions where
 
 import Prelude
 
-import AppState (ActiveMenu(..), Mode(..), State, Url, _activeMenu, _autoscrollSpeed, _mode, _searchPhrase, chordDozenalizationEnabledCache, chordNormalizationEnabledCache, ignoreDozenalizationCache, setState, tabDozenalizationEnabledCache, tabNormalizationEnabledCache, tablatureTextCache, urlParamsCache, viewState)
+import AppState (ActiveMenu(..), Mode(..), State, Url, _activeMenu, _autoscrollSpeed, _mode, _searchPhrase, _urlParams, chordDozenalizationEnabledCache, chordNormalizationEnabledCache, ignoreDozenalizationCache, setState, tabDozenalizationEnabledCache, tabNormalizationEnabledCache, tablatureTextCache, urlParamsCache, viewState)
 import AppUrl (resetUrlParams)
 import Cache as Cache
 import Clipboard (copyToClipboard)
@@ -147,4 +147,5 @@ importFromUrl url = map (const unit) $ runMaybeT do
   tablatureText <- fetchTabFromUrl url
   Cache.write tablatureTextCache tablatureText
   liftEffect resetUrlParams
+  Cache.invalidate _urlParams
   setState _mode ViewMode
