@@ -178,8 +178,6 @@ body {
   margin: 0;
   padding: 0;
   background-color: var(--tab-bg);
-  position: fixed;
-
 }
 
 .app {
@@ -189,6 +187,7 @@ body {
   margin: 0;
   padding: 0;
   /* height: var(--app-height); */
+  position: fixed;
   height: 100%;
   width: 100%;
 
@@ -258,12 +257,10 @@ button.header-button,
 
 .controls button:focus {
   background-color: var(--button-hover-bg);
-  border-top: 1px solid var(--border);
 }
 
 .controls button:active {
   background-color: var(--button-active-bg);
-  border-top: 1px solid var(--border);
 }
 
 .controls .selected {
@@ -277,6 +274,14 @@ button.header-button,
 .controls button>* {
   background-color: inherit;
   color: inherit;
+}
+
+button.header-button:focus,
+.header-button button:focus,
+button.header-button.selected,
+.header-button button.selected
+{
+  border-top: 1px solid var(--border);
 }
 
 button.dropdown-item,
