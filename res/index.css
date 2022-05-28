@@ -178,6 +178,7 @@ body {
   margin: 0;
   padding: 0;
   background-color: var(--tab-bg);
+  position: fixed;
 
 }
 
@@ -190,7 +191,6 @@ body {
   /* height: var(--app-height); */
   height: 100%;
   width: 100%;
-  position: fixed;
 
   font-family: Cascadia Mono;
 }
