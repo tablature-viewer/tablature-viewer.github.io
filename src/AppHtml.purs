@@ -29,6 +29,7 @@ import Web.HTML as WH
 import Web.HTML.HTMLElement (focus, toElement)
 import Web.HTML.HTMLInputElement as WH.HTMLInputElement
 import Web.HTML.HTMLTextAreaElement as WH.HTMLTextAreaElement
+import Web.UIEvent.KeyboardEvent (key)
 import Web.UIEvent.MouseEvent (MouseEvent)
 
 type HaloT m a = H.HalogenM State Action () Unit m a
@@ -62,14 +63,18 @@ render state = HH.div_
     ViewMode ->
       HH.div
         ( [ classString "tablatureViewer tablature"
-          , HP.ref refTablatureViewer
-          , HP.tabIndex 0
           ] <> clickNoMenuEvent
         )
-        [ HH.pre_ $ renderTablature ]
+        [ HH.pre
+            [ HP.ref refTablatureViewer
+            , HP.tabIndex 1
+            ]
+            renderTablature
+        ]
     EditMode ->
       HH.textarea
         ( [ HP.ref refTablatureEditor
+          , HP.tabIndex 1
           , classString "tablatureEditor"
           , HP.placeholder "Paste your plaintext tablature or chord sheet here, click 'Save' and bookmark it"
           , HP.spellcheck false
@@ -78,7 +83,7 @@ render state = HH.div_
     SearchMode ->
       HH.div
         ( [ classString "tablatureSearch"
-          -- , HP.tabIndex 0
+          , HP.tabIndex 1
           ] <> clickNoMenuEvent
         )
         [ renderSearchBar, renderSearchResults ]
@@ -103,7 +108,11 @@ render state = HH.div_
           )
     ]
   renderSearchResult searchResult = HH.tr
-    [ HE.onClick \_ -> ImportFromUrl searchResult.url ]
+    [ HE.onClick \_ -> ImportFromUrl searchResult.url
+    -- This is not a button element, but try to more or less emulate the behavior
+    , HE.onKeyDown \e -> if key e == "Enter" || key e == " " then ImportFromUrl searchResult.url else NoAction
+    , HP.tabIndex 0
+    ]
     [ HH.td [] [ HH.text searchResult.name ]
     , HH.td [] [ HH.text searchResult.artist ]
     , HH.td [] [ HH.text $ Maybe.fromMaybe "" $ searchResult.rating <#> toStringWith (precision 3) ]

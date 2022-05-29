@@ -100,6 +100,7 @@ doAction action = do
     ImportFromUrl url -> importFromUrl url
     SearchInput value -> searchInput value
     ToggleSearch -> toggleSearch
+    NoAction -> pure unit
 
   updateAutoscroll action
   updateDocumentTitle

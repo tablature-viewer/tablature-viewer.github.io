@@ -40,6 +40,7 @@ data Action
   | ToggleSearch
   | SearchInput String
   | ImportFromUrl Url
+  | NoAction
 
 initialize :: forall m. MonadAff m => MonadState State m => m Unit
 initialize = do
