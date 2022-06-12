@@ -31,10 +31,10 @@
   "homepage": "https://github.com/tablature-viewer/tablature-viewer.github.io",
   "description": "",
   "devDependencies": {
-    "parcel": "2.0.0-beta.3.1",
+    "parcel": "^2.0.0",
     "purescript": "^0.15.2",
-    "purs-tidy": "^0.7.0",
-    "spago": "^0.20.3"
+    "purs-tidy": "^0.7.2",
+    "spago": "^0.20.9"
   },
   "dependencies": {
     "lz-string": "^1.4.4",
