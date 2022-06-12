@@ -63,13 +63,11 @@ render state = HH.div_
     ViewMode ->
       HH.div
         ( [ classString "tablatureViewer tablature"
+          , HP.ref refTablatureViewer
+          , HP.tabIndex 1
           ] <> clickNoMenuEvent
         )
-        [ HH.pre
-            [ HP.ref refTablatureViewer
-            , HP.tabIndex 1
-            ]
-            renderTablature
+        [ HH.pre_ renderTablature
         ]
     EditMode ->
       HH.textarea
@@ -380,7 +378,7 @@ getTablatureContainerHtmlElement = do
     SearchMode -> pure Nothing
 
 getTablatureContainerElement :: forall m. MonadEffect m => HaloT m (Maybe Element)
-getTablatureContainerElement = getTablatureContainerHtmlElement <#> \maybeHtmlElement -> maybeHtmlElement <#> toElement
+getTablatureContainerElement = getTablatureContainerHtmlElement <#> map toElement
 
 saveScrollTop :: forall m. MonadEffect m => HaloT m Unit
 saveScrollTop = do
