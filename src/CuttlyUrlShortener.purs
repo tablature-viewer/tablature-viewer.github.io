@@ -13,7 +13,7 @@ import Effect.Console as Console
 import JSURI (encodeURIComponent)
 import LZString (compressToEncodedURIComponent)
 import LocationString (getLocationBaseString)
-import Simple.JSON (readJSON)
+import SimpleJSON (readJSON) -- TODO switch to argonaut
 
 type RequestBodyRecord = { url :: String }
 type ResponseRecord = { url :: { status :: Int } }

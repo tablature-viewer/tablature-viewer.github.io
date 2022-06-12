@@ -1,10 +1,12 @@
 "use strict";
 const LZString = require('lz-string');
 
-exports.unsafeCompressToEncodedURIComponent = function (value) {
+function unsafeCompressToEncodedURIComponent(value) {
   return LZString.compressToEncodedURIComponent(value);
 };
 
-exports.unsafeDecompressFromEncodedURIComponent = function (value) {
+function unsafeDecompressFromEncodedURIComponent(value) {
   return LZString.decompressFromEncodedURIComponent(value);
 };
+
+export { unsafeCompressToEncodedURIComponent, unsafeDecompressFromEncodedURIComponent }

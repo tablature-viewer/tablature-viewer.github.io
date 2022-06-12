@@ -2,7 +2,7 @@ module CorsProxy where
 
 import Prelude
 
-import Affjax as AX
+import Affjax.Web as AX
 import Affjax.ResponseFormat as ResponseFormat
 import AppState (Url)
 import Control.Monad.Maybe.Trans (MaybeT(..))

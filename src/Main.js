@@ -1,6 +1,6 @@
 "use strict";
 
-exports.executeJavascriptHacks = function () {
+function executeJavascriptHacks() {
   // The popstate event of the Window interface is fired when the active history entry changes while the user navigates the session history. 
   // Hack for making sure hashchanges trigger a reload when nagivating history
   // TODO: handle this event properly without a reload by executing the Initialize action on this event
@@ -26,3 +26,5 @@ exports.executeJavascriptHacks = function () {
   m.content = bgColor;
   document.head.appendChild(m);
 };
+
+export { executeJavascriptHacks }

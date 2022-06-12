@@ -3,7 +3,6 @@ module UGScraper where
 import Prelude
 
 import AppState (SearchResult, State, Url, _searchResults, setState)
-import Control.Error.Util (hoistMaybe)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.State (class MonadState)
 import Control.Monad.Writer (runWriterT, tell)
@@ -30,6 +29,10 @@ import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
 
 -- TODO: do we have a timeout for ajax requests?
+
+-- | Lift a `Maybe` to the `MaybeT` monad
+hoistMaybe :: forall b m. Monad m => Maybe b -> MaybeT m b
+hoistMaybe = MaybeT <<< pure
 
 foreign import _htmlDecode :: String -> String
 

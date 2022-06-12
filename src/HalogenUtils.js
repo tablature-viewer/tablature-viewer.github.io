@@ -1,6 +1,6 @@
 'use strict';
 
-exports.scrollBy = function (x) {
+function scrollBy(x) {
   return function (y) {
     return function (elt) {
       return function () {
@@ -13,3 +13,5 @@ exports.scrollBy = function (x) {
     };
   };
 };
+
+export { scrollBy }

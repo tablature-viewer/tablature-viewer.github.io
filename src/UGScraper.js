@@ -1,6 +1,6 @@
 'use strict';
 
-exports._htmlDecode = function (string) {
+function _htmlDecode(string) {
   return string
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
@@ -8,3 +8,5 @@ exports._htmlDecode = function (string) {
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&');
 }
+
+export { _htmlDecode }

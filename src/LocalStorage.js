@@ -1,6 +1,6 @@
 'use strict';
 
-exports.setLocalStorage = function (key) {
+function setLocalStorage(key) {
   return function (value) {
     return function () {
       window.localStorage.setItem(key, value);
@@ -8,8 +8,10 @@ exports.setLocalStorage = function (key) {
   }
 }
 
-exports.getLocalStorage = function (key) {
+function getLocalStorage(key) {
   return function () {
     return window.localStorage.getItem(key);
   }
 }
+
+export { setLocalStorage, getLocalStorage }
