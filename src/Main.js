@@ -1,5 +1,15 @@
 "use strict";
 
+import NoSleep from 'nosleep.js';
+var noSleep = new NoSleep();
+
+// Enable wake lock.
+// (must be wrapped in a user input event handler e.g. a mouse or touch handler)
+document.addEventListener('click', function enableNoSleep() {
+  document.removeEventListener('click', enableNoSleep, false);
+  noSleep.enable();
+}, false);
+
 function executeJavascriptHacks() {
   // The popstate event of the Window interface is fired when the active history entry changes while the user navigates the session history. 
   // Hack for making sure hashchanges trigger a reload when nagivating history
