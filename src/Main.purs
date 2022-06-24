@@ -148,6 +148,7 @@ updateAutoscroll action = do
     DecreaseAutoscrollSpeed -> true
     IncreaseAutoscrollSpeed -> true
     ToggleAutoscroll -> not currentAutoscroll
+    ClickNoMenu -> currentAutoscroll
     _ -> false
   updateAutoscrollTimer
 

@@ -23,6 +23,7 @@ import Halogen.HTML.Properties as HP
 import HalogenUtils (classString, fontAwesome, optionalText, scrollBy)
 import TablatureRenderer (renderTablatureDocument)
 import TablatureRewriter (NoteOrientation(..))
+import Utils (print)
 import Web.DOM (Element)
 import Web.DOM.Element (scrollTop, setScrollTop)
 import Web.HTML as WH
@@ -347,7 +348,7 @@ render state = HH.div_
               , HE.onClick \_ -> IncreaseAutoscrollSpeed
               ]
               [ fontAwesome "fa-forward" ]
-          , HH.div_ [ HH.text $ "Autoscroll speed " <> show (view _autoscrollSpeed state) ]
+          , HH.div_ [ HH.text $ "Autoscroll speed " <> print (view _autoscrollSpeed state) ]
           ]
       ]
 

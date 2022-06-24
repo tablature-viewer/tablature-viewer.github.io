@@ -5,6 +5,7 @@ import Prelude
 import Data.Enum (class Enum)
 import Data.Enum.Generic (genericPred, genericSucc)
 import Data.Generic.Rep (class Generic)
+import Utils (class Print)
 
 data AutoscrollSpeed
   = Slowest
@@ -14,13 +15,13 @@ data AutoscrollSpeed
   | Fast
   | Fastest
 
-instance showAutoscrollSpeed :: Show AutoscrollSpeed where
-  show Slowest = "(0.2)"
-  show Slower = "(0.4)"
-  show Slow = "(0.6)"
-  show Normal = "(1.0)"
-  show Fast = "(2.0)"
-  show Fastest = "(4.0)"
+instance Print AutoscrollSpeed where
+  print Slowest = "(0.2)"
+  print Slower = "(0.4)"
+  print Slow = "(0.6)"
+  print Normal = "(1.0)"
+  print Fast = "(2.0)"
+  print Fastest = "(4.0)"
 
 derive instance eqAutoscrollSpeed :: Eq AutoscrollSpeed
 derive instance ordAutoscrollSpeed :: Ord AutoscrollSpeed
