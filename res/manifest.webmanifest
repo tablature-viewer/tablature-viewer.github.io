@@ -1,7 +1,6 @@
 {
-  "background_color": "purple",
-  "description": "Shows random fox pictures. Hey, at least it isn't cats.",
-  "display": "fullscreen",
+  "background_color": "#262335",
+  "description": "View tablature and chord sheets",
   "icons": [
     {
       "src": "./favicon.png",
@@ -11,5 +10,16 @@
   ],
   "name": "Tablature Viewer",
   "short_name": "Tabviewer",
-  "start_url": "/"
+  "categories": [
+    "guitar tabs",
+    "bass tabs",
+    "tab",
+    "tablature",
+    "tabs",
+    "chords",
+    "ukulele",
+    "ukulele chords",
+    "sheet music",
+    "music"
+  ]
 }
