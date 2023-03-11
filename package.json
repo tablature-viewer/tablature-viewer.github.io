@@ -31,8 +31,10 @@
   "homepage": "https://github.com/tablature-viewer/tablature-viewer.github.io",
   "description": "",
   "devDependencies": {
-    "parcel": "2.8.3",
+    "@parcel/packager-raw-url": "^2.8.3",
     "@parcel/transformer-image": "2.8.3",
+    "@parcel/transformer-webmanifest": "^2.8.3",
+    "parcel": "2.8.3",
     "purescript": "0.15.7",
     "purs-tidy": "latest",
     "spago": "0.20.9"
