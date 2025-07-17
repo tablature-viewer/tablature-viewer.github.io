@@ -27,6 +27,7 @@ import Web.DOM.DOMParser (makeDOMParser, parseHTMLFromString)
 import Web.DOM.Document (toParentNode)
 import Web.DOM.Element (getAttribute)
 import Web.DOM.ParentNode (QuerySelector(..), querySelector)
+import JSURI (encodeURIComponent)
 
 -- TODO: do we have a timeout for ajax requests?
 
@@ -38,12 +39,16 @@ foreign import _htmlDecode :: String -> String
 
 execSearch :: forall m. MonadAff m => MonadState State m => String -> m Unit
 execSearch phrase = map (const unit) $ runMaybeT do
-  let url = """https://www.ultimate-guitar.com/search.php?search_type=title&value=""" <> phrase
-  dataContent <- fetchUrlDataContent url
-  Tuple maybeSearchResults log <- runWriterT $ runMaybeT $ extractSearchResults dataContent
-  _ <- liftEffect $ traverse Console.error log
-  searchResults <- hoistMaybe maybeSearchResults
-  setState _searchResults (Just $ filterSearchResults searchResults)
+  case encodeURIComponent phrase of
+    Nothing -> do
+      liftEffect $ Console.error $ "Could not encode search phrase " <> phrase
+    Just encodedPhrase -> do
+      let url = """https://www.ultimate-guitar.com/search.php?search_type=title&value=""" <> encodedPhrase
+      dataContent <- fetchUrlDataContent url
+      Tuple maybeSearchResults log <- runWriterT $ runMaybeT $ extractSearchResults dataContent
+      _ <- liftEffect $ traverse Console.error log
+      searchResults <- hoistMaybe maybeSearchResults
+      setState _searchResults (Just $ filterSearchResults searchResults)
 
 filterSearchResults :: Array SearchResult -> Array SearchResult
 filterSearchResults = Array.filter pred
